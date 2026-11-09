@@ -1,0 +1,6 @@
+{
+  "name": "Maan News - Enterprise CMS & Admin Panel",
+  "description": "Enterprise News CMS with advanced block editor, AI news assistant, media library, multi-role publishing, ad placement manager, SEO analyzer, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
