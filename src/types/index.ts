@@ -62,6 +62,8 @@ export interface Post {
     metaRobots?: string;
   };
   customFields?: Record<string, string>;
+  readTime?: string;
+  isMemberExclusive?: boolean;
   revisions?: PostRevision[];
 }
 

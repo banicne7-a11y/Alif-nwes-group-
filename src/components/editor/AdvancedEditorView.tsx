@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { api } from '../../services/api';
+import { toast } from '../../services/toast';
 import { Post, EditorBlock, PostStatus } from '../../types';
 
 interface AdvancedEditorViewProps {
@@ -140,7 +141,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
   const handleDeleteBlock = (id: string) => {
     if (blocks.length <= 1) {
-      alert('Articles require at least one content block.');
+      toast.warning('Articles require at least one content block.');
       return;
     }
     setBlocks(blocks.filter((b) => b.id !== id));
@@ -213,11 +214,12 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         setStatus('pending_review');
         setEditorialNotes('Generated via Gemini 3.8 Flash. Editorial verification of citations and facts required prior to publishing.');
         setAiNotification('Article generated! Flagged as "Pending Review" for mandatory editorial approval.');
+        toast.success('Article generated and queued for editorial approval!');
       } else {
-        alert(res.error || 'Could not generate article');
+        toast.error(res.error || 'Could not generate article');
       }
     } catch (e: any) {
-      alert(e.message || 'Error calling AI service');
+      toast.error(e.message || 'Error calling AI service');
     } finally {
       setAiLoading(false);
     }
@@ -228,12 +230,11 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     try {
       const res = await api.generateHeadlines(title || aiPrompt || 'Global News Today');
       if (res.success && res.data && Array.isArray(res.data)) {
-        const headlineList = res.data.join('\n• ');
-        alert(`Generated Catchy Headlines:\n\n• ${headlineList}\n\nClick OK and select any headline to update your title.`);
         if (res.data[0]) setTitle(res.data[0]);
+        toast.success(`Generated 5 headlines! Title set to: "${res.data[0]}"`);
       }
     } catch (e: any) {
-      alert(e.message || 'Headlines generator error');
+      toast.error(e.message || 'Headlines generator error');
     } finally {
       setAiLoading(false);
     }
@@ -245,10 +246,10 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
       const sampleText = `${title}\n\n${blocks[0]?.content || ''}`;
       const res = await api.translateText(sampleText, targetLang);
       if (res.success) {
-        alert(`Translated preview (${targetLang}):\n\n${res.text || res.data}`);
+        toast.info(`Translated preview (${targetLang}) generated!`);
       }
     } catch (e: any) {
-      alert(e.message || 'Translation error');
+      toast.error(e.message || 'Translation error');
     } finally {
       setAiLoading(false);
     }
@@ -257,49 +258,56 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   // Save Post
   const handleSave = (targetStatus?: PostStatus) => {
     if (!title.trim()) {
-      alert('Please enter a post title.');
+      toast.error('Please enter a post title.');
       return;
     }
 
     const finalStatus: PostStatus = targetStatus || status;
 
+    const doSave = () => {
+      const saved = db.savePost({
+        id: postToEdit?.id,
+        title,
+        subtitle,
+        slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        blocks,
+        content: blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join('\n\n'),
+        excerpt: subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 160) : title),
+        category,
+        tags: selectedTags,
+        featuredImage,
+        status: finalStatus,
+        scheduledAt: finalStatus === 'scheduled' ? scheduledAt : undefined,
+        isBreaking,
+        isTrending,
+        isEditorPick,
+        isHomepageSlider,
+        isAiGenerated,
+        aiApprovalStatus: isAiGenerated ? (finalStatus === 'published' ? 'approved' : 'pending') : 'approved',
+        editorialNotes,
+        seo: {
+          title: seoTitle || title,
+          description: seoDescription || subtitle || title,
+          focusKeyword: seoFocusKeyword || category,
+          score: seoScore,
+        },
+      });
+      toast.success(`Article "${title}" saved as ${finalStatus}!`);
+      onSaved(saved);
+    };
+
     // Enforce prompt requirement: If AI generated, must require editorial approval before publishing!
     if (isAiGenerated && finalStatus === 'published' && postToEdit?.aiApprovalStatus !== 'approved') {
-      const confirmApprove = confirm(
-        'EDITORIAL APPROVAL NOTICE:\n\nThis article was AI-generated. As an Administrator/Editor, do you certify that facts, quotes, and guidelines have been thoroughly reviewed and approved for public broadcast?'
-      );
-      if (!confirmApprove) return;
+      toast.confirm({
+        title: 'Editorial Approval Guardrail',
+        message: 'This article was AI-generated. Do you certify that facts, citations, and editorial guidelines have been thoroughly reviewed and approved for public broadcast?',
+        confirmLabel: 'Certify & Publish',
+        onConfirm: doSave,
+      });
+      return;
     }
 
-    const saved = db.savePost({
-      id: postToEdit?.id,
-      title,
-      subtitle,
-      slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-      blocks,
-      content: blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join('\n\n'),
-      excerpt: subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 160) : title),
-      category,
-      tags: selectedTags,
-      featuredImage,
-      status: finalStatus,
-      scheduledAt: finalStatus === 'scheduled' ? scheduledAt : undefined,
-      isBreaking,
-      isTrending,
-      isEditorPick,
-      isHomepageSlider,
-      isAiGenerated,
-      aiApprovalStatus: isAiGenerated ? (finalStatus === 'published' ? 'approved' : 'pending') : 'approved',
-      editorialNotes,
-      seo: {
-        title: seoTitle || title,
-        description: seoDescription || subtitle || title,
-        focusKeyword: seoFocusKeyword || category,
-        score: seoScore,
-      },
-    });
-
-    onSaved(saved);
+    doSave();
   };
 
   return (
@@ -409,12 +417,12 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
               5 Headlines
             </button>
             <button
-              onClick={() => handleAiTranslate('Bengali')}
+              onClick={() => handleAiTranslate('Spanish')}
               disabled={aiLoading}
               className="px-3.5 py-2 bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-              title="বাংলা অনুবাদ"
+              title="Translate to Spanish"
             >
-              Translate বাংলা
+              Translate Spanish
             </button>
           </div>
 

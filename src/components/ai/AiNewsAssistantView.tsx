@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Post } from '../../types';
 
 interface AiNewsAssistantViewProps {
@@ -79,7 +80,7 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
         setResult(res);
       }
     } catch (e: any) {
-      alert(e.message || 'AI request failed');
+      toast.error(e.message || 'AI request failed');
     } finally {
       setLoading(false);
     }
@@ -99,23 +100,26 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
       editorialNotes: 'Created via AI Newsroom Generator. Editorial verification required.',
     });
     setPosts([...db.getPosts()]);
-    alert('Article saved to CMS as "Pending Review" (Requires Editorial Approval before publishing)!');
+    toast.success('Article saved to CMS as "Pending Review" (Requires Editorial Approval before publishing)!');
     onNavigateToEditor(newPost);
   };
 
   const handleApproveAiPost = (post: Post) => {
-    const confirmed = confirm(
-      `Approve "${post.title}" for publishing?\n\nAs Editor, you certify this AI story meets journalistic standards.`
-    );
-    if (confirmed) {
-      db.savePost({
-        ...post,
-        aiApprovalStatus: 'approved',
-        status: 'published',
-        editorialNotes: `Approved by Editor on ${new Date().toLocaleString()}`,
-      });
-      setPosts([...db.getPosts()]);
-    }
+    toast.confirm({
+      title: 'Editorial Approval Certification',
+      message: `Approve "${post.title}" for publishing? As Editor, you certify this AI story meets journalistic standards.`,
+      confirmLabel: 'Certify & Publish',
+      onConfirm: () => {
+        db.savePost({
+          ...post,
+          aiApprovalStatus: 'approved',
+          status: 'published',
+          editorialNotes: `Approved by Editor on ${new Date().toLocaleString()}`,
+        });
+        setPosts([...db.getPosts()]);
+        toast.success(`"${post.title}" certified and published to the live portal!`);
+      },
+    });
   };
 
   const handleRejectAiPost = (post: Post) => {
@@ -172,7 +176,7 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
           { key: 'summarizer', label: 'Executive Summarizer' },
           { key: 'seo', label: 'SEO Writer' },
           { key: 'grammar', label: 'Grammar & Tone Polish' },
-          { key: 'translate', label: 'Translation Studio (বাংলা/etc)' },
+          { key: 'translate', label: 'Translation Studio (Global Languages)' },
           { key: 'social', label: 'Social Captions' },
           { key: 'duplicates', label: 'Originality & Plagiarism' },
           { key: 'queue', label: `Approval Queue (${pendingAiPosts.length})` },
@@ -337,12 +341,11 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
                   onChange={(e) => setTargetLang(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-semibold"
                 >
-                  <option value="Bengali">বাংলা (Bengali)</option>
-                  <option value="Spanish">Español (Spanish)</option>
-                  <option value="French">Français (French)</option>
-                  <option value="German">Deutsch (German)</option>
-                  <option value="Arabic">العربية (Arabic)</option>
-                  <option value="Hindi">हिन्दी (Hindi)</option>
+                  <option value="Spanish">Spanish (Español)</option>
+                  <option value="French">French (Français)</option>
+                  <option value="German">German (Deutsch)</option>
+                  <option value="Arabic">Arabic (العربية)</option>
+                  <option value="Japanese">Japanese (日本語)</option>
                 </select>
               </div>
             )}

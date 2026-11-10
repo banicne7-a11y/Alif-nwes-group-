@@ -10,6 +10,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Comment } from '../../types';
 
 export const CommentsView: React.FC = () => {
@@ -37,6 +38,7 @@ export const CommentsView: React.FC = () => {
   const handleStatusChange = (id: string, newStatus: Comment['status']) => {
     db.updateCommentStatus(id, newStatus);
     refreshComments();
+    toast.info(`Comment marked as ${newStatus}`);
   };
 
   const handleSendReply = (comment: Comment) => {
@@ -58,6 +60,7 @@ export const CommentsView: React.FC = () => {
       comments[idx].replies = updatedReplies;
       db.logAction('Comment Replied', `Editorial response added to comment by ${comment.authorName}`);
       refreshComments();
+      toast.success('Editorial reply posted!');
     }
 
     setReplyingToId(null);
@@ -69,7 +72,7 @@ export const CommentsView: React.FC = () => {
     if (newBlockedWord.trim() && !blockedWords.includes(newBlockedWord.trim())) {
       setBlockedWords([...blockedWords, newBlockedWord.trim().toLowerCase()]);
       setNewBlockedWord('');
-      alert('Word added to automated anti-spam filter!');
+      toast.success('Word added to automated anti-spam filter!');
     }
   };
 

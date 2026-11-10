@@ -15,6 +15,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -43,12 +44,11 @@ export const Header: React.FC<HeaderProps> = ({
   const recentLogs = db.getState().logs.slice(0, 5);
 
   const languages = [
-    { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'bn', name: 'বাংলা (Bengali)', flag: '🇧🇩' },
-    { code: 'es', name: 'Español', flag: '🇪🇸' },
+    { code: 'en', name: 'English (US)', flag: '🇺🇸' },
+    { code: 'es', name: 'Español (US)', flag: '🇲🇽' },
     { code: 'fr', name: 'Français', flag: '🇫🇷' },
     { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'ja', name: '日本語', flag: '🇯🇵' },
   ];
 
   return (
@@ -258,10 +258,10 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="border-t border-slate-100 pt-1">
                 <button
                   onClick={() => {
-                    alert('Signed out successfully. Returning to Administrator session.');
+                    toast.info('Session refreshed. Connected as Lead Administrator.');
                     setShowProfileMenu(false);
                   }}
-                  className="w-full px-4 py-2 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2.5"
+                  className="w-full px-4 py-2 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2.5 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Log Out</span>

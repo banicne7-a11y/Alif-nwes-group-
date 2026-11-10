@@ -14,6 +14,7 @@ import {
   Download,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { MediaItem } from '../../types';
 
 export const MediaLibraryView: React.FC = () => {
@@ -93,16 +94,24 @@ export const MediaLibraryView: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Delete this media item from library?')) {
-      db.deleteMediaItem(id);
-      if (selectedItem?.id === id) setSelectedItem(null);
-      refreshMedia();
-    }
+    toast.confirm({
+      title: 'Delete Media Item',
+      message: 'Delete this media item from the library?',
+      confirmLabel: 'Delete Media',
+      isDestructive: true,
+      onConfirm: () => {
+        db.deleteMediaItem(id);
+        if (selectedItem?.id === id) setSelectedItem(null);
+        refreshMedia();
+        toast.success('Media item deleted');
+      },
+    });
   };
 
   const handleSaveAltText = (id: string, altText: string) => {
     db.updateMediaItem(id, { altText });
     refreshMedia();
+    toast.success('Alt text updated');
   };
 
   return (
@@ -350,7 +359,7 @@ export const MediaLibraryView: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  alert(`Image cropped to ${cropRatio} and optimized with WebP!`);
+                  toast.success(`Image cropped to ${cropRatio} and optimized with WebP!`);
                   setCropModalOpen(false);
                 }}
                 className="px-4 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-lg shadow-2xs"

@@ -9,6 +9,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { NewsletterSubscriber, NewsletterCampaign } from '../../types';
 
 export const NewsletterView: React.FC = () => {
@@ -30,10 +31,10 @@ export const NewsletterView: React.FC = () => {
   const handleAddSubscriber = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSubEmail) return;
-    db.addSubscriber(newSubEmail);
+    const sub = db.addSubscriber(newSubEmail);
     setNewSubEmail('');
     refreshState();
-    alert('Subscriber added successfully!');
+    toast.success(`Subscriber "${sub.email}" registered successfully!`);
   };
 
   const handleSendCampaign = (e: React.FormEvent) => {
@@ -50,7 +51,7 @@ export const NewsletterView: React.FC = () => {
       setSending(false);
       setCampaignSubject('');
       refreshState();
-      alert('Email newsletter dispatch sent to 10,000 subscribers!');
+      toast.success(`Email newsletter dispatch delivered to ${subscribers.length.toLocaleString()} active subscribers!`);
     }, 1200);
   };
 
@@ -61,8 +62,9 @@ export const NewsletterView: React.FC = () => {
     const encoded = encodeURI(csvContent);
     const link = document.createElement('a');
     link.href = encoded;
-    link.download = `maan_news_subscribers_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `alif_news_24_subscribers_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
+    toast.info('Subscribers CSV exported');
   };
 
   return (
@@ -72,7 +74,7 @@ export const NewsletterView: React.FC = () => {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Newsletter & Dispatches</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            10,000 active subscribers • Morning briefings, breaking alerts, and email analytics.
+            {subscribers.length.toLocaleString()} active subscribers • Morning briefings, breaking alerts, and email analytics.
           </p>
         </div>
 

@@ -11,6 +11,7 @@ import {
   ToggleRight,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Post } from '../../types';
 
 export const BreakingTrendingView: React.FC = () => {
@@ -33,6 +34,7 @@ export const BreakingTrendingView: React.FC = () => {
       breakingNewsTickerActive: nextState,
     });
     refreshState();
+    toast.info(nextState ? 'Breaking news ticker activated' : 'Breaking news ticker paused');
   };
 
   const handleSaveTickerText = () => {
@@ -41,7 +43,7 @@ export const BreakingTrendingView: React.FC = () => {
       breakingNewsTickerActive: tickerActive,
     });
     refreshState();
-    alert('Breaking news marquee banner updated!');
+    toast.success('Breaking news ticker text updated!');
   };
 
   const handleTogglePostBreaking = (post: Post) => {
@@ -50,6 +52,7 @@ export const BreakingTrendingView: React.FC = () => {
       isBreaking: !post.isBreaking,
     });
     refreshState();
+    toast.info(!post.isBreaking ? `"${post.title.slice(0, 30)}..." marked as Breaking` : 'Removed from Breaking');
   };
 
   const handleTogglePostSlider = (post: Post) => {
@@ -58,18 +61,19 @@ export const BreakingTrendingView: React.FC = () => {
       isHomepageSlider: !post.isHomepageSlider,
     });
     refreshState();
+    toast.info(!post.isHomepageSlider ? 'Added to Homepage Slider' : 'Removed from Homepage Slider');
   };
 
   const handleSendUrgentPush = (e: React.FormEvent) => {
     e.preventDefault();
     if (!urgentAlertText.trim()) return;
     setAlertSent(true);
-    db.logAction('Push Notification Sent', `Urgent news alert broadcast to 30,000 readers: "${urgentAlertText}"`, 'warning');
+    db.logAction('Push Notification Sent', `Urgent news alert broadcast to all readers: "${urgentAlertText}"`, 'warning');
     setTimeout(() => {
       setAlertSent(false);
       setUrgentAlertText('');
-      alert('Urgent Notification successfully delivered to 30,000 active app and web subscribers!');
-    }, 1000);
+      toast.success('Urgent news notification broadcast to all active subscribers!');
+    }, 600);
   };
 
   return (

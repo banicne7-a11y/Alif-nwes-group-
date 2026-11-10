@@ -15,6 +15,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Page } from '../../types';
 
 interface PagesViewProps {
@@ -73,7 +74,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      alert('Please enter a page title.');
+      toast.error('Please enter a page title.');
       return;
     }
 
@@ -92,19 +93,30 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
 
     setModalOpen(false);
     refreshPages();
+    toast.success(`Page "${saved.title}" saved successfully`);
   };
 
   const handleToggleMenuVisibility = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    db.togglePageMenuVisibility(id);
+    const updated = db.togglePageMenuVisibility(id);
     refreshPages();
+    if (updated) {
+      toast.info(updated.showInMenu ? `"${updated.title}" added to Homepage Menu` : `"${updated.title}" removed from Homepage Menu`);
+    }
   };
 
   const handleDelete = (id: string, pageTitle: string) => {
-    if (confirm(`Are you sure you want to delete page "${pageTitle}"?`)) {
-      db.deletePage(id);
-      refreshPages();
-    }
+    toast.confirm({
+      title: 'Delete Page',
+      message: `Are you sure you want to delete page "${pageTitle}"?`,
+      confirmLabel: 'Delete Page',
+      isDestructive: true,
+      onConfirm: () => {
+        db.deletePage(id);
+        refreshPages();
+        toast.success(`Page "${pageTitle}" deleted`);
+      },
+    });
   };
 
   return (
@@ -132,17 +144,17 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
         </button>
       </div>
 
-      {/* Info Notice Box in Bengali & English for User Guidance */}
+      {/* Info Notice Box for User Guidance */}
       <div className="p-4 bg-gradient-to-r from-sky-50 via-cyan-50 to-white rounded-2xl border border-sky-200/80 shadow-2xs flex items-start gap-3 text-xs">
         <div className="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
           <Menu className="w-4 h-4" />
         </div>
         <div>
           <p className="font-bold text-slate-800 text-sm">
-            Homepage Navigation Menu Control (হোমপেজ মেনু কন্ট্রোল)
+            Homepage Navigation Menu Control
           </p>
           <p className="text-slate-600 mt-0.5 leading-relaxed">
-            আপনি যেকোনো Page তৈরি করে <strong>"In Menu"</strong> বাটনে এক ক্লিকে হোমপেজ মেনুতে দৃশ্যমান (Visible) অথবা হাইড (Hidden) করতে পারবেন। যে পেজগুলোতে <strong>"Visible in Menu"</strong> অন থাকবে, পাঠকরা হোমপেজের শীর্ষে সরাসরি দেখতে ও পড়তে পারবে।
+            Create any custom Page and click the <strong>"In Menu"</strong> toggle to make it instantly visible or hidden in the reader homepage navigation drawer. Pages marked as <strong>"Visible in Menu"</strong> can be read directly by visitors.
           </p>
         </div>
       </div>
@@ -200,12 +212,12 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                       {p.showInMenu ? (
                         <>
                           <Eye className="w-3.5 h-3.5 text-white" />
-                          <span>Visible in Menu (সবাই দেখবে)</span>
+                          <span>Visible in Menu</span>
                         </>
                       ) : (
                         <>
                           <EyeOff className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Hidden from Menu (হাইড করা)</span>
+                          <span>Hidden from Menu</span>
                         </>
                       )}
                     </button>
@@ -263,7 +275,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="font-extrabold text-lg text-slate-900">
-                  {editingPage ? 'Edit Page' : 'Add New Page (নতুন পেজ যুক্ত করুন)'}
+                  {editingPage ? 'Edit Page' : 'Add New Page'}
                 </h3>
                 <p className="text-xs text-slate-500">
                   Configure page title, content, SEO, and homepage navigation menu visibility.
@@ -281,7 +293,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Page Title (পেজের নাম) *
+                    Page Title *
                   </label>
                   <input
                     type="text"
@@ -295,7 +307,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    URL Slug (লিংক ঠিকানা)
+                    URL Slug
                   </label>
                   <input
                     type="text"
@@ -307,7 +319,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                 </div>
               </div>
 
-              {/* Homepage Menu Visibility Toggle (Key User Request) */}
+              {/* Homepage Menu Visibility Toggle */}
               <div className="p-4 bg-sky-50/70 border border-sky-200 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -316,7 +328,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                       <span>Show in Homepage Navigation Menu</span>
                     </p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      অন রাখলে হোমপেজের টপ মেনুতে সবাই পেজটি দেখতে পারবে। অফ রাখলে হাইড থাকবে।
+                      When enabled, visitors can access this page directly from the 3-bar header drawer.
                     </p>
                   </div>
 
@@ -327,7 +339,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                       showInMenu ? 'bg-sky-600 text-white' : 'bg-slate-300 text-slate-700'
                     }`}
                   >
-                    {showInMenu ? '✓ In Menu (অন)' : '✕ Hidden (হাইড)'}
+                    {showInMenu ? '✓ In Menu' : '✕ Hidden'}
                   </button>
                 </div>
 
@@ -339,7 +351,7 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                       onChange={(e) => setShowInFooter(e.target.checked)}
                       className="rounded-sm border-slate-300 text-sky-600 focus:ring-sky-500"
                     />
-                    <span>Show link in Footer (ওয়েবসাইটের নিচেও লিংক দেখান)</span>
+                    <span>Show link in Footer</span>
                   </label>
                 </div>
               </div>
@@ -366,15 +378,15 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg font-bold"
                   >
-                    <option value="published">Published (সবার জন্য প্রকাশিত)</option>
-                    <option value="draft">Draft (খসড়া)</option>
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Page Content (পেজের বিবরণ / বডি)
+                  Page Content
                 </label>
                 <textarea
                   rows={6}

@@ -14,6 +14,7 @@ import {
   FileJson,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { BackupRecord, ActivityLog } from '../../types';
 
 export const SecurityBackupView: React.FC = () => {
@@ -35,8 +36,7 @@ export const SecurityBackupView: React.FC = () => {
   const handleCreateBackup = (type: 'manual' | 'automated' = 'manual') => {
     const record = db.createBackup(type);
     refreshState();
-    setStatusMessage(`Backup "${record.fileName}" created successfully (${record.size})!`);
-    setTimeout(() => setStatusMessage(null), 4000);
+    toast.success(`Backup "${record.fileName}" created successfully (${record.size})!`);
   };
 
   const handleDownloadBackup = (record: BackupRecord) => {
@@ -48,19 +48,25 @@ export const SecurityBackupView: React.FC = () => {
     link.download = record.fileName;
     link.click();
     URL.revokeObjectURL(url);
+    toast.info(`Downloading "${record.fileName}"`);
   };
 
   const handleRestore = (record: BackupRecord) => {
-    if (confirm(`RESTORE WARNING:\n\nRestoring from "${record.fileName}" will reload all database collections from this snapshot. Proceed?`)) {
-      const dataStr = record.downloadData || JSON.stringify(db.getState());
-      const success = db.restoreBackup(dataStr);
-      if (success) {
-        alert('Database restored successfully! Reloading view...');
-        window.location.reload();
-      } else {
-        alert('Failed to restore backup snapshot.');
-      }
-    }
+    toast.confirm({
+      title: 'Restore Database Snapshot',
+      message: `Restoring from "${record.fileName}" will reload all database collections from this snapshot. Proceed?`,
+      confirmLabel: 'Restore Snapshot',
+      onConfirm: () => {
+        const dataStr = record.downloadData || JSON.stringify(db.getState());
+        const success = db.restoreBackup(dataStr);
+        if (success) {
+          refreshState();
+          toast.success('Database restored successfully from snapshot!');
+        } else {
+          toast.error('Failed to restore backup snapshot.');
+        }
+      },
+    });
   };
 
   const handleFileUploadRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,24 +76,36 @@ export const SecurityBackupView: React.FC = () => {
     const reader = new FileReader();
     reader.onload = () => {
       const content = reader.result as string;
-      if (confirm(`Restore system database from uploaded file "${file.name}"?`)) {
-        const ok = db.restoreBackup(content);
-        if (ok) {
-          alert('Database restored successfully from file! Reloading...');
-          window.location.reload();
-        } else {
-          alert('Invalid backup JSON format.');
-        }
-      }
+      toast.confirm({
+        title: 'Restore from File',
+        message: `Restore system database from uploaded file "${file.name}"?`,
+        confirmLabel: 'Restore Database',
+        onConfirm: () => {
+          const ok = db.restoreBackup(content);
+          if (ok) {
+            refreshState();
+            toast.success('Database restored successfully from uploaded file!');
+          } else {
+            toast.error('Invalid backup JSON format.');
+          }
+        },
+      });
     };
     reader.readAsText(file);
   };
 
   const handleDeleteBackup = (id: string) => {
-    if (confirm('Delete this backup snapshot?')) {
-      db.deleteBackup(id);
-      refreshState();
-    }
+    toast.confirm({
+      title: 'Delete Backup Snapshot',
+      message: 'Delete this backup snapshot?',
+      confirmLabel: 'Delete Backup',
+      isDestructive: true,
+      onConfirm: () => {
+        db.deleteBackup(id);
+        refreshState();
+        toast.success('Backup snapshot deleted');
+      },
+    });
   };
 
   const handleSaveBackupSettings = () => {
@@ -97,7 +115,7 @@ export const SecurityBackupView: React.FC = () => {
       ipBlacklist,
     });
     refreshState();
-    alert('Security and Automated Backup policies updated!');
+    toast.success('Security and Automated Backup policies updated!');
   };
 
   const handleAddIp = (e: React.FormEvent) => {

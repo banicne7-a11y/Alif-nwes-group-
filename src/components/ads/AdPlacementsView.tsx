@@ -11,14 +11,18 @@ import {
   Sparkles,
   ExternalLink,
   Info,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { AdPlacement } from '../../types';
 
 export const AdPlacementsView: React.FC = () => {
   const [ads, setAds] = useState<AdPlacement[]>(db.getAds());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<AdPlacement | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Form state
   const [name, setName] = useState('');
@@ -63,7 +67,7 @@ export const AdPlacementsView: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !key) {
-      alert('Please enter placement name and location key.');
+      toast.error('Please enter placement name and location key.');
       return;
     }
 
@@ -82,18 +86,30 @@ export const AdPlacementsView: React.FC = () => {
 
     refreshAds();
     setModalOpen(false);
+    toast.success(`Ad placement "${name}" saved successfully`);
   };
 
   const handleDelete = (id: string, adName: string) => {
-    if (confirm(`Are you sure you want to delete ad placement "${adName}"?`)) {
-      db.deleteAd(id);
-      refreshAds();
-    }
+    toast.confirm({
+      title: 'Delete Ad Placement',
+      message: `Are you sure you want to delete ad placement "${adName}"?`,
+      confirmLabel: 'Delete Placement',
+      isDestructive: true,
+      onConfirm: () => {
+        db.deleteAd(id);
+        refreshAds();
+        toast.success(`Ad placement "${adName}" deleted`);
+      },
+    });
   };
 
   const handleToggleStatus = (id: string) => {
     db.toggleAdStatus(id);
     refreshAds();
+    const updated = db.getAds().find((a) => a.id === id);
+    if (updated) {
+      toast.info(`Placement status updated to "${updated.status}"`);
+    }
   };
 
   return (
@@ -132,80 +148,189 @@ export const AdPlacementsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Table Card matching Screenshot 2 */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-extrabold text-base text-slate-900">Active Placements</h2>
-          <span className="text-xs text-slate-400 font-medium">All slot positions defined in theme</span>
+      {/* Main Container with 2-Column Grid or Table View */}
+      <div className="space-y-4">
+        {/* View Switcher Header */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-extrabold text-base text-slate-900">Active Placements ({ads.length})</h2>
+            <p className="text-xs text-slate-400">Layout: 2 Ad Slots per Row</p>
+          </div>
+
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>2-Column Grid (2 per line)</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Table View</span>
+            </button>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs md:text-sm">
-            <thead className="bg-slate-50/70 text-slate-500 font-semibold border-b border-slate-200/70">
-              <tr>
-                <th className="py-3 px-6">Placement Name</th>
-                <th className="py-3 px-6">Key (Location)</th>
-                <th className="py-3 px-6">Type</th>
-                <th className="py-3 px-6">Size</th>
-                <th className="py-3 px-6">Status</th>
-                <th className="py-3 px-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {ads.map((ad) => (
-                <tr key={ad.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3.5 px-6 font-semibold text-slate-900">
-                    {ad.name}
-                  </td>
-                  <td className="py-3.5 px-6 font-mono text-xs text-slate-500">
-                    {ad.key}
-                  </td>
-                  <td className="py-3.5 px-6 text-slate-600">
-                    <span className="inline-flex items-center gap-1.5 font-mono text-xs">
-                      <Code2 className="w-3.5 h-3.5 text-slate-400" />
-                      {ad.type}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-6 font-mono text-xs text-slate-600">
-                    {ad.size}
-                  </td>
-                  <td className="py-3.5 px-6">
-                    <button
-                      onClick={() => handleToggleStatus(ad.id)}
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                        ad.status === 'Active'
-                          ? 'bg-slate-900 text-white hover:bg-slate-800'
-                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                      }`}
-                      title="Click to toggle status"
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
-                      {ad.status}
-                    </button>
-                  </td>
-                  <td className="py-3.5 px-6 text-right">
-                    <div className="flex items-center justify-end gap-2 text-slate-400">
-                      <button
-                        onClick={() => handleOpenEdit(ad)}
-                        className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                        title="Edit Placement"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(ad.id, ad.name)}
-                        className="p-1.5 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Placement"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
-                      </button>
+        {/* VIEW 1: 2-COLUMN GRID VIEW (2 ad slots per row) */}
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {ads.map((ad, idx) => (
+              <div
+                key={ad.id}
+                className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono">
+                        Slot #{idx + 1}
+                      </span>
+                      <span className="text-xs font-mono text-slate-400 truncate">{ad.key}</span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <h3 className="font-extrabold text-sm text-slate-900 mt-1 truncate">
+                      {ad.name}
+                    </h3>
+                  </div>
+
+                  <button
+                    onClick={() => handleToggleStatus(ad.id)}
+                    className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+                      ad.status === 'Active'
+                        ? 'bg-slate-900 text-white hover:bg-slate-800'
+                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                    <span>{ad.status}</span>
+                  </button>
+                </div>
+
+                {/* Simulated Ad Preview Box */}
+                <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 flex flex-col items-center justify-center text-center space-y-1.5 min-h-[110px]">
+                  <Tv className="w-5 h-5 text-slate-400" />
+                  <p className="text-xs font-bold text-slate-700">{ad.name}</p>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    Size: {ad.size} • Target: {ad.deviceTarget} • Type: {ad.type}
+                  </p>
+                </div>
+
+                {/* Footer Metrics & Actions */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-4 text-slate-500 font-mono text-[11px]">
+                    <span title="Impressions">
+                      👀 {((ad.impressions || 45000) / 1000).toFixed(1)}k
+                    </span>
+                    <span title="Clicks">
+                      🖱️ {(ad.clicks || 1200).toLocaleString()} clicks
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenEdit(ad)}
+                      className="p-1.5 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                      title="Edit Placement"
+                    >
+                      <Pencil className="w-4 h-4 text-slate-500" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(ad.id, ad.name)}
+                      className="p-1.5 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Delete Placement"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* VIEW 2: TABLE VIEW */
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs md:text-sm">
+                <thead className="bg-slate-50/70 text-slate-500 font-semibold border-b border-slate-200/70">
+                  <tr>
+                    <th className="py-3 px-6">Placement Name</th>
+                    <th className="py-3 px-6">Key (Location)</th>
+                    <th className="py-3 px-6">Type</th>
+                    <th className="py-3 px-6">Size</th>
+                    <th className="py-3 px-6">Status</th>
+                    <th className="py-3 px-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {ads.map((ad) => (
+                    <tr key={ad.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-6 font-semibold text-slate-900">
+                        {ad.name}
+                      </td>
+                      <td className="py-3.5 px-6 font-mono text-xs text-slate-500">
+                        {ad.key}
+                      </td>
+                      <td className="py-3.5 px-6 text-slate-600">
+                        <span className="inline-flex items-center gap-1.5 font-mono text-xs">
+                          <Code2 className="w-3.5 h-3.5 text-slate-400" />
+                          {ad.type}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-6 font-mono text-xs text-slate-600">
+                        {ad.size}
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <button
+                          onClick={() => handleToggleStatus(ad.id)}
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+                            ad.status === 'Active'
+                              ? 'bg-slate-900 text-white hover:bg-slate-800'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          }`}
+                          title="Click to toggle status"
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                          {ad.status}
+                        </button>
+                      </td>
+                      <td className="py-3.5 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2 text-slate-400">
+                          <button
+                            onClick={() => handleOpenEdit(ad)}
+                            className="p-1.5 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Edit Placement"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(ad.id, ad.name)}
+                            className="p-1.5 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Placement"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal for Creating or Editing Placement */}

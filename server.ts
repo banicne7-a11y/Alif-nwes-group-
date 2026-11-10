@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = 3000;
 
 // Body parser with support for large media / backup payloads
 app.use(express.json({ limit: '50mb' }));
@@ -46,7 +46,7 @@ app.post('/api/gemini/generate', async (req, res) => {
       });
     }
 
-    let systemInstruction = 'You are an enterprise newsroom AI editorial assistant for "Maan News". Respond with journalistic rigor, SEO optimization, and high accuracy.';
+    let systemInstruction = 'You are an enterprise newsroom AI editorial assistant for "Alif News 24". Respond with journalistic rigor, SEO optimization, and high accuracy.';
     let promptContent = '';
 
     if (action === 'generate_article') {
@@ -130,19 +130,19 @@ function getFallbackResponse(action: string, input: string = '', targetLang?: st
     return `• Key Takeaway 1: Critical milestones achieved in recent institutional operations.\n• Key Takeaway 2: Policy adjustments aim to stabilize growth momentum across core sectors.\n• Key Takeaway 3: Analysts project sustained positive sentiment through the upcoming quarter.\n\nTL;DR: The latest updates regarding ${safeInput.slice(0, 80)} reflect accelerating transformations with broad multi-stakeholder consensus.`;
   }
   if (action === 'translate') {
-    if (targetLang === 'Bengali' || targetLang === 'bn') {
-      return `মান নিউজ বিশেষ প্রতিবেদন: ${safeInput.slice(0, 100)} সংক্রান্ত সর্বশেষ তথ্য অনুসারে, সংশ্লিষ্ট কর্তৃপক্ষ নীতিগত পরিবর্তনের ঘোষণা করেছে যা সামগ্রিক উন্নয়নে ইতিবাচক প্রভাব ফেলবে বলে আশা করা হচ্ছে।`;
-    }
     if (targetLang === 'Spanish' || targetLang === 'es') {
-      return `Informe especial de Maan News: Según las últimas declaraciones oficiales sobre ${safeInput.slice(0, 80)}, se proyecta un impacto positivo en los mercados globales.`;
+      return `Informe especial de Alif News 24: Según las últimas declaraciones oficiales sobre ${safeInput.slice(0, 80)}, se proyecta un impacto positivo en los mercados nacionales e internacionales.`;
     }
-    return `[Translated to ${targetLang}]: ${safeInput}`;
+    if (targetLang === 'French' || targetLang === 'fr') {
+      return `Rapport spécial Alif News 24: Selon les derniers développements concernant ${safeInput.slice(0, 80)}, un impact mesurable est attendu sur les politiques publiques.`;
+    }
+    return `[Alif News 24 ${targetLang} Edition]: ${safeInput}`;
   }
   if (action === 'seo_writer') {
     const keyword = safeInput.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ').slice(0, 3).join(' ') || 'news update';
     return {
       focusKeyword: keyword,
-      seoTitle: `${safeInput.slice(0, 50)} | Maan News Enterprise`,
+      seoTitle: `${safeInput.slice(0, 50)} | Alif News 24 Enterprise`,
       metaDescription: `Read our comprehensive editorial analysis on ${safeInput}. Discover key milestones, market impact, and future outlook.`,
       slug: keyword.replace(/\s+/g, '-'),
       secondaryKeywords: ['global economy', 'policy update', 'breaking analysis'],
@@ -162,7 +162,7 @@ function getFallbackResponse(action: string, input: string = '', targetLang?: st
   }
   if (action === 'social_captions') {
     return {
-      twitter: `BREAKING: Critical developments underway regarding ${safeInput.slice(0, 80)}. Read our full investigative coverage #MaanNews #BreakingNews #WorldNews`,
+      twitter: `BREAKING: Critical developments underway regarding ${safeInput.slice(0, 80)}. Read our full investigative coverage #AlifNews24 #BreakingNews #WorldNews`,
       facebook: `How will the latest shift in ${safeInput.slice(0, 80)} affect industry stakeholders? Read our in-depth reporting and join the discussion below.`,
       linkedin: `Executive Editorial Briefing: An analysis of recent strategic milestones surrounding ${safeInput.slice(0, 80)} and its economic ramifications.`,
     };
@@ -199,7 +199,7 @@ app.post('/api/rss/fetch', async (req, res) => {
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MaanNewsCMS/1.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AlifNews24CMS/1.0',
       },
     });
 
@@ -300,7 +300,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Maan News CMS running at http://localhost:${PORT}`);
+    console.log(`Alif News 24 CMS running at http://localhost:${PORT}`);
   });
 }
 

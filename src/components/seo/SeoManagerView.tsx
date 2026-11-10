@@ -11,6 +11,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 
 export const SeoManagerView: React.FC = () => {
   const settings = db.getSettings();
@@ -101,7 +102,7 @@ ${posts
       robotsTxt,
       searchConsoleCode: googleVerification,
     });
-    alert('SEO configuration and robots.txt updated successfully!');
+    toast.success('SEO configuration and robots.txt updated successfully!');
   };
 
   return (
@@ -164,7 +165,7 @@ ${posts
               </label>
               <input
                 type="text"
-                defaultValue="Maan News - Enterprise Global Journalism"
+                defaultValue="Alif News 24 - America's 24/7 Live Breaking News & Analysis"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg"
               />
             </div>

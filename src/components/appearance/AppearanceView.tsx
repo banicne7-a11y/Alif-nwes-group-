@@ -12,6 +12,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 
 export const AppearanceView: React.FC = () => {
   const [settings, setSettings] = useState(db.getSettings());
@@ -52,7 +53,7 @@ export const AppearanceView: React.FC = () => {
       primaryColor,
       darkMode,
     });
-    alert('Appearance settings saved successfully!');
+    toast.success('Appearance settings saved successfully!');
   };
 
   const handleMoveSection = (idx: number, dir: 'up' | 'down') => {
@@ -215,8 +216,8 @@ export const AppearanceView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => alert('Homepage section order saved!')}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs"
+            onClick={() => toast.success('Homepage section order saved successfully!')}
+            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-xs cursor-pointer"
           >
             Apply Layout
           </button>

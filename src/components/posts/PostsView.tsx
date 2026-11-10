@@ -18,6 +18,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Post, PostStatus } from '../../types';
 
 interface PostsViewProps {
@@ -93,32 +94,48 @@ export const PostsView: React.FC<PostsViewProps> = ({
       selectedIds.forEach((id) => db.duplicatePost(id));
     }
 
+    const count = selectedIds.length;
     setSelectedIds([]);
     setBulkAction('');
     refreshPosts();
+    toast.success(`Bulk action "${bulkAction}" applied to ${count} posts`);
   };
 
   const handleDuplicate = (id: string) => {
     db.duplicatePost(id);
     refreshPosts();
+    toast.success('Article duplicated as draft');
   };
 
   const handleDelete = (id: string, title: string) => {
-    if (confirm(`Move "${title}" to Trash?`)) {
-      db.deletePost(id);
-      refreshPosts();
-    }
+    toast.confirm({
+      title: 'Move to Trash',
+      message: `Are you sure you want to move "${title}" to Trash?`,
+      confirmLabel: 'Move to Trash',
+      isDestructive: true,
+      onConfirm: () => {
+        db.deletePost(id);
+        refreshPosts();
+        toast.success(`"${title}" moved to Trash`);
+      },
+    });
   };
 
   const handleRestoreRevision = (post: Post, revision: any) => {
-    if (confirm(`Restore article to revision from ${revision.timestamp}?`)) {
-      db.savePost({
-        ...post,
-        title: revision.title,
-      });
-      refreshPosts();
-      setRevisionsModalPost(null);
-    }
+    toast.confirm({
+      title: 'Restore Revision',
+      message: `Restore article to revision from ${revision.timestamp}?`,
+      confirmLabel: 'Restore Revision',
+      onConfirm: () => {
+        db.savePost({
+          ...post,
+          title: revision.title,
+        });
+        refreshPosts();
+        setRevisionsModalPost(null);
+        toast.success('Revision restored successfully');
+      },
+    });
   };
 
   return (

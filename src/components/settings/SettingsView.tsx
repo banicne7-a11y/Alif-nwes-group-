@@ -9,6 +9,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 
 export const SettingsView: React.FC = () => {
   const currentSettings = db.getSettings();
@@ -45,7 +46,7 @@ export const SettingsView: React.FC = () => {
       autoAds,
       googleAnalyticsId: gaId,
     });
-    alert('System settings updated successfully!');
+    toast.success('System settings updated successfully!');
   };
 
   const handleSendTestEmail = () => {

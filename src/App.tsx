@@ -25,12 +25,13 @@ import { AppearanceView } from './components/appearance/AppearanceView';
 import { SecurityBackupView } from './components/security/SecurityBackupView';
 import { SettingsView } from './components/settings/SettingsView';
 import { PublicWebsiteView } from './components/website/PublicWebsiteView';
+import { ToastContainer } from './components/common/ToastContainer';
 import { Post } from './types';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isWebsiteMode, setIsWebsiteMode] = useState(false);
+  const [isWebsiteMode, setIsWebsiteMode] = useState(false); // Default to Admin Panel when requested
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [darkMode, setDarkMode] = useState(false);
 
@@ -71,20 +72,24 @@ export default function App() {
   // If user clicked "View Website"
   if (isWebsiteMode) {
     return (
-      <PublicWebsiteView
-        onBackToAdmin={() => {
-          setIsWebsiteMode(false);
-          setPreviewArticle(null);
-          setPreviewPage(null);
-        }}
-        initialPost={previewArticle}
-        initialPage={previewPage}
-      />
+      <>
+        <ToastContainer />
+        <PublicWebsiteView
+          onBackToAdmin={() => {
+            setIsWebsiteMode(false);
+            setPreviewArticle(null);
+            setPreviewPage(null);
+          }}
+          initialPost={previewArticle}
+          initialPage={previewPage}
+        />
+      </>
     );
   }
 
   return (
     <div className={`min-h-screen bg-[#F8FAFC] flex ${darkMode ? 'dark bg-slate-900 text-slate-100' : ''}`}>
+      <ToastContainer />
       {/* Sidebar Navigation */}
       <Sidebar
         currentView={currentView}

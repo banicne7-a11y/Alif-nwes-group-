@@ -10,6 +10,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Category, Tag } from '../../types';
 
 export const CategoriesView: React.FC = () => {
@@ -46,11 +47,13 @@ export const CategoriesView: React.FC = () => {
       description: catDesc,
     });
 
+    const savedName = catName;
     setEditingCatId(null);
     setCatName('');
     setCatSlug('');
     setCatDesc('');
     refreshData();
+    toast.success(`Category "${savedName}" saved successfully`);
   };
 
   const handleEditCat = (cat: Category) => {
@@ -63,23 +66,32 @@ export const CategoriesView: React.FC = () => {
   };
 
   const handleDeleteCat = (id: string, name: string) => {
-    if (confirm(`Delete category "${name}"? Articles in this category will become Uncategorized.`)) {
-      db.deleteCategory(id);
-      refreshData();
-    }
+    toast.confirm({
+      title: 'Delete Category',
+      message: `Delete category "${name}"? Articles in this category will become Uncategorized.`,
+      confirmLabel: 'Delete Category',
+      isDestructive: true,
+      onConfirm: () => {
+        db.deleteCategory(id);
+        refreshData();
+        toast.success(`Category "${name}" deleted`);
+      },
+    });
   };
 
   const handleAddTag = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTagName.trim()) return;
-    db.saveTag(newTagName.trim());
+    const tag = db.saveTag(newTagName.trim());
     setNewTagName('');
     refreshData();
+    toast.success(`Tag "${tag.name}" added`);
   };
 
   const handleDeleteTag = (id: string) => {
     db.deleteTag(id);
     refreshData();
+    toast.success('Tag removed');
   };
 
   return (

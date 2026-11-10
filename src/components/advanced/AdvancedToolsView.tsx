@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { Post } from '../../types';
 
 interface AdvancedToolsViewProps {
@@ -82,7 +83,7 @@ export const AdvancedToolsView: React.FC<AdvancedToolsViewProps> = ({
         ]);
       }
     } catch (e: any) {
-      alert(e.message || 'Error fetching feed');
+      toast.error(e.message || 'Error fetching feed');
     } finally {
       setRssLoading(false);
     }
@@ -91,7 +92,7 @@ export const AdvancedToolsView: React.FC<AdvancedToolsViewProps> = ({
   const handleImportSelectedRss = () => {
     const selected = rssItems.filter((item) => selectedRssGuids.includes(item.guid));
     if (selected.length === 0) {
-      alert('Select at least one RSS item to import as a draft.');
+      toast.error('Select at least one RSS item to import as a draft.');
       return;
     }
 
@@ -106,7 +107,7 @@ export const AdvancedToolsView: React.FC<AdvancedToolsViewProps> = ({
       });
     });
 
-    alert(`Successfully imported ${selected.length} articles into CMS Drafts!`);
+    toast.success(`Successfully imported ${selected.length} articles into CMS Drafts!`);
     setSelectedRssGuids([]);
   };
 

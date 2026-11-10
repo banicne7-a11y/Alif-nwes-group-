@@ -13,6 +13,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { db } from '../../services/db';
+import { toast } from '../../services/toast';
 import { User, UserRole } from '../../types';
 
 export const UsersView: React.FC = () => {
@@ -71,17 +72,25 @@ export const UsersView: React.FC = () => {
 
     setModalOpen(false);
     refreshUsers();
+    toast.success(`User profile "${name}" saved!`);
   };
 
   const handleDelete = (id: string, userName: string) => {
-    if (confirm(`Remove user account "${userName}"?`)) {
-      try {
-        db.deleteUser(id);
-        refreshUsers();
-      } catch (err: any) {
-        alert(err.message || 'Cannot delete user');
-      }
-    }
+    toast.confirm({
+      title: 'Remove User Account',
+      message: `Are you sure you want to remove user account "${userName}"?`,
+      confirmLabel: 'Remove Account',
+      isDestructive: true,
+      onConfirm: () => {
+        try {
+          db.deleteUser(id);
+          refreshUsers();
+          toast.success(`User "${userName}" removed`);
+        } catch (err: any) {
+          toast.error(err.message || 'Cannot delete user');
+        }
+      },
+    });
   };
 
   // Permissions Matrix Definition

@@ -14,7 +14,7 @@ import {
   BackupRecord,
 } from '../types';
 
-const STORAGE_KEY = 'maan_news_cms_db_v1';
+const STORAGE_KEY = 'alif_news_24_cms_db_v5';
 
 export interface DatabaseState {
   posts: Post[];
@@ -61,13 +61,13 @@ const initialUsers: User[] = [
   {
     id: 'u-1',
     name: 'Administrator',
-    email: 'admin@maannews.com',
+    email: 'admin@alifnews24.com',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     role: 'Administrator',
     status: 'active',
     twoFactorEnabled: true,
     articlesCount: 142,
-    bio: 'Lead Operations & Editorial Executive at Maan News Enterprise.',
+    bio: 'Lead Operations & Editorial Executive at Alif News 24 Enterprise.',
     lastLogin: 'Today at 08:30 AM',
     loginHistory: [
       { timestamp: '2026-11-08 08:30:12', ip: '192.168.1.104', device: 'Chrome / macOS Sonoma' },
@@ -77,7 +77,7 @@ const initialUsers: User[] = [
   {
     id: 'u-2',
     name: 'Jenny Wilson',
-    email: 'jenny.wilson@maannews.com',
+    email: 'jenny.wilson@alifnews24.com',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
     role: 'Editor',
     status: 'active',
@@ -88,7 +88,7 @@ const initialUsers: User[] = [
   {
     id: 'u-3',
     name: 'Marvin McKinney',
-    email: 'marvin.m@maannews.com',
+    email: 'marvin.m@alifnews24.com',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     role: 'Author',
     status: 'active',
@@ -99,7 +99,7 @@ const initialUsers: User[] = [
   {
     id: 'u-4',
     name: 'Robert Fox',
-    email: 'robert.fox@maannews.com',
+    email: 'robert.fox@alifnews24.com',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     role: 'Author',
     status: 'active',
@@ -110,7 +110,7 @@ const initialUsers: User[] = [
   {
     id: 'u-5',
     name: 'Cody Fisher',
-    email: 'cody.fisher@maannews.com',
+    email: 'cody.fisher@alifnews24.com',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     role: 'Contributor',
     status: 'active',
@@ -120,8 +120,290 @@ const initialUsers: User[] = [
   },
 ];
 
-// Seed posts matching Screenshot 1 "Most Viewed News"
+// Seed posts matching User's Newsweek screenshot exactly!
 const initialPosts: Post[] = [
+  {
+    id: 'post-nw-1',
+    title: 'What If Trump Had Lost in 2016? 10 Years of Alternate History',
+    subtitle: 'He has been called the "dominant American of our age," but how might Trump\'s loss to Clinton have altered the country\'s history?',
+    slug: 'what-if-trump-had-lost-in-2016-10-years-alternate-history',
+    excerpt: 'He has been called the "dominant American of our age," but how might Trump\'s loss to Clinton have altered the country\'s history?',
+    featuredImage: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=1200&auto=format&fit=crop&q=80',
+    category: 'Analysis',
+    readTime: '15 min read',
+    tags: ['Elections', 'Politics', 'White House', 'History'],
+    author: {
+      id: 'u-2',
+      name: 'Jenny Wilson',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      role: 'Editor',
+    },
+    status: 'published',
+    publishedAt: 'Today · 15 min read',
+    updatedAt: '2026-11-08 10:15',
+    views: 18920,
+    commentsCount: 642,
+    sharesCount: 3820,
+    isBreaking: false,
+    isTrending: true,
+    isFeatured: true,
+    isEditorPick: true,
+    isHomepageSlider: true,
+    isAiGenerated: false,
+    aiApprovalStatus: 'approved',
+    seo: {
+      title: 'What If Trump Had Lost in 2016? 10 Years of Alternate History',
+      description: 'Ten-year retrospective analyzing political realignments, the Supreme Court, and cultural polarization.',
+      focusKeyword: 'Trump 2016 alternate history',
+      score: 95,
+    },
+    blocks: [
+      {
+        id: 'b-nw1-1',
+        type: 'paragraph',
+        content: 'Had Donald Trump conceded to Hillary Clinton on November 8, 2016, modern American politics would have diverged into an unfamiliar landscape. The populist coalition he galvanized would not have vanished, but the institutional machinery of Washington would have developed under starkly contrasting pressures.',
+      },
+      {
+        id: 'b-nw1-2',
+        type: 'heading',
+        level: 2,
+        content: 'The Supreme Court and the Judicial Reckoning',
+      },
+      {
+        id: 'b-nw1-3',
+        type: 'paragraph',
+        content: 'A liberal Supreme Court majority would have rewritten fifty years of environmental, voting rights, and corporate jurisprudence, triggering immediate resistance across conservative statehouses.',
+      },
+      {
+        id: 'b-nw1-4',
+        type: 'quote',
+        content: 'Every historical turning point carries its own shadow narrative. The 2016 election remains the paramount pivot point of 21st-century Western governance.',
+        caption: 'Senior Political Analyst',
+      },
+    ],
+    content: 'Full retrospective on alternate political history...',
+  },
+  {
+    id: 'post-nw-2',
+    title: "China's Military Tech Emerges on Both Sides of Saudi-Houthi War",
+    subtitle: 'Precision electronic guidance kits and unmanned reconnaissance drones traced through regional defense supply corridors.',
+    slug: 'chinas-military-tech-emerges-both-sides-saudi-houthi-war',
+    excerpt: 'Dual-use radar tracking platforms and lightweight counter-drone hardware have surfaced among frontline forces across the Arabian peninsula.',
+    featuredImage: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&auto=format&fit=crop&q=80',
+    category: 'Analysis',
+    readTime: '10 min read',
+    tags: ['China', 'Military Tech', 'Middle East'],
+    author: {
+      id: 'u-4',
+      name: 'Robert Fox',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      role: 'Editor',
+    },
+    status: 'published',
+    publishedAt: 'Today · 10 min read',
+    updatedAt: '2026-11-08 09:30',
+    views: 11200,
+    commentsCount: 290,
+    sharesCount: 1450,
+    isBreaking: false,
+    isTrending: true,
+    isFeatured: false,
+    isEditorPick: false,
+    isHomepageSlider: false,
+    isAiGenerated: false,
+    aiApprovalStatus: 'approved',
+    seo: {
+      title: "China's Military Tech Emerges on Both Sides of Saudi-Houthi Conflict",
+      description: 'Battlefield forensic report on Chinese drone hardware and guidance systems.',
+      focusKeyword: 'Chinese military tech Yemen',
+      score: 89,
+    },
+    blocks: [
+      {
+        id: 'b-nw2-1',
+        type: 'paragraph',
+        content: 'Defense intelligence analysts monitoring the Arabian Peninsula have documented an unprecedented surge in Chinese-manufactured optical seekers and commercial drone telemetry systems operating across opposing factions.',
+      },
+    ],
+    content: 'Full investigation into regional arms flow...',
+  },
+  {
+    id: 'post-nw-3',
+    title: "The Nobel Peace Prize Is Melania Trump's to Lose",
+    subtitle: 'Behind-the-scenes humanitarian initiatives in Eastern Europe and child welfare advocacy draw quiet diplomatic accolades.',
+    slug: 'the-nobel-peace-prize-is-melania-trumps-to-lose',
+    excerpt: 'Quiet backchannel diplomacy securing release for non-combatant detainees has propelled the former First Lady onto international nomination shortlists.',
+    featuredImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&auto=format&fit=crop&q=80',
+    category: 'Analysis',
+    readTime: '4 min read',
+    isMemberExclusive: true,
+    tags: ['For Members', 'Politics', 'Diplomacy'],
+    author: {
+      id: 'u-3',
+      name: 'Marvin McKinney',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      role: 'Author',
+    },
+    status: 'published',
+    publishedAt: 'Today · 4 min read',
+    updatedAt: '2026-11-08 09:10',
+    views: 14500,
+    commentsCount: 512,
+    sharesCount: 2310,
+    isBreaking: false,
+    isTrending: true,
+    isFeatured: false,
+    isEditorPick: true,
+    isHomepageSlider: false,
+    isAiGenerated: false,
+    aiApprovalStatus: 'approved',
+    seo: {
+      title: "Nobel Peace Prize Speculation: Melania Trump's Humanitarian Record",
+      description: 'Examining the diplomatic advocacy and humanitarian record behind unexpected Nobel Prize nomination chatter.',
+      focusKeyword: 'Melania Trump Nobel Peace Prize',
+      score: 91,
+    },
+    blocks: [
+      {
+        id: 'b-nw3-1',
+        type: 'paragraph',
+        content: 'While media attention gravitates toward electoral podiums, high-ranking Scandinavian diplomats confirm discreet submissions recognizing bilateral prisoner repatriation agreements negotiated through non-governmental channels.',
+      },
+    ],
+    content: 'Full feature on diplomatic initiatives...',
+  },
+  {
+    id: 'post-nw-4',
+    title: 'Krakow Shooting Suspect: What We Know As More Victims Discovered',
+    subtitle: 'Central European security services cordon historic Old Town after late-night confrontation.',
+    slug: 'krakow-shooting-suspect-what-we-know-as-more-victims-discovered',
+    excerpt: 'Polish authorities have established a multi-agency command perimeter following an armed incident in central Krakow.',
+    featuredImage: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=800&auto=format&fit=crop&q=80',
+    category: 'World',
+    readTime: '4 min read',
+    tags: ['Poland', 'World', 'Security'],
+    author: {
+      id: 'u-4',
+      name: 'Robert Fox',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      role: 'Editor',
+    },
+    status: 'published',
+    publishedAt: 'Today · 4 min read',
+    updatedAt: '2026-11-08 08:45',
+    views: 8900,
+    commentsCount: 178,
+    sharesCount: 890,
+    isBreaking: true,
+    isTrending: true,
+    isFeatured: false,
+    isEditorPick: false,
+    isHomepageSlider: false,
+    isAiGenerated: false,
+    aiApprovalStatus: 'approved',
+    seo: {
+      title: 'Krakow Incident: Investigation Deepens After Central District Operation',
+      description: 'Live updates from Polish authorities investigating overnight shooting in Krakow.',
+      focusKeyword: 'Krakow shooting suspect',
+      score: 87,
+    },
+    blocks: [
+      {
+        id: 'b-nw4-1',
+        type: 'paragraph',
+        content: 'KRAKOW — Emergency response cordons remained active across the historic district this morning as investigators examined ballistics evidence following an overnight police operation.',
+      },
+    ],
+    content: 'Live reports from Krakow...',
+  },
+  {
+    id: 'post-nw-5',
+    title: 'James Talarico Debuts on SNL After Texas Midterm Victory',
+    subtitle: 'The Texas representative traded state legislative debate for Saturday Night Live cold open satire.',
+    slug: 'james-talarico-debuts-on-snl-after-texas-midterm-victory',
+    excerpt: 'Trading the Texas House floor for Studio 8H, the lawmaker made an unexpected cameo during the late-night sketch broadcast.',
+    featuredImage: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop&q=80',
+    category: 'Entertainment',
+    readTime: '2 min read',
+    tags: ['SNL', 'Entertainment', 'Culture'],
+    author: {
+      id: 'u-5',
+      name: 'Cody Fisher',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+      role: 'Contributor',
+    },
+    status: 'published',
+    publishedAt: 'Today · 2 min read',
+    updatedAt: '2026-11-08 08:20',
+    views: 6720,
+    commentsCount: 142,
+    sharesCount: 920,
+    isBreaking: false,
+    isTrending: false,
+    isFeatured: false,
+    isEditorPick: false,
+    isHomepageSlider: false,
+    isAiGenerated: false,
+    aiApprovalStatus: 'approved',
+    seo: {
+      title: 'James Talarico SNL Cameo Draws National Attention',
+      description: 'Texas lawmaker joins Saturday Night Live cast in viral cold open sketch.',
+      focusKeyword: 'James Talarico SNL',
+      score: 86,
+    },
+    blocks: [
+      {
+        id: 'b-nw5-1',
+        type: 'paragraph',
+        content: 'NEW YORK — In a television appearance that quickly circulated across social feeds, Representative James Talarico joined the cast of NBC’s Saturday Night Live, playfully roasting legislative deadlock.',
+      },
+    ],
+    content: 'Entertainment report on SNL debut...',
+  },
+  {
+    id: 'post-nw-6',
+    title: 'Trump Offers Glimpse Into Plan For New Press Secretary',
+    subtitle: 'Campaign inner circle weighs television combativeness against traditional podium briefing protocols.',
+    slug: 'trump-offers-glimpse-into-plan-for-new-press-secretary',
+    excerpt: 'Transition insiders disclose top contenders for the West Wing briefing podium as media strategy discussions intensify.',
+    featuredImage: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&auto=format&fit=crop&q=80',
+    category: 'News',
+    readTime: '5 min read',
+    tags: ['White House', 'News', 'Politics'],
+    author: {
+      id: 'u-3',
+      name: 'Marvin McKinney',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      role: 'Author',
+    },
+    status: 'published',
+    publishedAt: 'Today · 5 min read',
+    updatedAt: '2026-11-08 07:45',
+    views: 12400,
+    commentsCount: 388,
+    sharesCount: 1980,
+    isBreaking: false,
+    isTrending: true,
+    isFeatured: false,
+    isEditorPick: false,
+    isHomepageSlider: false,
+    isAiGenerated: false,
+    aiApprovalStatus: 'approved',
+    seo: {
+      title: 'Trump Transition Weighs Options for Next White House Press Secretary',
+      description: 'Inside the vetting process for the West Wing press briefing role.',
+      focusKeyword: 'Trump Press Secretary plan',
+      score: 90,
+    },
+    blocks: [
+      {
+        id: 'b-nw6-1',
+        type: 'paragraph',
+        content: 'PALM BEACH — Discussions surrounding the upcoming White House communications team have zeroed in on candidates capable of blending rapid digital counter-messaging with high-tempo press conferences.',
+      },
+    ],
+    content: 'Political analysis on press secretary selection...',
+  },
   {
     id: 'post-1',
     title: 'US inflation decelerating in boost to economic outlook and Federal Reserve targets',
@@ -450,10 +732,10 @@ const initialComments: Comment[] = [
 ];
 
 const initialPages: Page[] = [
-  { id: 'page-1', title: 'About Maan News', slug: 'about-us', template: 'about', status: 'published', showInMenu: true, showInFooter: true, content: 'Maan News is an independent international journalism publisher dedicated to accurate, timely, and analytical reporting across finance, policy, science, and world events.', updatedAt: '2026-11-01' },
-  { id: 'page-2', title: 'Editorial Guidelines & Ethics', slug: 'editorial-policy', template: 'default', status: 'published', showInMenu: false, showInFooter: true, content: 'Our commitment to journalistic integrity, fact-checking processes, corrections, and editorial independence.', updatedAt: '2026-11-02' },
-  { id: 'page-3', title: 'Contact Newsroom', slug: 'contact', template: 'contact', status: 'published', showInMenu: true, showInFooter: true, content: 'Get in touch with our news desk, investigative team, or advertising partners.', updatedAt: '2026-11-03' },
-  { id: 'page-4', title: 'Privacy & Cookie Policy', slug: 'privacy-policy', template: 'privacy', status: 'published', showInMenu: false, showInFooter: true, content: 'How we respect user data, adhere to GDPR standards, and manage cookies.', updatedAt: '2026-11-04' },
+  { id: 'page-1', title: 'About Alif News 24', slug: 'about-us', template: 'about', status: 'published', showInMenu: true, showInFooter: true, content: 'Alif News 24 is an independent American news organization dedicated to rigorous, fair, and uncompromising investigative reporting. Headquartered with newsrooms in Washington, D.C. and New York, our correspondents deliver real-time coverage across national politics, Wall Street markets, global diplomacy, technological innovation, and societal affairs around the clock.', updatedAt: '2026-11-01' },
+  { id: 'page-2', title: 'Editorial Guidelines & Ethics Policy', slug: 'editorial-policy', template: 'default', status: 'published', showInMenu: false, showInFooter: true, content: 'Our commitment to journalistic integrity, rigorous fact-checking, editorial independence, attribution standards, and transparent correction policies.', updatedAt: '2026-11-02' },
+  { id: 'page-3', title: 'Contact Newsroom (US Bureau)', slug: 'contact', template: 'contact', status: 'published', showInMenu: true, showInFooter: true, content: 'Reach our editorial desk, investigative tips team, or press office at our Washington, D.C. headquarters.', updatedAt: '2026-11-03' },
+  { id: 'page-4', title: 'Privacy & Data Protection Policy', slug: 'privacy-policy', template: 'privacy', status: 'published', showInMenu: false, showInFooter: true, content: 'How Alif News 24 protects subscriber privacy, complies with US federal privacy standards, and ensures transparent data practices.', updatedAt: '2026-11-04' },
 ];
 
 const initialMedia: MediaItem[] = [
@@ -465,25 +747,25 @@ const initialMedia: MediaItem[] = [
 ];
 
 const initialSettings: SystemSettings = {
-  siteName: 'Maan News',
-  tagline: 'Enterprise Global News & Independent Investigative Journalism',
-  siteUrl: 'https://maannews.com',
+  siteName: 'Alif News 24',
+  tagline: "America's Trusted 24/7 Independent News & Investigative Journalism",
+  siteUrl: 'https://alifnews24.com',
   language: 'English',
   timezone: 'America/New_York (UTC-5)',
   permalinkStructure: '/%year%/%month%/%postname%/',
   logoUrl: '',
   faviconUrl: '',
-  primaryColor: '#00C5FF',
+  primaryColor: '#E11D48',
   darkMode: false,
-  googleAnalyticsId: 'G-MN84820921',
-  searchConsoleCode: 'google-site-verification=maan-news-enterprise-auth-key-88',
+  googleAnalyticsId: 'G-AN24820921',
+  searchConsoleCode: 'google-site-verification=alif-news-24-enterprise-auth-key-88',
   adsenseClientId: 'ca-pub-9386736849071234',
   autoAds: true,
-  smtpHost: 'smtp.maannews.com',
+  smtpHost: 'smtp.alifnews24.com',
   smtpPort: '587',
-  smtpUser: 'newsroom-alerts@maannews.com',
+  smtpUser: 'newsroom-alerts@alifnews24.com',
   smtpSecure: true,
-  robotsTxt: 'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://maannews.com/sitemap.xml\nSitemap: https://maannews.com/google-news-sitemap.xml',
+  robotsTxt: 'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://alifnews24.com/sitemap.xml\nSitemap: https://alifnews24.com/google-news-sitemap.xml',
   sitemapAutoPing: true,
   backupDaily: true,
   backupTime: '02:00 UTC',
@@ -492,7 +774,7 @@ const initialSettings: SystemSettings = {
   ipWhitelist: ['127.0.0.1', '192.168.1.1/24'],
   maxLoginAttempts: 5,
   breakingNewsTickerActive: true,
-  breakingNewsText: 'BREAKING: US Inflation decelerating in boost to economic outlook and Federal Reserve targets | Multilateral clean shipping treaty signed in Geneva',
+  breakingNewsText: 'BREAKING: US Federal Reserve signals data-driven interest rate adjustments | Wall Street rallies on cooler inflation index | Bipartisan infrastructure accords advance in Congress',
 };
 
 const initialLogs: ActivityLog[] = [
@@ -530,7 +812,14 @@ class DatabaseService {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed: DatabaseState = JSON.parse(saved);
+        if (parsed.settings) {
+          parsed.settings.siteName = 'Alif News 24';
+          parsed.settings.tagline = "America's Trusted 24/7 Independent News & Investigative Journalism";
+          parsed.settings.siteUrl = 'https://alifnews24.com';
+          parsed.settings.breakingNewsText = 'BREAKING: US Federal Reserve signals data-driven interest rate adjustments | Wall Street rallies on cooler inflation index | Bipartisan infrastructure accords advance in Congress';
+        }
+        return parsed;
       }
     } catch (e) {
       console.warn('Could not read from localStorage, using initial seed data', e);
@@ -1089,7 +1378,7 @@ class DatabaseService {
   public createBackup(type: 'automated' | 'manual' = 'manual'): BackupRecord {
     const now = new Date();
     const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const fileName = `maan_news_db_${timestamp}_${type}.json`;
+    const fileName = `alif_news_24_db_${timestamp}_${type}.json`;
     const snapshotJson = JSON.stringify(this.state, null, 2);
     const sizeKb = Math.max(1, Math.round(snapshotJson.length / 1024));
 

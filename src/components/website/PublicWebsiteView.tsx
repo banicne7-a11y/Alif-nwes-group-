@@ -81,8 +81,8 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const featuredPost = posts.find((p) => p.isBreaking) || posts[0];
   const secondaryLeads = posts.filter((p) => p.id !== featuredPost?.id).slice(0, 2);
   const mostReadPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
-  const businessPosts = posts.filter((p) => p.category.toLowerCase().includes('business') || p.category.toLowerCase().includes('finance')).slice(0, 3);
-  const techPosts = posts.filter((p) => p.category.toLowerCase().includes('tech') || p.category.toLowerCase().includes('science')).slice(0, 3);
+  const businessPosts = posts.filter((p) => p.category.toLowerCase().includes('business') || p.category.toLowerCase().includes('finance')).slice(0, 4);
+  const techPosts = posts.filter((p) => p.category.toLowerCase().includes('tech') || p.category.toLowerCase().includes('science')).slice(0, 4);
   const opinionPost = posts.find((p) => p.isEditorPick) || posts[1] || posts[0];
 
   const handlePostComment = (e: React.FormEvent) => {
@@ -107,7 +107,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsletterEmail.trim()) return;
-    db.addSubscriber(newsletterEmail, 'Website Reader');
+    db.addSubscriber(newsletterEmail, 'US Edition Reader');
     setNewsletterSubscribed(true);
     setNewsletterEmail('');
     setTimeout(() => setNewsletterSubscribed(false), 5000);
@@ -150,29 +150,29 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           <div className="flex items-center gap-4 text-[11px]">
             <span className="font-semibold text-slate-200 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-sky-400" />
-              রবিবার, ৮ নভেম্বর ২০২৬ · Sunday, Nov 8, 2026
+              Tuesday, November 10, 2026
             </span>
             <span className="hidden md:inline text-slate-500">|</span>
             <span className="hidden md:inline text-slate-400">
-              সংস্করণ: <strong className="text-white">গ্লোবাল ও বাংলাদেশ এডিশন</strong>
+              Edition: <strong className="text-white">United States · Washington, D.C. & New York</strong>
             </span>
             <span className="hidden lg:inline text-slate-500">|</span>
             <span className="hidden lg:inline text-slate-400">
-              ঢাকা: ২৬°C রোদঝলমল আবহাওয়া
+              Washington, D.C.: 64°F Partly Sunny
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              লাইভ সংবাদ পোর্টাল
+              Live 24/7 US News Desk
             </span>
             <button
               onClick={onBackToAdmin}
               className="flex items-center gap-1.5 px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-md font-bold text-xs transition-colors shadow-xs cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>এডমিন প্যানেলে ফিরুন</span>
+              <span>Admin Dashboard</span>
             </button>
           </div>
         </div>
@@ -184,7 +184,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           <div className="max-w-7xl mx-auto w-full flex items-center gap-3">
             <span className="px-2.5 py-0.5 bg-black/40 font-extrabold uppercase rounded-sm text-[10px] tracking-wider shrink-0 flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5 fill-white animate-bounce" />
-              ব্রেকিং নিউজ
+              BREAKING NEWS
             </span>
             <div className="truncate font-semibold tracking-wide text-xs">
               {settings.breakingNewsText}
@@ -193,7 +193,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         </div>
       )}
 
-      {/* 3. 3-TOOTH DRAWER (ONLY PAGES - কোন ক্যাটাগরি নেই) */}
+      {/* 3. 3-TOOTH DRAWER (ONLY PAGES - NO CATEGORIES) */}
       {drawerMenuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div
@@ -211,24 +211,30 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 }}
                 className="flex items-center gap-2 cursor-pointer"
               >
-                <div className="flex items-center gap-1">
-                  <span className="w-2.5 h-6 bg-red-600 rounded-sm"></span>
-                  <span className="w-2.5 h-6 bg-slate-900 dark:bg-white rounded-sm"></span>
-                </div>
-                <div>
-                  <span className="font-serif font-black text-xl tracking-tight text-slate-900 dark:text-white">
-                    MAAN <span className="text-red-600 font-sans font-bold">NEWS</span>
-                  </span>
-                  <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold">
-                    ওয়েবসাইট পেজ মেনু
-                  </span>
+                <div className="flex items-center gap-2.5">
+                  <div className="relative flex items-center justify-center w-8 h-8 bg-gradient-to-br from-red-600 via-rose-600 to-red-700 rounded-lg text-white font-serif font-black text-lg shadow-xs">
+                    A
+                    <span className="absolute -bottom-1 -right-1 px-1 bg-slate-950 text-[8px] font-sans font-black text-sky-400 rounded-xs border border-slate-700 leading-none">
+                      24
+                    </span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 font-serif font-black text-lg text-slate-900 dark:text-white leading-none">
+                      <span>ALIF</span>
+                      <span className="text-red-600 font-sans font-extrabold">NEWS</span>
+                      <span className="text-xs px-1.5 py-0.2 bg-red-600 text-white font-sans rounded-sm font-black">24</span>
+                    </div>
+                    <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mt-1">
+                      Published Pages Directory
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <button
                 onClick={() => setDrawerMenuOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                title="বন্ধ করুন"
+                title="Close Drawer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -249,7 +255,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               >
                 <span className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  হোম পেজ (সকল খবর)
+                  Frontpage (All News)
                 </span>
                 <ChevronRight className="w-4 h-4 opacity-70" />
               </button>
@@ -261,7 +267,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   type="text"
                   value={pageSearchQuery}
                   onChange={(e) => setPageSearchQuery(e.target.value)}
-                  placeholder="পেজ খুঁজুন (Search pages)..."
+                  placeholder="Search pages..."
                   className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border focus:outline-hidden focus:ring-2 focus:ring-sky-500 ${
                     darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-900'
                   }`}
@@ -272,10 +278,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    ওয়েবসাইট পেজসমূহ (Pages)
+                    Published Pages
                   </p>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    {pages.filter((p) => p.status === 'published').length} টি পেজ
+                    {pages.filter((p) => p.status === 'published').length} Pages
                   </span>
                 </div>
 
@@ -325,6 +331,18 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         <ChevronRight className="w-4 h-4 opacity-60 shrink-0 ml-2" />
                       </button>
                     ))}
+
+                  {pages.filter(
+                    (p) =>
+                      p.status === 'published' &&
+                      (!pageSearchQuery.trim() ||
+                        p.title.toLowerCase().includes(pageSearchQuery.toLowerCase()) ||
+                        p.slug.toLowerCase().includes(pageSearchQuery.toLowerCase()))
+                  ).length === 0 && (
+                    <div className="text-center py-6 text-xs text-slate-400">
+                      No matching pages found
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -339,17 +357,17 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-slate-950 rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>এডমিন ড্যাশবোর্ডে ফিরুন (Admin Panel)</span>
+                <span>Return to Admin Panel</span>
               </button>
 
               <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                <span>থিম পরিবর্তন</span>
+                <span>Theme Mode</span>
                 <button
                   onClick={() => setDarkMode(!darkMode)}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer"
                 >
                   {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
-                  <span>{darkMode ? 'ডার্ক মোড' : 'লাইট মোড'}</span>
+                  <span>{darkMode ? 'Dark Mode' : 'Light Mode'}</span>
                 </button>
               </div>
             </div>
@@ -357,15 +375,15 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         </div>
       )}
 
-      {/* 4. MAIN EDITORIAL MASTHEAD (যেমন আসল বিবিসি, নিউইয়র্ক টাইমস বা প্রথম আলোতে থাকে) */}
+      {/* 4. MAIN EDITORIAL MASTHEAD */}
       <header className={`border-b ${darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-5 flex items-center justify-between gap-4">
-          {/* Left: 3-Tooth Hamburger Button (৩দাঁত পেজ মেনু) */}
+          {/* Left: 3-Tooth Hamburger Button (3-Tooth Pages Menu) */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => setDrawerMenuOpen(true)}
-              title="পেজ মেনু খুলুন (৩দাঁত মেনু)"
-              aria-label="৩দাঁত পেজ মেনু খুলুন"
+              title="Open Pages Menu"
+              aria-label="Open Pages Menu"
               className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white transition-all shadow-xs group cursor-pointer"
             >
               <div className="flex flex-col gap-1 items-center justify-center">
@@ -374,37 +392,57 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 <span className="w-5 h-0.5 bg-slate-800 dark:bg-slate-200 group-hover:bg-red-600 rounded-full transition-colors" />
               </div>
               <span className="text-xs font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-red-600 transition-colors hidden sm:inline">
-                পেজ মেনু
+                Pages Menu
               </span>
             </button>
 
             <span className="hidden md:inline-block text-xs font-medium text-slate-400">
-              স্বাধীন ও নির্ভীক সাংবাদিকতা
+              Independent American Journalism
             </span>
           </div>
 
-          {/* Center: Prestigious Newspaper Logo */}
+          {/* Center: Prestigious Alif News 24 Brand Logo */}
           <div
             onClick={handleSelectHome}
-            className="flex flex-col items-center cursor-pointer select-none text-center"
+            className="flex items-center gap-3 cursor-pointer select-none text-left"
           >
-            <h1 className="font-serif font-black text-3xl sm:text-4xl tracking-tight text-slate-950 dark:text-white leading-none">
-              MAAN <span className="text-red-600 font-sans font-extrabold">NEWS</span>
-            </h1>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-semibold mt-1">
-              The Daily Enterprise · সত্য ও তথ্যের অনুসন্ধান
-            </p>
+            {/* Custom Emblem */}
+            <div className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 bg-gradient-to-br from-red-600 via-rose-600 to-red-700 rounded-xl shadow-md text-white font-serif font-black text-2xl sm:text-3xl tracking-tighter ring-2 ring-red-500/20 shrink-0">
+              A
+              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 bg-slate-950 text-[9px] font-sans font-black text-emerald-400 rounded-sm border border-slate-700 leading-none shadow-xs">
+                24
+              </span>
+            </div>
+
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className="font-serif font-black text-2xl sm:text-3.5xl tracking-tight text-slate-950 dark:text-white">
+                  ALIF
+                </span>
+                <span className="font-sans font-black text-2xl sm:text-3.5xl text-red-600 tracking-tight">
+                  NEWS
+                </span>
+                <span className="px-1.5 py-0.5 bg-red-600 text-white rounded-md text-sm sm:text-base font-black tracking-tight font-sans shadow-2xs">
+                  24
+                </span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-wider mt-1 flex items-center gap-1.5">
+                <span>Alif News 24</span>
+                <span className="text-slate-300 dark:text-slate-700">·</span>
+                <span>Truth, Integrity & 24/7 Investigative Journalism</span>
+              </p>
+            </div>
           </div>
 
           {/* Right: Search & Dark Mode */}
           <div className="flex items-center gap-2.5">
-            <div className="relative hidden md:block w-56 lg:w-64">
+            <div className="relative hidden md:block w-56 lg:w-68">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="সংবাদ খুঁজুন..."
+                placeholder="Search politics, markets, tech..."
                 className={`w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border focus:outline-hidden focus:ring-2 focus:ring-sky-500 ${
                   darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-900'
                 }`}
@@ -414,14 +452,14 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-              title="থিম পরিবর্তন"
+              title="Toggle Theme"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        {/* 5. CATEGORY NAVIGATION BAR (ONLY CATEGORIES - কোন পেজ নেই) */}
+        {/* 5. CATEGORY NAVIGATION BAR (ONLY CATEGORIES - NO PAGES) */}
         <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-8 overflow-x-auto scrollbar-none">
             <nav className="flex items-center gap-2 py-2.5 text-xs font-bold whitespace-nowrap">
@@ -433,7 +471,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     : 'text-slate-700 dark:text-slate-300 hover:text-red-600'
                 }`}
               >
-                সব খবর (All)
+                All Stories
               </button>
 
               {categories.map((c) => (
@@ -459,7 +497,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         {/* Ad Space: Global Header Top Slot */}
         <div className="mb-6 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
           <Tv className="w-4 h-4 text-slate-400" />
-          <span>স্পন্সরড ব্যানার • [Global - Header Top • 728x90 Billboard Ad Space]</span>
+          <span>Sponsored Banner • [Global - Header Top Slot • 728x90 Billboard Placement]</span>
         </div>
 
         {/* VIEW 1: STATIC PAGE READER (When clicked from 3-tooth drawer or footer) */}
@@ -469,7 +507,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               onClick={handleSelectHome}
               className="flex items-center gap-2 text-xs font-bold text-sky-600 hover:text-sky-700 cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" /> হোম পেজের সকল সংবাদে ফিরুন
+              <ArrowLeft className="w-4 h-4" /> Back to All Frontpage News
             </button>
 
             <div className={`p-8 md:p-12 rounded-2xl border shadow-xs space-y-6 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -478,7 +516,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   {activePage.template} Page
                 </span>
                 <span>·</span>
-                <span>সর্বশেষ আপডেট: {activePage.updatedAt}</span>
+                <span>Last updated: {activePage.updatedAt}</span>
               </div>
 
               <h1 className="text-3xl md:text-4xl font-serif font-black tracking-tight text-slate-900 dark:text-white">
@@ -492,13 +530,13 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               {activePage.template === 'contact' && (
                 <div className="pt-6 border-t border-slate-200 dark:border-slate-800 mt-8 space-y-4">
                   <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                    নিউজ ডেস্কে বার্তা পাঠান (Editorial Contact Form)
+                    Contact the Editorial Desk (Washington, D.C. Bureau)
                   </h3>
 
                   {contactSent ? (
                     <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 text-emerald-600" />
-                      <span>ধন্যবাদ! আপনার বার্তাটি আমাদের সম্পাদকীয় ডেস্কে সফলভাবে পৌঁছেছে।</span>
+                      <span>Thank you! Your dispatch has been securely submitted to the news desk.</span>
                     </div>
                   ) : (
                     <form
@@ -513,27 +551,27 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         <input
                           type="text"
                           required
-                          placeholder="আপনার পূর্ণ নাম *"
+                          placeholder="Your Full Name *"
                           className="p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
                         />
                         <input
                           type="email"
                           required
-                          placeholder="আপনার ইমেইল *"
+                          placeholder="Your Email Address *"
                           className="p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
                         />
                       </div>
                       <textarea
                         rows={4}
                         required
-                        placeholder="আপনার তথ্য বা নিউজ টিপস লিখুন..."
+                        placeholder="Provide details regarding your news tip, inquiry, or editorial correction..."
                         className="w-full p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
                       />
                       <button
                         type="submit"
                         className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl cursor-pointer"
                       >
-                        বার্তা জমা দিন
+                        Submit Dispatch
                       </button>
                     </form>
                   )}
@@ -548,7 +586,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               onClick={() => setActiveArticle(null)}
               className="flex items-center gap-2 text-xs font-bold text-sky-600 hover:text-sky-700 cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" /> সংবাদ সূচিতে ফিরুন
+              <ArrowLeft className="w-4 h-4" /> Back to Frontpage
             </button>
 
             <article className={`p-6 md:p-10 rounded-2xl border shadow-xs space-y-6 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -557,7 +595,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 <span>·</span>
                 <span>{activeArticle.publishedAt}</span>
                 <span>·</span>
-                <span>{activeArticle.views} বার পঠিত</span>
+                <span>{activeArticle.views} reads</span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl font-serif font-black leading-tight text-slate-950 dark:text-white">
@@ -590,7 +628,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
-                    <span>{shareCopied ? 'লিঙ্ক কপি হয়েছে!' : 'শেয়ার করুন'}</span>
+                    <span>{shareCopied ? 'Link Copied!' : 'Share Story'}</span>
                   </button>
                 </div>
               </div>
@@ -650,13 +688,13 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             {/* Reader Comments Section */}
             <div className={`p-6 md:p-8 rounded-2xl border shadow-xs space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <h3 className="font-serif font-bold text-lg text-slate-900 dark:text-white">
-                পাঠক মন্তব্য ও আলোচনা
+                Reader Discussion & Community Comments
               </h3>
 
               {commentSubmitted ? (
                 <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-emerald-600" />
-                  <span>ধন্যবাদ! আপনার মন্তব্যটি গৃহীত হয়েছে এবং পর্যালোচনার জন্য জমা হয়েছে।</span>
+                  <span>Thank you! Your perspective has been posted and submitted to the news desk.</span>
                 </div>
               ) : (
                 <form onSubmit={handlePostComment} className="space-y-3 text-xs">
@@ -666,14 +704,14 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       required
                       value={commentName}
                       onChange={(e) => setCommentName(e.target.value)}
-                      placeholder="আপনার নাম *"
+                      placeholder="Your Full Name *"
                       className="p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
                     />
                     <input
                       type="email"
                       value={commentEmail}
                       onChange={(e) => setCommentEmail(e.target.value)}
-                      placeholder="আপনার ইমেইল (ঐচ্ছিক)"
+                      placeholder="Your Email (Optional)"
                       className="p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
                     />
                   </div>
@@ -682,21 +720,21 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     required
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="এই প্রতিবেদনের ওপর আপনার অভিমত জানান..."
+                    placeholder="Share your perspective on this report..."
                     className="w-full p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
                   />
                   <button
                     type="submit"
                     className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl cursor-pointer"
                   >
-                    মন্তব্য প্রকাশ করুন
+                    Post Comment
                   </button>
                 </form>
               )}
             </div>
           </div>
         ) : (
-          /* VIEW 3: NEWSPAPER ENTERPRISE HOMEPAGE DESIGN (আসল শীর্ষস্থানীয় নিউজ পোর্টালের মতো) */
+          /* VIEW 3: NEWSPAPER ENTERPRISE HOMEPAGE DESIGN (100% US / ENGLISH CONTENT) */
           <div className="space-y-10">
             {/* 3.1 HERO EDITORIAL LEAD SECTION: 3 Columns (Lead 7 cols + Trending & Opinion 5 cols) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-8 border-b border-slate-200 dark:border-slate-800">
@@ -715,7 +753,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       />
                       <span className="absolute top-3 left-3 px-2.5 py-1 bg-red-600 text-white text-[11px] font-extrabold uppercase rounded-sm shadow-md flex items-center gap-1">
                         <Flame className="w-3 h-3 fill-white" />
-                        {featuredPost.isBreaking ? 'ব্রেকিং নিউজ' : featuredPost.category}
+                        {featuredPost.isBreaking ? 'BREAKING' : featuredPost.category}
                       </span>
                     </div>
 
@@ -723,7 +761,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                         <span className="text-red-600 font-bold uppercase">{featuredPost.category}</span>
                         <span>·</span>
-                        <span>প্রতিবেদক: {featuredPost.author.name}</span>
+                        <span>By {featuredPost.author.name}</span>
                         <span>·</span>
                         <span>{featuredPost.publishedAt}</span>
                       </div>
@@ -770,14 +808,14 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
               {/* Right Column (5 cols): Ranked Top 5 Most Read + Editor's Pick + Ad */}
               <div className="lg:col-span-5 space-y-6 lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-8">
-                {/* Most Read (শীর্ষ ৫ সর্বাধিক পঠিত) */}
+                {/* Most Read (Trending Stories) */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-2 border-b-2 border-red-600">
                     <h3 className="font-serif font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-red-600" />
-                      সর্বাধিক পঠিত সংবাদ
+                      Trending Stories
                     </h3>
-                    <span className="text-[11px] font-bold text-slate-400">শীর্ষ ৫</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">Top 5</span>
                   </div>
 
                   <div className="space-y-4">
@@ -805,7 +843,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
                 {/* Sidebar Ad Placement */}
                 <div className="p-4 bg-slate-100 dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-400">
-                  <span className="font-bold block text-slate-500">বিজ্ঞাপন স্থান</span>
+                  <span className="font-bold block text-slate-500 uppercase tracking-wider text-[11px]">Sponsored Space</span>
                   <span className="text-[10px]">Author Profile - Sidebar Top (300x250)</span>
                 </div>
 
@@ -813,7 +851,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 {opinionPost && (
                   <div className="p-4 rounded-xl bg-amber-50/60 dark:bg-slate-900/60 border border-amber-200 dark:border-slate-800 space-y-2">
                     <span className="text-[10px] font-extrabold uppercase text-amber-800 dark:text-amber-400 tracking-wider">
-                      সম্পাদকীয় দৃষ্টিকোণ
+                      Editorial Perspective & Analysis
                     </span>
                     <p className="font-serif italic text-xs leading-relaxed text-slate-800 dark:text-slate-300">
                       "{opinionPost.subtitle || opinionPost.excerpt}"
@@ -826,7 +864,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       />
                       <div>
                         <p className="font-bold text-slate-900 dark:text-white">{opinionPost.author.name}</p>
-                        <p className="text-[10px] text-slate-500">সম্পাদকীয় বোর্ড</p>
+                        <p className="text-[10px] text-slate-500">Alif News 24 Editorial Board</p>
                       </div>
                     </div>
                   </div>
@@ -834,48 +872,50 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               </div>
             </div>
 
-            {/* 3.2 THEMATIC SECTION 1: BUSINESS & ECONOMY (বাণিজ্য ও অর্থনীতি) */}
+            {/* 3.2 THEMATIC SECTION 1: BUSINESS & ECONOMY (2 POSTS PER LINE) */}
             {businessPosts.length > 0 && (
               <div className="space-y-4 pt-4">
                 <div className="flex items-center justify-between pb-2 border-b-2 border-sky-600">
                   <h3 className="font-serif font-black text-xl text-slate-900 dark:text-white flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
-                    বাণিজ্য ও বৈশ্বিক অর্থনীতি (Business & Finance)
+                    Wall Street & US Economy (Business & Markets)
                   </h3>
                   <button
                     onClick={() => handleSelectCategory('Business')}
                     className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
                   >
-                    <span>আরও দেখুন</span>
+                    <span>View More</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {businessPosts.map((post) => (
                     <div
                       key={post.id}
                       onClick={() => setActiveArticle(post)}
-                      className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all"
+                      className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all flex flex-col sm:flex-row"
                     >
-                      <div className="aspect-16/10 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
                         <img
                           src={post.featuredImage}
                           alt={post.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
-                      <div className="p-4 space-y-2">
-                        <span className="text-[10px] font-bold text-sky-600 uppercase">
-                          অর্থনীতি ও বাজার
-                        </span>
-                        <h4 className="font-serif font-bold text-sm group-hover:text-sky-600 transition-colors line-clamp-2">
-                          {post.title}
-                        </h4>
-                        <p className="text-xs text-slate-500 line-clamp-2">{post.excerpt}</p>
-                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between">
+                      <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold text-sky-600 uppercase">
+                            Markets & Policy
+                          </span>
+                          <h4 className="font-serif font-bold text-sm sm:text-base group-hover:text-sky-600 transition-colors line-clamp-2 mt-1">
+                            {post.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 line-clamp-2 mt-1.5">{post.excerpt}</p>
+                        </div>
+                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
                           <span>{post.publishedAt}</span>
-                          <span>{post.views} রিডস</span>
+                          <span>{post.views} reads</span>
                         </div>
                       </div>
                     </div>
@@ -884,48 +924,50 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               </div>
             )}
 
-            {/* 3.3 THEMATIC SECTION 2: TECHNOLOGY & INNOVATION (প্রযুক্তি ও উদ্ভাবন) */}
+            {/* 3.3 THEMATIC SECTION 2: TECHNOLOGY & INNOVATION (2 POSTS PER LINE) */}
             {techPosts.length > 0 && (
               <div className="space-y-4 pt-6">
                 <div className="flex items-center justify-between pb-2 border-b-2 border-emerald-600">
                   <h3 className="font-serif font-black text-xl text-slate-900 dark:text-white flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-                    প্রযুক্তি, বিজ্ঞান ও ভবিষ্যৎ (Tech & Science)
+                    Silicon Valley, Tech & Science
                   </h3>
                   <button
                     onClick={() => handleSelectCategory('Technology')}
                     className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
                   >
-                    <span>আরও দেখুন</span>
+                    <span>View More</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {techPosts.map((post) => (
                     <div
                       key={post.id}
                       onClick={() => setActiveArticle(post)}
-                      className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all"
+                      className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all flex flex-col sm:flex-row"
                     >
-                      <div className="aspect-16/10 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
                         <img
                           src={post.featuredImage}
                           alt={post.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
-                      <div className="p-4 space-y-2">
-                        <span className="text-[10px] font-bold text-emerald-600 uppercase">
-                          উদ্ভাবন ও গবেষণা
-                        </span>
-                        <h4 className="font-serif font-bold text-sm group-hover:text-emerald-600 transition-colors line-clamp-2">
-                          {post.title}
-                        </h4>
-                        <p className="text-xs text-slate-500 line-clamp-2">{post.excerpt}</p>
-                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between">
+                      <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold text-emerald-600 uppercase">
+                            Innovation & Science
+                          </span>
+                          <h4 className="font-serif font-bold text-sm sm:text-base group-hover:text-emerald-600 transition-colors line-clamp-2 mt-1">
+                            {post.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 line-clamp-2 mt-1.5">{post.excerpt}</p>
+                        </div>
+                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
                           <span>{post.publishedAt}</span>
-                          <span>{post.views} রিডস</span>
+                          <span>{post.views} reads</span>
                         </div>
                       </div>
                     </div>
@@ -934,43 +976,45 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               </div>
             )}
 
-            {/* 3.4 ALL STORIES GRID */}
+            {/* 3.4 ALL STORIES GRID (2 POSTS PER LINE) */}
             <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <h3 className="font-serif font-black text-xl text-slate-900 dark:text-white">
-                  সকল গুরুত্বপূর্ণ প্রতিবেদন
+                  Top National & Global Dispatches
                 </h3>
                 <span className="text-xs text-slate-500 font-medium">
-                  {filteredPosts.length} টি সংবাদ প্রদর্শিত হচ্ছে
+                  {filteredPosts.length} articles displayed
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredPosts.map((post) => (
                   <div
                     key={post.id}
                     onClick={() => setActiveArticle(post)}
-                    className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 hover:shadow-md transition-all"
+                    className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 hover:shadow-md transition-all flex flex-col sm:flex-row"
                   >
-                    <div className="aspect-16/10 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                    <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
                       <img
                         src={post.featuredImage}
                         alt={post.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
-                    <div className="p-4 space-y-2">
-                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                        <span className="text-red-600 uppercase">{post.category}</span>
-                        <span>{post.publishedAt}</span>
+                    <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                          <span className="text-red-600 uppercase">{post.category}</span>
+                          <span>{post.publishedAt}</span>
+                        </div>
+                        <h4 className="font-serif font-bold text-sm sm:text-base leading-snug group-hover:text-red-600 transition-colors line-clamp-2 mt-1">
+                          {post.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mt-1.5">{post.excerpt}</p>
                       </div>
-                      <h4 className="font-serif font-bold text-sm leading-snug group-hover:text-red-600 transition-colors line-clamp-2">
-                        {post.title}
-                      </h4>
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{post.excerpt}</p>
                       <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
-                        <span>প্রতিবেদক: {post.author.name}</span>
-                        <span>{post.views} রিডস</span>
+                        <span>By {post.author.name}</span>
+                        <span>{post.views} reads</span>
                       </div>
                     </div>
                   </div>
@@ -983,20 +1027,20 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               <div className="space-y-2 text-center md:text-left">
                 <div className="flex items-center gap-2 justify-center md:justify-start text-red-500 font-extrabold text-xs uppercase tracking-wider">
                   <Mail className="w-4 h-4" />
-                  <span>দৈনিক সকালের নিউজলেটার ব্রিফিং</span>
+                  <span>Daily Morning Wire Briefing</span>
                 </div>
                 <h3 className="font-serif font-black text-2xl tracking-tight">
-                  দিনের সেরা সংবাদ বিশ্লেষণ আপনার ইনবক্সে
+                  The Nation's Most Essential News in Your Inbox
                 </h3>
                 <p className="text-xs text-slate-400 max-w-lg">
-                  প্রতিদিন সকালে বিশ্ব রাজনীতি, বাণিজ্য এবং অর্থনীতির নির্বাচিত প্রতিবেদন সরাসরি আপনার ইমেইলে পৌঁছে দেবে মান নিউজ।
+                  Start your day with investigative reporting, market data, and political analysis from Washington and beyond delivered straight to your email every morning.
                 </p>
               </div>
 
               {newsletterSubscribed ? (
                 <div className="px-6 py-3 bg-emerald-500/20 border border-emerald-500 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  <span>ধন্যবাদ! আপনি সফলভাবে সাবস্ক্রাইব করেছেন।</span>
+                  <span>Thank you! You have successfully subscribed to the Daily Wire.</span>
                 </div>
               ) : (
                 <form
@@ -1008,14 +1052,14 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     required
                     value={newsletterEmail}
                     onChange={(e) => setNewsletterEmail(e.target.value)}
-                    placeholder="আপনার ইমেইল ঠিকানা দিন..."
+                    placeholder="Enter your email address..."
                     className="px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-hidden focus:ring-2 focus:ring-red-600 w-full sm:w-64"
                   />
                   <button
                     type="submit"
                     className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shrink-0"
                   >
-                    সাবস্ক্রাইব
+                    Subscribe
                   </button>
                 </form>
               )}
@@ -1029,21 +1073,28 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Column 1: Brand & Editorial Policy */}
           <div className="space-y-3">
-            <h2 className="font-serif font-black text-2xl text-slate-950 dark:text-white">
-              MAAN <span className="text-red-600 font-sans font-extrabold">NEWS</span>
-            </h2>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-red-600 to-rose-700 rounded-xl text-white font-serif font-black text-xl shadow-xs">
+                A
+              </div>
+              <div className="font-serif font-black text-2xl text-slate-950 dark:text-white flex items-center gap-1.5">
+                <span>ALIF</span>
+                <span className="text-red-600 font-sans font-extrabold">NEWS</span>
+                <span className="text-sm px-1.5 py-0.5 bg-red-600 text-white font-sans rounded-md font-black">24</span>
+              </div>
+            </div>
             <p className="text-xs leading-relaxed text-slate-500">
-              মান নিউজ একটি আন্তর্জাতিক সংবাদমাধ্যম। সত্য, বস্তুনিষ্ঠতা এবং অনুসন্ধানী সাংবাদিকতার মূল আদর্শে আমরা বিশ্বজুড়ে লাখো পাঠকের বিশ্বস্ত উৎস।
+              Alif News 24 is an independent American news organization committed to rigorous, non-partisan, around-the-clock investigative journalism covering Capitol Hill, Wall Street, Silicon Valley, and global affairs.
             </p>
             <p className="text-[11px] text-slate-400">
-              সম্পাদক ও প্রকাশক: <strong>Maan Media Group Ltd.</strong>
+              Editor-in-Chief & Publisher: <strong>Alif Media Group, LLC.</strong>
             </p>
           </div>
 
           {/* Column 2: News Categories */}
           <div className="space-y-2">
             <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-              সংবাদ বিভাগসমূহ
+              News Desks
             </h4>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {categories.slice(0, 8).map((c) => (
@@ -1061,7 +1112,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           {/* Column 3: Static Pages (All published pages) */}
           <div className="space-y-2">
             <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-              ওয়েবসাইট পেজসমূহ (Pages)
+              Company & Legal
             </h4>
             <div className="space-y-1.5 text-xs">
               {footerPages.map((page) => (
@@ -1079,24 +1130,24 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           {/* Column 4: Admin Quick Switch & Legal */}
           <div className="space-y-3">
             <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-              ব্যবস্থাপনা ও পোর্টাল
+              Newsroom Management
             </h4>
             <p className="text-xs text-slate-500">
-              সম্পূর্ণ এন্টারপ্রাইজ এডমিন প্যানেল, এডিটরিয়াল ওয়ার্কফ্লো এবং এআই অ্যাসিস্ট্যান্ট এক্সেস করতে এডমিনে প্রবেশ করুন।
+              Access the full enterprise CMS, editorial publishing workflows, AI copilot, and system configuration.
             </p>
             <button
               onClick={onBackToAdmin}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:text-slate-950 font-bold rounded-xl transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>এডমিন প্যানেলে ফিরুন</span>
+              <span>Return to Admin Panel</span>
             </button>
           </div>
         </div>
 
         {/* Bottom Copyright bar */}
         <div className="border-t border-slate-200 dark:border-slate-800 py-4 bg-slate-50 dark:bg-slate-950 text-slate-400 text-center text-xs">
-          <p>© 2026 Maan News Media Enterprise. সর্বস্বত্ব সংরক্ষিত।</p>
+          <p>© 2026 Alif News 24 Media Enterprise, LLC. All rights reserved.</p>
         </div>
       </footer>
     </div>

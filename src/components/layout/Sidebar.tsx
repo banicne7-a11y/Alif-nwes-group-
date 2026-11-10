@@ -81,18 +81,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => handleNav('dashboard')}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
-            {/* Logo glyph: two slanted rounded bars matching screenshot */}
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-6 bg-sky-400 rounded-full transform -skew-x-12"></span>
-              <span className="w-2.5 h-6 bg-cyan-300 rounded-full transform -skew-x-12"></span>
+            {/* Logo glyph: Red emblem with 24 badge for Alif News 24 */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-rose-700 text-white font-serif font-black text-lg flex items-center justify-center shadow-xs">
+                A
+              </div>
+              <div className="flex flex-col">
+                <span className="font-extrabold text-lg tracking-tight text-white font-['Plus_Jakarta_Sans',sans-serif] leading-tight">
+                  ALIF <span className="text-red-500 font-bold">NEWS</span> <span className="text-sky-400 text-xs font-black">24</span>
+                </span>
+                <span className="text-[9px] text-slate-400 font-medium">US Edition · 24/7 Desk</span>
+              </div>
             </div>
-            <span className="font-extrabold text-xl tracking-tight text-white font-['Plus_Jakarta_Sans',sans-serif]">
-              MAAN <span className="text-sky-400 font-bold">NEWS</span>
-            </span>
           </div>
 
-          <span className="hidden lg:inline-flex text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-sky-950 text-sky-400 border border-sky-800/50">
-            PRO CMS
+          <span className="hidden lg:inline-flex text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-red-950/80 text-red-400 border border-red-800/50">
+            LIVE 24/7
           </span>
         </div>
 
@@ -417,8 +421,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Sidebar Footer matching Screenshot 2 */}
         <div className="p-4 border-t border-slate-800/80 bg-[#090F21] text-[11px] text-slate-400 flex flex-col gap-1">
           <div className="flex items-center justify-between text-slate-300 font-semibold">
-            <span>Maan News CMS</span>
-            <span className="text-sky-400">v2.4.0</span>
+            <span>Alif News 24 CMS</span>
+            <span className="text-red-400 font-bold">LIVE v2.4</span>
           </div>
           <p className="text-[10px] text-slate-500">© 2026 Enterprise Edition</p>
         </div>
