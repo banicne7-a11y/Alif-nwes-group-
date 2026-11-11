@@ -14,7 +14,7 @@ import {
   BackupRecord,
 } from '../types';
 
-const STORAGE_KEY = 'alif_news_24_cms_db_v5';
+const STORAGE_KEY = 'alif_news_24_cms_db_v8';
 
 export interface DatabaseState {
   posts: Post[];
@@ -35,43 +35,43 @@ export interface DatabaseState {
 
 // Initial seed categories matching Screenshot 1
 const initialCategories: Category[] = [
-  { id: 'cat-1', name: 'Business', slug: 'business', color: '#0284C7', description: 'Financial markets, commerce, inflation, and global enterprise', count: 52 },
-  { id: 'cat-2', name: 'Politics', slug: 'politics', color: '#6366F1', description: 'Government policies, international diplomacy, elections', count: 45 },
-  { id: 'cat-3', name: 'Health', slug: 'health', color: '#10B981', description: 'Medical research, public wellness, clinical advancements', count: 38 },
-  { id: 'cat-4', name: 'Sports', slug: 'sports', color: '#EF4444', description: 'Global tournaments, athletics, football, cricket, leagues', count: 41 },
-  { id: 'cat-5', name: 'Travels', slug: 'travels', color: '#F59E0B', description: 'Destinations, hospitality, tourism culture and guides', count: 29 },
-  { id: 'cat-6', name: "Family's", slug: 'familys', color: '#EC4899', description: 'Living, relationships, parenting, wellness and lifestyle', count: 25 },
-  { id: 'cat-7', name: 'Science', slug: 'science', color: '#06B6D4', description: 'Space exploration, quantum computing, ecology discoveries', count: 34 },
-  { id: 'cat-8', name: 'Technology', slug: 'technology', color: '#F97316', description: 'Artificial Intelligence, software, semiconductors, gadgets', count: 48 },
-  { id: 'cat-9', name: 'Religion', slug: 'religion', color: '#8B5CF6', description: 'Faith, philosophy, interfaith peace and cultural heritage', count: 18 },
+  { id: 'cat-1', name: 'Business', slug: 'business', color: '#0284C7', description: 'Financial markets, commerce, inflation, and global enterprise', count: 0 },
+  { id: 'cat-2', name: 'Politics', slug: 'politics', color: '#6366F1', description: 'Government policies, international diplomacy, elections', count: 0 },
+  { id: 'cat-3', name: 'Health', slug: 'health', color: '#10B981', description: 'Medical research, public wellness, clinical advancements', count: 0 },
+  { id: 'cat-4', name: 'Sports', slug: 'sports', color: '#EF4444', description: 'Global tournaments, athletics, football, cricket, leagues', count: 0 },
+  { id: 'cat-5', name: 'Travels', slug: 'travels', color: '#F59E0B', description: 'Destinations, hospitality, tourism culture and guides', count: 0 },
+  { id: 'cat-6', name: "Family's", slug: 'familys', color: '#EC4899', description: 'Living, relationships, parenting, wellness and lifestyle', count: 0 },
+  { id: 'cat-7', name: 'Science', slug: 'science', color: '#06B6D4', description: 'Space exploration, quantum computing, ecology discoveries', count: 0 },
+  { id: 'cat-8', name: 'Technology', slug: 'technology', color: '#F97316', description: 'Artificial Intelligence, software, semiconductors, gadgets', count: 0 },
+  { id: 'cat-9', name: 'Religion', slug: 'religion', color: '#8B5CF6', description: 'Faith, philosophy, interfaith peace and cultural heritage', count: 0 },
 ];
 
 const initialTags: Tag[] = [
-  { id: 't-1', name: 'Inflation', slug: 'inflation', count: 24 },
-  { id: 't-2', name: 'Federal Reserve', slug: 'federal-reserve', count: 19 },
-  { id: 't-3', name: 'Artificial Intelligence', slug: 'ai', count: 37 },
-  { id: 't-4', name: 'Global Economy', slug: 'global-economy', count: 28 },
-  { id: 't-5', name: 'Clean Energy', slug: 'clean-energy', count: 15 },
-  { id: 't-6', name: 'Health Tech', slug: 'health-tech', count: 12 },
-  { id: 't-7', name: 'Cybersecurity', slug: 'cybersecurity', count: 18 },
-  { id: 't-8', name: 'SpaceX', slug: 'spacex', count: 9 },
+  { id: 't-1', name: 'Inflation', slug: 'inflation', count: 0 },
+  { id: 't-2', name: 'Federal Reserve', slug: 'federal-reserve', count: 0 },
+  { id: 't-3', name: 'Artificial Intelligence', slug: 'ai', count: 0 },
+  { id: 't-4', name: 'Global Economy', slug: 'global-economy', count: 0 },
+  { id: 't-5', name: 'Clean Energy', slug: 'clean-energy', count: 0 },
+  { id: 't-6', name: 'Health Tech', slug: 'health-tech', count: 0 },
+  { id: 't-7', name: 'Cybersecurity', slug: 'cybersecurity', count: 0 },
+  { id: 't-8', name: 'SpaceX', slug: 'spacex', count: 0 },
 ];
 
 const initialUsers: User[] = [
   {
     id: 'u-1',
-    name: 'Administrator',
-    email: 'admin@alifnews24.com',
+    name: 'Lead Administrator',
+    email: 'banicne7@gmail.com',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     role: 'Administrator',
     status: 'active',
     twoFactorEnabled: true,
-    articlesCount: 142,
+    articlesCount: 0,
     bio: 'Lead Operations & Editorial Executive at Alif News 24 Enterprise.',
     lastLogin: 'Today at 08:30 AM',
     loginHistory: [
-      { timestamp: '2026-11-08 08:30:12', ip: '192.168.1.104', device: 'Chrome / macOS Sonoma' },
-      { timestamp: '2026-11-07 14:15:20', ip: '192.168.1.104', device: 'Chrome / macOS Sonoma' },
+      { timestamp: '2026-11-11 08:30:12', ip: '192.168.1.104', device: 'Chrome / macOS' },
+      { timestamp: '2026-11-10 14:15:20', ip: '192.168.1.104', device: 'Chrome / macOS' },
     ],
   },
   {
@@ -82,7 +82,7 @@ const initialUsers: User[] = [
     role: 'Editor',
     status: 'active',
     twoFactorEnabled: true,
-    articlesCount: 88,
+    articlesCount: 0,
     bio: 'Senior Political Correspondent and News Desk Lead.',
   },
   {
@@ -93,7 +93,7 @@ const initialUsers: User[] = [
     role: 'Author',
     status: 'active',
     twoFactorEnabled: false,
-    articlesCount: 54,
+    articlesCount: 0,
     bio: 'Business & Finance Market Analyst.',
   },
   {
@@ -104,7 +104,7 @@ const initialUsers: User[] = [
     role: 'Author',
     status: 'active',
     twoFactorEnabled: true,
-    articlesCount: 39,
+    articlesCount: 0,
     bio: 'Science & Emerging Technologies Reporter.',
   },
   {
@@ -115,8 +115,30 @@ const initialUsers: User[] = [
     role: 'Contributor',
     status: 'active',
     twoFactorEnabled: false,
-    articlesCount: 16,
+    articlesCount: 0,
     bio: 'Culture, Lifestyle and Travel Columnist.',
+  },
+  {
+    id: 'u-6',
+    name: 'David Vance',
+    email: 'david.vance@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    role: 'Subscriber',
+    status: 'active',
+    twoFactorEnabled: false,
+    articlesCount: 0,
+    bio: 'Verified Premium Digital Subscriber & Daily Reader.',
+  },
+  {
+    id: 'u-7',
+    name: 'Sarah Jenkins',
+    email: 'sarah.j@outlook.com',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    role: 'Subscriber',
+    status: 'active',
+    twoFactorEnabled: true,
+    articlesCount: 0,
+    bio: 'Morning Dispatch Subscriber & Registered Member.',
   },
 ];
 
@@ -133,17 +155,17 @@ const initialPosts: Post[] = [
     readTime: '15 min read',
     tags: ['Elections', 'Politics', 'White House', 'History'],
     author: {
-      id: 'u-2',
-      name: 'Jenny Wilson',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      role: 'Editor',
+      id: 'u-1',
+      name: 'Lead Administrator',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      role: 'Administrator',
     },
     status: 'published',
     publishedAt: 'Today · 15 min read',
     updatedAt: '2026-11-08 10:15',
-    views: 18920,
-    commentsCount: 642,
-    sharesCount: 3820,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: true,
     isFeatured: true,
@@ -202,9 +224,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: 'Today · 10 min read',
     updatedAt: '2026-11-08 09:30',
-    views: 11200,
-    commentsCount: 290,
-    sharesCount: 1450,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: true,
     isFeatured: false,
@@ -247,9 +269,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: 'Today · 4 min read',
     updatedAt: '2026-11-08 09:10',
-    views: 14500,
-    commentsCount: 512,
-    sharesCount: 2310,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: true,
     isFeatured: false,
@@ -291,9 +313,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: 'Today · 4 min read',
     updatedAt: '2026-11-08 08:45',
-    views: 8900,
-    commentsCount: 178,
-    sharesCount: 890,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: true,
     isTrending: true,
     isFeatured: false,
@@ -335,9 +357,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: 'Today · 2 min read',
     updatedAt: '2026-11-08 08:20',
-    views: 6720,
-    commentsCount: 142,
-    sharesCount: 920,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: false,
     isFeatured: false,
@@ -379,9 +401,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: 'Today · 5 min read',
     updatedAt: '2026-11-08 07:45',
-    views: 12400,
-    commentsCount: 388,
-    sharesCount: 1980,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: true,
     isFeatured: false,
@@ -422,9 +444,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: '2026-11-08 07:10',
     updatedAt: '2026-11-08 07:15',
-    views: 7420,
-    commentsCount: 500,
-    sharesCount: 1840,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: true,
     isTrending: true,
     isFeatured: true,
@@ -487,9 +509,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: '2026-11-08 06:40',
     updatedAt: '2026-11-08 06:50',
-    views: 6890,
-    commentsCount: 380,
-    sharesCount: 1200,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: true,
     isFeatured: true,
@@ -541,9 +563,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: '2026-11-07 19:20',
     updatedAt: '2026-11-07 20:00',
-    views: 5340,
-    commentsCount: 290,
-    sharesCount: 960,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: false,
     isFeatured: false,
@@ -584,9 +606,9 @@ const initialPosts: Post[] = [
     status: 'published',
     publishedAt: '2026-11-07 15:45',
     updatedAt: '2026-11-07 16:10',
-    views: 8920,
-    commentsCount: 420,
-    sharesCount: 3100,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: true,
     isTrending: true,
     isFeatured: true,
@@ -627,9 +649,9 @@ const initialPosts: Post[] = [
     status: 'draft',
     publishedAt: '2026-11-08 09:00',
     updatedAt: '2026-11-08 09:15',
-    views: 450,
-    commentsCount: 12,
-    sharesCount: 88,
+    views: 0,
+    commentsCount: 0,
+    sharesCount: 0,
     isBreaking: false,
     isTrending: true,
     isFeatured: false,
@@ -657,19 +679,19 @@ const initialPosts: Post[] = [
 
 // Seed Ad Placements matching Screenshot 2 exactly!
 const initialAds: AdPlacement[] = [
-  { id: 'ad-1', name: 'Author Profile - Mobile Top', key: 'author_mobile_top', type: 'Code', size: '320x100', status: 'Active', impressions: 45200, clicks: 1240, deviceTarget: 'mobile', customCode: '<!-- Ad: Author Mobile Top -->' },
-  { id: 'ad-2', name: 'Author Profile - Sidebar Top', key: 'author_sidebar_1', type: 'Code', size: '300x250', status: 'Active', impressions: 68100, clicks: 2150, deviceTarget: 'desktop', customCode: '<!-- Ad: Author Sidebar 1 -->' },
-  { id: 'ad-3', name: 'Author Profile - Sidebar Bottom', key: 'author_sidebar_2', type: 'Code', size: '300x250', status: 'Active', impressions: 39400, clicks: 980, deviceTarget: 'desktop', customCode: '<!-- Ad: Author Sidebar 2 -->' },
-  { id: 'ad-4', name: 'Home - Mobile Top', key: 'home_mobile_top', type: 'Code', size: '320x100', status: 'Active', impressions: 182000, clicks: 5410, deviceTarget: 'mobile', customCode: '<!-- Ad: Home Mobile Top -->' },
-  { id: 'ad-5', name: 'Home - Sidebar Top', key: 'home_sidebar_top', type: 'Code', size: '300x250', status: 'Active', impressions: 210000, clicks: 6820, deviceTarget: 'desktop', customCode: '<!-- Ad: Home Sidebar Top -->' },
-  { id: 'ad-6', name: 'Home - Sidebar Bottom', key: 'home_sidebar_bottom', type: 'Code', size: '300x600', status: 'Active', impressions: 142000, clicks: 4100, deviceTarget: 'desktop', customCode: '<!-- Ad: Home Sidebar Bottom -->' },
-  { id: 'ad-7', name: 'Article - Mobile Top', key: 'article_mobile_top', type: 'Code', size: '320x100', status: 'Active', impressions: 98000, clicks: 3200, deviceTarget: 'mobile', customCode: '<!-- Ad: Article Mobile Top -->' },
-  { id: 'ad-8', name: 'Article - Sidebar Top', key: 'article_sidebar_top', type: 'Code', size: '300x250', status: 'Active', impressions: 125000, clicks: 4320, deviceTarget: 'desktop', customCode: '<!-- Ad: Article Sidebar Top -->' },
-  { id: 'ad-9', name: 'Article - Sidebar Bottom', key: 'article_sidebar_bottom', type: 'Code', size: '300x600', status: 'Active', impressions: 94000, clicks: 2890, deviceTarget: 'desktop', customCode: '<!-- Ad: Article Sidebar Bottom -->' },
-  { id: 'ad-10', name: 'Article - Header (All)', key: 'article_header', type: 'Code', size: 'Responsive', status: 'Active', impressions: 320000, clicks: 11200, deviceTarget: 'all', customCode: '<!-- Ad: Article Header All -->' },
-  { id: 'ad-11', name: 'Article - After Cover (Rect)', key: 'article_after_cover', type: 'Code', size: '300x250', status: 'Active', impressions: 154000, clicks: 4980, deviceTarget: 'all', customCode: '<!-- Ad: Article After Cover -->' },
-  { id: 'ad-12', name: 'Global - Header Top', key: 'global_header_top', type: 'Code', size: 'Responsive', status: 'Active', impressions: 420000, clicks: 14900, deviceTarget: 'all', customCode: '<!-- Ad: Global Header Top -->' },
-  { id: 'ad-13', name: 'Global - Mobile Sticky Bottom', key: 'global_sticky_bottom', type: 'Code', size: '320x50', status: 'Active', impressions: 290000, clicks: 9800, deviceTarget: 'mobile', customCode: '<!-- Ad: Global Mobile Sticky Bottom -->' },
+  { id: 'ad-1', name: 'Author Profile - Mobile Top', key: 'author_mobile_top', type: 'Code', size: '320x100', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'mobile', customCode: '<!-- Ad: Author Mobile Top -->' },
+  { id: 'ad-2', name: 'Author Profile - Sidebar Top', key: 'author_sidebar_1', type: 'Code', size: '300x250', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'desktop', customCode: '<!-- Ad: Author Sidebar 1 -->' },
+  { id: 'ad-3', name: 'Author Profile - Sidebar Bottom', key: 'author_sidebar_2', type: 'Code', size: '300x250', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'desktop', customCode: '<!-- Ad: Author Sidebar 2 -->' },
+  { id: 'ad-4', name: 'Home - Mobile Top', key: 'home_mobile_top', type: 'Code', size: '320x100', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'mobile', customCode: '<!-- Ad: Home Mobile Top -->' },
+  { id: 'ad-5', name: 'Home - Sidebar Top', key: 'home_sidebar_top', type: 'Code', size: '300x250', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'desktop', customCode: '<!-- Ad: Home Sidebar Top -->' },
+  { id: 'ad-6', name: 'Home - Sidebar Bottom', key: 'home_sidebar_bottom', type: 'Code', size: '300x600', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'desktop', customCode: '<!-- Ad: Home Sidebar Bottom -->' },
+  { id: 'ad-7', name: 'Article - Mobile Top', key: 'article_mobile_top', type: 'Code', size: '320x100', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'mobile', customCode: '<!-- Ad: Article Mobile Top -->' },
+  { id: 'ad-8', name: 'Article - Sidebar Top', key: 'article_sidebar_top', type: 'Code', size: '300x250', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'desktop', customCode: '<!-- Ad: Article Sidebar Top -->' },
+  { id: 'ad-9', name: 'Article - Sidebar Bottom', key: 'article_sidebar_bottom', type: 'Code', size: '300x600', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'desktop', customCode: '<!-- Ad: Article Sidebar Bottom -->' },
+  { id: 'ad-10', name: 'Article - Header (All)', key: 'article_header', type: 'Code', size: 'Responsive', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'all', customCode: '<!-- Ad: Article Header All -->' },
+  { id: 'ad-11', name: 'Article - After Cover (Rect)', key: 'article_after_cover', type: 'Code', size: '300x250', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'all', customCode: '<!-- Ad: Article After Cover -->' },
+  { id: 'ad-12', name: 'Global - Header Top', key: 'global_header_top', type: 'Code', size: 'Responsive', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'all', customCode: '<!-- Ad: Global Header Top -->' },
+  { id: 'ad-13', name: 'Global - Mobile Sticky Bottom', key: 'global_sticky_bottom', type: 'Code', size: '320x50', status: 'Active', impressions: 0, clicks: 0, deviceTarget: 'mobile', customCode: '<!-- Ad: Global Mobile Sticky Bottom -->' },
 ];
 
 // Seed comments matching Screenshot 1 "Latest Comments"
@@ -785,9 +807,9 @@ const initialLogs: ActivityLog[] = [
 ];
 
 const initialBackups: BackupRecord[] = [
-  { id: 'bk-1', fileName: 'maan_news_db_2026-11-08_02-00.json', size: '1.42 MB', createdAt: '2026-11-08 02:00:00', type: 'automated', itemsCount: 420 },
-  { id: 'bk-2', fileName: 'maan_news_db_2026-11-07_02-00.json', size: '1.38 MB', createdAt: '2026-11-07 02:00:00', type: 'automated', itemsCount: 412 },
-  { id: 'bk-3', fileName: 'maan_news_db_2026-11-06_manual_pre_update.json', size: '1.35 MB', createdAt: '2026-11-06 18:45:00', type: 'manual', itemsCount: 405 },
+  { id: 'bk-1', fileName: 'alif_news_24_cms_backup.json', size: '1.42 MB', createdAt: '2026-11-08 02:00:00', type: 'automated', itemsCount: 11 },
+  { id: 'bk-2', fileName: 'alif_news_24_cms_backup.json', size: '1.38 MB', createdAt: '2026-11-07 02:00:00', type: 'automated', itemsCount: 11 },
+  { id: 'bk-3', fileName: 'alif_news_24_cms_backup.json', size: '1.35 MB', createdAt: '2026-11-06 18:45:00', type: 'manual', itemsCount: 11 },
 ];
 
 const initialSubscribers: NewsletterSubscriber[] = [
@@ -797,8 +819,8 @@ const initialSubscribers: NewsletterSubscriber[] = [
 ];
 
 const initialCampaigns: NewsletterCampaign[] = [
-  { id: 'camp-1', subject: 'Morning Wire: US Inflation Decelerates, Markets Rally', template: 'Daily Morning Dispatch', status: 'sent', sentAt: '2026-11-08 08:00', recipientsCount: 10000, openRate: '42.8%', clickRate: '14.2%' },
-  { id: 'camp-2', subject: 'Weekend Deep Dive: Room-Temperature Quantum Breakthrough', template: 'Weekend In-Depth Feature', status: 'draft', recipientsCount: 10000 },
+  { id: 'camp-1', subject: 'Morning Wire: US Inflation Decelerates, Markets Rally', template: 'Daily Morning Dispatch', status: 'sent', sentAt: '2026-11-08 08:00', recipientsCount: 3, openRate: '100%', clickRate: '66.7%' },
+  { id: 'camp-2', subject: 'Weekend Deep Dive: Room-Temperature Quantum Breakthrough', template: 'Weekend In-Depth Feature', status: 'draft', recipientsCount: 3 },
 ];
 
 class DatabaseService {
@@ -855,6 +877,15 @@ class DatabaseService {
     return this.state;
   }
 
+  public getCurrentUser(): User {
+    return this.state.currentUser;
+  }
+
+  public updateCurrentUser(user: User): void {
+    this.state.currentUser = user;
+    this.save();
+  }
+
   // -------------------------
   // Log Action Helper
   // -------------------------
@@ -877,11 +908,27 @@ class DatabaseService {
   // Post Operations
   // -------------------------
   public getPosts(): Post[] {
-    return this.state.posts;
+    return this.state.posts.map((p) => ({
+      ...p,
+      commentsCount: this.state.comments.filter((c) => c.postId === p.id).length,
+    }));
+  }
+
+  public incrementPostViews(id: string): void {
+    const post = this.state.posts.find((p) => p.id === id);
+    if (post) {
+      post.views = (post.views || 0) + 1;
+      this.save();
+    }
   }
 
   public getPostById(id: string): Post | undefined {
-    return this.state.posts.find((p) => p.id === id);
+    const post = this.state.posts.find((p) => p.id === id);
+    if (!post) return undefined;
+    return {
+      ...post,
+      commentsCount: this.state.comments.filter((c) => c.postId === post.id).length,
+    };
   }
 
   public savePost(postData: Partial<Post> & { title: string }): Post {
@@ -1010,7 +1057,12 @@ class DatabaseService {
   // Category Operations
   // -------------------------
   public getCategories(): Category[] {
-    return this.state.categories;
+    return this.state.categories.map((c) => ({
+      ...c,
+      count: this.state.posts.filter(
+        (p) => p.category.toLowerCase().trim() === c.name.toLowerCase().trim()
+      ).length,
+    }));
   }
 
   public saveCategory(catData: Partial<Category> & { name: string }): Category {
@@ -1053,7 +1105,12 @@ class DatabaseService {
   // Tags Operations
   // -------------------------
   public getTags(): Tag[] {
-    return this.state.tags;
+    return this.state.tags.map((t) => ({
+      ...t,
+      count: this.state.posts.filter((p) =>
+        p.tags.some((tag) => tag.toLowerCase().trim() === t.name.toLowerCase().trim())
+      ).length,
+    }));
   }
 
   public saveTag(name: string): Tag {
@@ -1166,7 +1223,15 @@ class DatabaseService {
   // User Management
   // -------------------------
   public getUsers(): User[] {
-    return this.state.users;
+    return this.state.users.map((u) => {
+      const realCount = this.state.posts.filter(
+        (p) => p.author?.id === u.id || p.author?.name?.toLowerCase().trim() === u.name?.toLowerCase().trim()
+      ).length;
+      return {
+        ...u,
+        articlesCount: realCount,
+      };
+    });
   }
 
   public saveUser(userData: Partial<User> & { name: string; email: string }): User {
@@ -1346,7 +1411,7 @@ class DatabaseService {
       subject: campaign.subject,
       template: campaign.template,
       status: campaign.status || 'draft',
-      recipientsCount: this.state.subscribers.length || 10000,
+      recipientsCount: this.state.subscribers.length,
       sentAt: campaign.status === 'sent' ? new Date().toISOString().slice(0, 16).replace('T', ' ') : undefined,
     };
     this.state.campaigns.push(newCamp);

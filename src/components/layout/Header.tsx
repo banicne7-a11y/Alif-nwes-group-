@@ -21,6 +21,7 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   onViewWebsite: () => void;
   onNavigate: (view: string) => void;
+  onLogout?: () => void;
   currentLanguage: string;
   onLanguageChange: (lang: string) => void;
   darkMode: boolean;
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   onViewWebsite,
   onNavigate,
+  onLogout,
   currentLanguage,
   onLanguageChange,
   darkMode,
@@ -258,13 +260,17 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="border-t border-slate-100 pt-1">
                 <button
                   onClick={() => {
-                    toast.info('Session refreshed. Connected as Lead Administrator.');
                     setShowProfileMenu(false);
+                    if (onLogout) {
+                      onLogout();
+                    } else {
+                      toast.info('Logged out.');
+                    }
                   }}
-                  className="w-full px-4 py-2 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2.5 cursor-pointer"
+                  className="w-full px-4 py-2 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2.5 cursor-pointer font-medium"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Log Out</span>
+                  <span>Log Out & Exit to News</span>
                 </button>
               </div>
             </div>

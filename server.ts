@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -278,6 +279,104 @@ app.get('/api/system/health', (req, res) => {
     aiReady: !!ai,
     environment: process.env.NODE_ENV || 'development',
   });
+});
+
+// -------------------------------------------------------------
+// Google Search Console & SEO Endpoints
+// -------------------------------------------------------------
+
+// 1. Google HTML File Verification handler (e.g., /google1234567890abcdef.html)
+app.get('/google:hash.html', (req, res) => {
+  const hash = req.params.hash;
+  res.type('html').send(`google-site-verification: google${hash}.html`);
+});
+
+// 2. robots.txt endpoint
+app.get('/robots.txt', (req, res) => {
+  const host = req.get('host') || 'alifnews24.com';
+  const protocol = req.protocol || 'https';
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /\n\nSitemap: ${protocol}://${host}/sitemap.xml\n`
+  );
+});
+
+// 3. sitemap.xml endpoint for Google Search Console
+app.get('/sitemap.xml', (req, res) => {
+  const host = req.get('host') || 'alifnews24.com';
+  const protocol = req.protocol || 'https';
+  const baseUrl = `${protocol}://${host}`;
+  const now = new Date().toISOString().slice(0, 10);
+
+  const defaultSlugs = [
+    '',
+    'category/business',
+    'category/politics',
+    'category/technology',
+    'category/health',
+    'category/science',
+    'category/sports',
+    'page/about-us',
+    'page/contact-us',
+    'page/privacy-policy',
+    'page/editorial-standards',
+    'news/what-if-trump-had-lost-in-2016-10-years-alternate-history',
+    'news/chinas-military-tech-emerges-both-sides-saudi-houthi-war',
+    'news/us-inflation-decelerating-economic-outlook-federal-reserve',
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${defaultSlugs
+  .map(
+    (slug) => `  <url>
+    <loc>${baseUrl}/${slug}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>${slug === '' ? 'hourly' : slug.startsWith('news/') ? 'daily' : 'weekly'}</changefreq>
+    <priority>${slug === '' ? '1.0' : slug.startsWith('news/') ? '0.8' : '0.6'}</priority>
+  </url>`
+  )
+  .join('\n')}
+</urlset>`;
+
+  res.type('application/xml').send(xml);
+});
+
+// 4. Update Google Search Console verification code & index.html
+app.post('/api/seo/verification', (req, res) => {
+  try {
+    const { code } = req.body;
+    let cleanCode = (code || '').trim();
+    // Normalize if user pasted entire meta tag or prefix
+    const metaMatch = cleanCode.match(/content=["']([^"']+)["']/i);
+    if (metaMatch && metaMatch[1]) {
+      cleanCode = metaMatch[1];
+    }
+    if (cleanCode.toLowerCase().startsWith('google-site-verification=')) {
+      cleanCode = cleanCode.replace(/^google-site-verification=/i, '');
+    }
+    cleanCode = cleanCode.replace(/[/"'>]/g, '').trim();
+
+    const indexPath = path.resolve(__dirname, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      let indexHtml = fs.readFileSync(indexPath, 'utf8');
+      if (indexHtml.includes('name="google-site-verification"')) {
+        indexHtml = indexHtml.replace(
+          /<meta\s+name="google-site-verification"\s+content="[^"]*"\s*(?:id="[^"]*")?\s*\/?>/i,
+          `<meta name="google-site-verification" content="${cleanCode}" id="google-site-verification" />`
+        );
+      } else {
+        indexHtml = indexHtml.replace(
+          /<head>/i,
+          `<head>\n    <meta name="google-site-verification" content="${cleanCode}" id="google-site-verification" />`
+        );
+      }
+      fs.writeFileSync(indexPath, indexHtml, 'utf8');
+    }
+
+    res.json({ success: true, cleanCode });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // -------------------------------------------------------------

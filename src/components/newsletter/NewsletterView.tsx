@@ -93,7 +93,7 @@ export const NewsletterView: React.FC = () => {
               activeTab === 'subscribers' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
             }`}
           >
-            Subscribers ({subscribers.length + 9997})
+            Subscribers ({subscribers.length})
           </button>
         </div>
       </div>
@@ -136,7 +136,7 @@ export const NewsletterView: React.FC = () => {
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                 <span className="font-bold text-slate-800">Recipients Audience:</span>
                 <p className="text-slate-500 text-[11px]">
-                  All 10,000 verified readers with active subscription tiers.
+                  All {subscribers.length} verified newsletter subscribers recorded in database.
                 </p>
               </div>
 
@@ -200,7 +200,7 @@ export const NewsletterView: React.FC = () => {
             <div>
               <h3 className="font-extrabold text-base text-slate-900">Reader Subscribers</h3>
               <p className="text-xs text-slate-500">
-                10,000 total subscribers recorded in system.
+                {subscribers.length} total subscribers recorded in database.
               </p>
             </div>
             <div className="flex gap-2">

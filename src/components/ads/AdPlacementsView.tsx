@@ -232,10 +232,10 @@ export const AdPlacementsView: React.FC = () => {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-4 text-slate-500 font-mono text-[11px]">
                     <span title="Impressions">
-                      👀 {((ad.impressions || 45000) / 1000).toFixed(1)}k
+                      👀 {(ad.impressions || 0).toLocaleString()} views
                     </span>
                     <span title="Clicks">
-                      🖱️ {(ad.clicks || 1200).toLocaleString()} clicks
+                      🖱️ {(ad.clicks || 0).toLocaleString()} clicks
                     </span>
                   </div>
 

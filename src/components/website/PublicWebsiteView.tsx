@@ -23,18 +23,27 @@ import {
   Globe,
   Radio,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { Post, Comment, Page } from '../../types';
+import { navigateTo, parseCurrentRoute } from '../../services/router';
+import { updatePageSeo } from '../../services/seo';
 
 interface PublicWebsiteViewProps {
   onBackToAdmin: () => void;
+  onOpenAdminLogin: () => void;
+  isAdminAuthenticated: boolean;
+  onLogoutAdmin: () => void;
   initialPost?: Post | null;
   initialPage?: Page | null;
 }
 
 export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   onBackToAdmin,
+  onOpenAdminLogin,
+  isAdminAuthenticated,
+  onLogoutAdmin,
   initialPost,
   initialPage,
 }) => {
@@ -64,6 +73,20 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
   // Share message simulator
   const [shareCopied, setShareCopied] = useState(false);
+
+  const handleOpenArticle = (post: Post) => {
+    db.incrementPostViews(post.id);
+    setActiveArticle(post);
+    setActivePage(null);
+    navigateTo('/news/' + post.slug);
+    updatePageSeo({
+      title: post.title,
+      description: post.excerpt,
+      ogImage: post.featuredImage,
+      ogType: 'article',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const settings = db.getSettings();
 
@@ -125,18 +148,100 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     setSelectedCategory('all');
     setActiveArticle(null);
     setActivePage(null);
+    navigateTo('/');
+    updatePageSeo({ title: "America's 24/7 Live News Portal" });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSelectCategory = (catName: string) => {
-    setSelectedCategory(catName);
     setActiveArticle(null);
     setActivePage(null);
+    if (catName.toLowerCase() === 'all') {
+      setSelectedCategory('all');
+      navigateTo('/');
+      updatePageSeo({ title: "America's 24/7 Live News Portal" });
+    } else {
+      setSelectedCategory(catName);
+      const catObj = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
+      const slug = catObj ? catObj.slug : catName.toLowerCase();
+      navigateTo('/category/' + slug);
+      updatePageSeo({ title: `${catName} News` });
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSelectPage = (page: Page) => {
     setActivePage(page);
     setActiveArticle(null);
+    navigateTo('/page/' + page.slug);
+    updatePageSeo({
+      title: page.seoTitle || page.title,
+      description: page.seoDescription || page.title,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Synchronize route on popstate and initial load
+  React.useEffect(() => {
+    if (initialPost) {
+      handleOpenArticle(initialPost);
+    } else if (initialPage) {
+      handleSelectPage(initialPage);
+    } else {
+      const route = parseCurrentRoute();
+      if (route.type === 'article') {
+        const found = posts.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (found) handleOpenArticle(found);
+      } else if (route.type === 'page') {
+        const found = pages.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (found) handleSelectPage(found);
+      } else if (route.type === 'category') {
+        handleSelectCategory(route.slug);
+      } else {
+        updatePageSeo({ title: "America's 24/7 Live News Portal" });
+      }
+    }
+
+    const handlePopState = () => {
+      const route = parseCurrentRoute();
+      if (route.type === 'article') {
+        const found = posts.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (found) {
+          setActiveArticle(found);
+          setActivePage(null);
+          updatePageSeo({
+            title: found.title,
+            description: found.excerpt,
+            ogImage: found.featuredImage,
+            ogType: 'article',
+          });
+        }
+      } else if (route.type === 'page') {
+        const found = pages.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (found) {
+          setActivePage(found);
+          setActiveArticle(null);
+          updatePageSeo({
+            title: found.seoTitle || found.title,
+            description: found.seoDescription || found.title,
+          });
+        }
+      } else if (route.type === 'category') {
+        setSelectedCategory(route.slug);
+        setActiveArticle(null);
+        setActivePage(null);
+        updatePageSeo({ title: `${route.slug.toUpperCase()} News` });
+      } else if (route.type === 'home') {
+        setActiveArticle(null);
+        setActivePage(null);
+        setSelectedCategory('all');
+        updatePageSeo({ title: "America's 24/7 Live News Portal" });
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [initialPost, initialPage]);
 
   return (
     <div
@@ -167,13 +272,35 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Live 24/7 US News Desk
             </span>
-            <button
-              onClick={onBackToAdmin}
-              className="flex items-center gap-1.5 px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-md font-bold text-xs transition-colors shadow-xs cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Admin Dashboard</span>
-            </button>
+
+            {isAdminAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onBackToAdmin}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-md font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                  title="Open Admin Panel"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Admin Panel</span>
+                </button>
+                <button
+                  onClick={onLogoutAdmin}
+                  className="px-2.5 py-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-md text-xs font-semibold transition-colors cursor-pointer"
+                  title="Log out of Admin"
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAdminLogin}
+                className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-md font-semibold text-xs transition-colors shadow-xs cursor-pointer"
+                title="Staff / Admin Sign In"
+              >
+                <Lock className="w-3.5 h-3.5 text-sky-400" />
+                <span>Admin Login</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -349,16 +476,40 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
             {/* Drawer Footer */}
             <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-2">
-              <button
-                onClick={() => {
-                  setDrawerMenuOpen(false);
-                  onBackToAdmin();
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-slate-950 rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Return to Admin Panel</span>
-              </button>
+              {isAdminAuthenticated ? (
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => {
+                      setDrawerMenuOpen(false);
+                      onBackToAdmin();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Go to Admin Panel</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDrawerMenuOpen(false);
+                      onLogoutAdmin();
+                    }}
+                    className="w-full py-2 text-center text-xs text-red-500 hover:text-red-600 font-semibold cursor-pointer"
+                  >
+                    Log Out of Admin
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setDrawerMenuOpen(false);
+                    onOpenAdminLogin();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-slate-950 rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                >
+                  <Lock className="w-4 h-4 text-sky-400" />
+                  <span>Admin & Staff Login</span>
+                </button>
+              )}
 
               <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
                 <span>Theme Mode</span>
@@ -583,7 +734,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           /* VIEW 2: ARTICLE READER VIEW */
           <div className="space-y-6 max-w-4xl mx-auto">
             <button
-              onClick={() => setActiveArticle(null)}
+              onClick={handleSelectHome}
               className="flex items-center gap-2 text-xs font-bold text-sky-600 hover:text-sky-700 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" /> Back to Frontpage
@@ -742,7 +893,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               <div className="lg:col-span-7 space-y-6">
                 {featuredPost && (
                   <div
-                    onClick={() => setActiveArticle(featuredPost)}
+                    onClick={() => handleOpenArticle(featuredPost)}
                     className="group cursor-pointer space-y-3"
                   >
                     <div className="relative aspect-16/10 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
@@ -782,7 +933,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   {secondaryLeads.map((post) => (
                     <div
                       key={post.id}
-                      onClick={() => setActiveArticle(post)}
+                      onClick={() => handleOpenArticle(post)}
                       className="group cursor-pointer space-y-2"
                     >
                       <div className="aspect-16/10 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
@@ -822,7 +973,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     {mostReadPosts.map((post, idx) => (
                       <div
                         key={post.id}
-                        onClick={() => setActiveArticle(post)}
+                        onClick={() => handleOpenArticle(post)}
                         className="group flex items-start gap-4 cursor-pointer pb-3 border-b border-slate-100 dark:border-slate-800 last:border-b-0"
                       >
                         <span className="font-serif font-black text-2xl text-slate-300 dark:text-slate-700 group-hover:text-red-600 transition-colors w-7 shrink-0">
@@ -893,7 +1044,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   {businessPosts.map((post) => (
                     <div
                       key={post.id}
-                      onClick={() => setActiveArticle(post)}
+                      onClick={() => handleOpenArticle(post)}
                       className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all flex flex-col sm:flex-row"
                     >
                       <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
@@ -945,7 +1096,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   {techPosts.map((post) => (
                     <div
                       key={post.id}
-                      onClick={() => setActiveArticle(post)}
+                      onClick={() => handleOpenArticle(post)}
                       className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-2xs hover:shadow-md transition-all flex flex-col sm:flex-row"
                     >
                       <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
@@ -991,7 +1142,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 {filteredPosts.map((post) => (
                   <div
                     key={post.id}
-                    onClick={() => setActiveArticle(post)}
+                    onClick={() => handleOpenArticle(post)}
                     className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 hover:shadow-md transition-all flex flex-col sm:flex-row"
                   >
                     <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
@@ -1135,13 +1286,33 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             <p className="text-xs text-slate-500">
               Access the full enterprise CMS, editorial publishing workflows, AI copilot, and system configuration.
             </p>
-            <button
-              onClick={onBackToAdmin}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:text-slate-950 font-bold rounded-xl transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Return to Admin Panel</span>
-            </button>
+            {isAdminAuthenticated ? (
+              <div className="space-y-2">
+                <button
+                  onClick={onBackToAdmin}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl transition-colors cursor-pointer text-xs"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Return to Admin Panel</span>
+                </button>
+                <div>
+                  <button
+                    onClick={onLogoutAdmin}
+                    className="text-xs text-red-500 hover:text-red-600 font-semibold underline cursor-pointer"
+                  >
+                    Sign Out of Admin
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAdminLogin}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-sky-500 dark:text-slate-950 font-bold rounded-xl transition-colors cursor-pointer text-xs shadow-sm"
+              >
+                <Lock className="w-3.5 h-3.5 text-sky-400 dark:text-slate-950" />
+                <span>Admin Login Portal</span>
+              </button>
+            )}
           </div>
         </div>
 
