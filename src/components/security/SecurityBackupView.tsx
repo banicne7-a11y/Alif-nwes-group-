@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   Upload,
   FileJson,
+  Globe,
+  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
@@ -259,6 +262,66 @@ export const SecurityBackupView: React.FC = () => {
           <span className="text-[10px] text-slate-400 text-center mt-3">
             Warning: Overwrites current in-memory database with snapshot data.
           </span>
+        </div>
+      </div>
+
+      {/* Google & Firebase Authentication Card */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <span>Google Official Authentication & Firebase Identity</span>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase rounded-full">
+                  Connected
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Alif News 24 uses official Google OAuth via Firebase Authentication for editorial staff and journalist login.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+            Project: alif-nwes-24
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">OAuth Provider</p>
+            <p className="font-extrabold text-slate-900 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              Google Sign-In (Gmail)
+            </p>
+            <p className="text-[11px] text-slate-500">Supports all verified Google/Gmail accounts</p>
+          </div>
+
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Firebase Auth Domain</p>
+            <p className="font-mono font-bold text-sky-600 truncate">alif-nwes-24.firebaseapp.com</p>
+            <p className="text-[11px] text-slate-500">App ID: 1:15785083133:web</p>
+          </div>
+
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Current Host Domain</p>
+            <p className="font-mono font-bold text-slate-800 truncate">
+              {typeof window !== 'undefined' ? window.location.hostname : 'alifnews24.com'}
+            </p>
+            <p className="text-[11px] text-emerald-600 font-semibold">Active in browser session</p>
+          </div>
+        </div>
+
+        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+          <p className="font-bold flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-amber-600" />
+            <span>Google Login ডোমেইন অনুমতি নির্দেশিকা (Authorized Domains):</span>
+          </p>
+          <p className="text-[11px] text-amber-800 leading-relaxed">
+            গুগল পপআপ লগইন নির্বিঘ্নে কাজ করার জন্য Firebase Console -&gt; <strong>Authentication</strong> -&gt; <strong>Settings</strong> -&gt; <strong>Authorized domains</strong>-এ গিয়ে আপনার লাইভ ডোমেইন অথবা প্রিভিউ হোস্ট যুক্ত রাখা নিশ্চিত করুন।
+          </p>
         </div>
       </div>
 

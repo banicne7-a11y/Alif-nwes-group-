@@ -12,6 +12,9 @@ import {
   SystemSettings,
   ActivityLog,
   BackupRecord,
+  FooterConfig,
+  FooterColumn,
+  FooterMenuItem,
 } from '../types';
 
 const STORAGE_KEY = 'alif_news_24_cms_db_v8';
@@ -31,6 +34,7 @@ export interface DatabaseState {
   logs: ActivityLog[];
   backups: BackupRecord[];
   currentUser: User;
+  footerConfig: FooterConfig;
 }
 
 // Initial seed categories matching Screenshot 1
@@ -60,8 +64,8 @@ const initialTags: Tag[] = [
 const initialUsers: User[] = [
   {
     id: 'u-1',
-    name: 'Lead Administrator',
-    email: 'banicne7@gmail.com',
+    name: 'Alif Sheen (Administrator)',
+    email: 'alifsheenshopping@gmail.com',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     role: 'Administrator',
     status: 'active',
@@ -70,9 +74,19 @@ const initialUsers: User[] = [
     bio: 'Lead Operations & Editorial Executive at Alif News 24 Enterprise.',
     lastLogin: 'Today at 08:30 AM',
     loginHistory: [
-      { timestamp: '2026-11-11 08:30:12', ip: '192.168.1.104', device: 'Chrome / macOS' },
-      { timestamp: '2026-11-10 14:15:20', ip: '192.168.1.104', device: 'Chrome / macOS' },
+      { timestamp: '2026-11-12 08:30:12', ip: '192.168.1.104', device: 'Chrome / macOS' },
     ],
+  },
+  {
+    id: 'u-owner-2',
+    name: 'Lead Executive Admin',
+    email: 'banicne7@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    role: 'Administrator',
+    status: 'active',
+    twoFactorEnabled: true,
+    articlesCount: 0,
+    bio: 'Executive Administrator at Alif News 24.',
   },
   {
     id: 'u-2',
@@ -823,6 +837,47 @@ const initialCampaigns: NewsletterCampaign[] = [
   { id: 'camp-2', subject: 'Weekend Deep Dive: Room-Temperature Quantum Breakthrough', template: 'Weekend In-Depth Feature', status: 'draft', recipientsCount: 3 },
 ];
 
+export const initialFooterConfig: FooterConfig = {
+  aboutText:
+    'Alif News 24 is an independent American news organization committed to rigorous, non-partisan, around-the-clock investigative journalism covering Capitol Hill, Wall Street, Silicon Valley, and global affairs.',
+  publisherText: 'Editor-in-Chief & Publisher: Alif Media Group, LLC.',
+  copyrightText: '© 2026 Alif News 24 Media Enterprise, LLC. All rights reserved.',
+  columns: [
+    {
+      id: 'col-1',
+      title: 'News Desks',
+      items: [
+        { id: 'item-1-1', label: 'Business & Finance', url: '/category/business' },
+        { id: 'item-1-2', label: 'Politics & White House', url: '/category/politics' },
+        { id: 'item-1-3', label: 'Technology & AI', url: '/category/technology' },
+        { id: 'item-1-4', label: 'Health & Science', url: '/category/health' },
+        { id: 'item-1-5', label: 'Sports & Olympics', url: '/category/sports' },
+        { id: 'item-1-6', label: 'Opinion & Editorial', url: '/category/opinion' },
+      ],
+    },
+    {
+      id: 'col-2',
+      title: 'Company & Legal',
+      items: [
+        { id: 'item-2-1', label: 'About Alif News 24', url: '/page/about-us' },
+        { id: 'item-2-2', label: 'Editorial Guidelines & Ethics', url: '/page/editorial-policy' },
+        { id: 'item-2-3', label: 'Contact Newsroom (US Bureau)', url: '/page/contact' },
+        { id: 'item-2-4', label: 'Privacy & Data Protection', url: '/page/privacy-policy' },
+      ],
+    },
+    {
+      id: 'col-3',
+      title: 'Services & Subscriptions',
+      items: [
+        { id: 'item-3-1', label: 'Morning Wire Dispatch', url: '/newsletter' },
+        { id: 'item-3-2', label: 'RSS News Feed', url: '/rss' },
+        { id: 'item-3-3', label: 'Digital E-Paper Archive', url: '/archive' },
+        { id: 'item-3-4', label: 'Staff & Reader Portal', url: '#login' },
+      ],
+    },
+  ],
+};
+
 class DatabaseService {
   private state: DatabaseState;
 
@@ -840,6 +895,9 @@ class DatabaseService {
           parsed.settings.tagline = "America's Trusted 24/7 Independent News & Investigative Journalism";
           parsed.settings.siteUrl = 'https://alifnews24.com';
           parsed.settings.breakingNewsText = 'BREAKING: US Federal Reserve signals data-driven interest rate adjustments | Wall Street rallies on cooler inflation index | Bipartisan infrastructure accords advance in Congress';
+        }
+        if (!parsed.footerConfig || !Array.isArray(parsed.footerConfig.columns)) {
+          parsed.footerConfig = initialFooterConfig;
         }
         return parsed;
       }
@@ -862,6 +920,7 @@ class DatabaseService {
       logs: initialLogs,
       backups: initialBackups,
       currentUser: initialUsers[0],
+      footerConfig: initialFooterConfig,
     };
   }
 
@@ -1483,6 +1542,123 @@ class DatabaseService {
   public deleteBackup(id: string): void {
     this.state.backups = this.state.backups.filter((b) => b.id !== id);
     this.save();
+  }
+
+  // -------------------------
+  // Footer Menus & Configuration
+  // -------------------------
+  public getFooterConfig(): FooterConfig {
+    if (!this.state.footerConfig || !Array.isArray(this.state.footerConfig.columns)) {
+      this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
+    }
+    return this.state.footerConfig;
+  }
+
+  public updateFooterConfig(updates: Partial<FooterConfig>): FooterConfig {
+    this.state.footerConfig = {
+      ...this.getFooterConfig(),
+      ...updates,
+    };
+    this.logAction('Footer Configuration Updated', 'Footer columns and menu links updated.');
+    this.save();
+    return this.state.footerConfig;
+  }
+
+  public resetFooterConfig(): FooterConfig {
+    this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
+    this.logAction('Footer Configuration Reset', 'Footer restored to default editorial template.');
+    this.save();
+    return this.state.footerConfig;
+  }
+
+  public addFooterColumn(title: string): FooterColumn {
+    const config = this.getFooterConfig();
+    const newCol: FooterColumn = {
+      id: `col-${Date.now()}`,
+      title: title || 'New Footer Section',
+      items: [],
+    };
+    config.columns = [...config.columns, newCol];
+    this.updateFooterConfig({ columns: config.columns });
+    return newCol;
+  }
+
+  public updateFooterColumn(columnId: string, updates: Partial<FooterColumn>): void {
+    const config = this.getFooterConfig();
+    config.columns = config.columns.map((c) => (c.id === columnId ? { ...c, ...updates } : c));
+    this.updateFooterConfig({ columns: config.columns });
+  }
+
+  public deleteFooterColumn(columnId: string): void {
+    const config = this.getFooterConfig();
+    config.columns = config.columns.filter((c) => c.id !== columnId);
+    this.updateFooterConfig({ columns: config.columns });
+  }
+
+  public addFooterItem(columnId: string, item: { label: string; url: string }): FooterMenuItem {
+    const config = this.getFooterConfig();
+    const newItem: FooterMenuItem = {
+      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      label: item.label,
+      url: item.url,
+    };
+    config.columns = config.columns.map((col) => {
+      if (col.id === columnId) {
+        return { ...col, items: [...col.items, newItem] };
+      }
+      return col;
+    });
+    this.updateFooterConfig({ columns: config.columns });
+    return newItem;
+  }
+
+  public updateFooterItem(columnId: string, itemId: string, updates: Partial<FooterMenuItem>): void {
+    const config = this.getFooterConfig();
+    config.columns = config.columns.map((col) => {
+      if (col.id === columnId) {
+        return {
+          ...col,
+          items: col.items.map((it) => (it.id === itemId ? { ...it, ...updates } : it)),
+        };
+      }
+      return col;
+    });
+    this.updateFooterConfig({ columns: config.columns });
+  }
+
+  public deleteFooterItem(columnId: string, itemId: string): void {
+    const config = this.getFooterConfig();
+    config.columns = config.columns.map((col) => {
+      if (col.id === columnId) {
+        return {
+          ...col,
+          items: col.items.filter((it) => it.id !== itemId),
+        };
+      }
+      return col;
+    });
+    this.updateFooterConfig({ columns: config.columns });
+  }
+
+  public reorderFooterItem(columnId: string, itemIdx: number, dir: 'up' | 'down'): void {
+    const config = this.getFooterConfig();
+    config.columns = config.columns.map((col) => {
+      if (col.id === columnId) {
+        const items = [...col.items];
+        if (dir === 'up' && itemIdx > 0) {
+          const temp = items[itemIdx];
+          items[itemIdx] = items[itemIdx - 1];
+          items[itemIdx - 1] = temp;
+        } else if (dir === 'down' && itemIdx < items.length - 1) {
+          const temp = items[itemIdx];
+          items[itemIdx] = items[itemIdx + 1];
+          items[itemIdx + 1] = temp;
+        }
+        return { ...col, items };
+      }
+      return col;
+    });
+    this.updateFooterConfig({ columns: config.columns });
   }
 
   public resetToFactory(): void {

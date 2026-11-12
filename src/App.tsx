@@ -195,8 +195,8 @@ export default function App() {
     updatePageSeo({ title: 'Admin Panel - Dashboard' });
   };
 
-  const handleLogoutAdmin = () => {
-    authService.logout();
+  const handleLogoutAdmin = async () => {
+    await authService.logout();
     setIsAdminAuthenticated(false);
     setIsWebsiteMode(true);
     navigateTo('/');

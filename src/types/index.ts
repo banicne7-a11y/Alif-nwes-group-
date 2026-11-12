@@ -57,9 +57,13 @@ export interface Post {
     title: string;
     description: string;
     focusKeyword: string;
+    secondaryKeywords?: string[];
     canonicalUrl?: string;
     score: number;
     metaRobots?: string;
+    schemaType?: string;
+    ogTitle?: string;
+    ogDescription?: string;
   };
   customFields?: Record<string, string>;
   readTime?: string;
@@ -234,4 +238,24 @@ export interface BackupRecord {
   type: 'automated' | 'manual';
   itemsCount: number;
   downloadData?: string;
+}
+
+export interface FooterMenuItem {
+  id: string;
+  label: string;
+  url: string;
+  target?: '_self' | '_blank';
+}
+
+export interface FooterColumn {
+  id: string;
+  title: string;
+  items: FooterMenuItem[];
+}
+
+export interface FooterConfig {
+  aboutText: string;
+  publisherText: string;
+  copyrightText: string;
+  columns: FooterColumn[];
 }

@@ -17,6 +17,7 @@ import {
   Video,
   Code2,
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   HelpCircle,
   Flame,
@@ -24,6 +25,16 @@ import {
   Sliders,
   Calendar,
   Languages,
+  Search,
+  Tag,
+  Check,
+  RefreshCw,
+  Smartphone,
+  Monitor,
+  ExternalLink,
+  Lightbulb,
+  FileText,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { api } from '../../services/api';
@@ -63,10 +74,18 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   const [isAiGenerated, setIsAiGenerated] = useState(!!postToEdit?.isAiGenerated);
   const [editorialNotes, setEditorialNotes] = useState(postToEdit?.editorialNotes || '');
 
-  // SEO state
+  // Advanced SEO & Meta Tags state
   const [seoFocusKeyword, setSeoFocusKeyword] = useState(postToEdit?.seo?.focusKeyword || '');
   const [seoTitle, setSeoTitle] = useState(postToEdit?.seo?.title || '');
   const [seoDescription, setSeoDescription] = useState(postToEdit?.seo?.description || '');
+  const [secondaryKeywords, setSecondaryKeywords] = useState<string[]>(postToEdit?.seo?.secondaryKeywords || []);
+  const [newSecondaryKeyword, setNewSecondaryKeyword] = useState('');
+  const [canonicalUrl, setCanonicalUrl] = useState(postToEdit?.seo?.canonicalUrl || '');
+  const [metaRobots, setMetaRobots] = useState(postToEdit?.seo?.metaRobots || 'index, follow');
+  const [schemaType, setSchemaType] = useState(postToEdit?.seo?.schemaType || 'NewsArticle');
+  const [seoActiveTab, setSeoActiveTab] = useState<'meta' | 'serp' | 'checklist' | 'advanced'>('meta');
+  const [serpPreviewDevice, setSerpPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
 
   // Gutenberg Blocks state
   const [blocks, setBlocks] = useState<EditorBlock[]>(
@@ -96,17 +115,44 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   const wordCount = fullText.trim() ? fullText.trim().split(/\s+/).length : 0;
   const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
-  // Dynamic SEO score calculation (0 - 100)
-  const calculateSeoScore = () => {
-    let score = 50;
-    if (title.length >= 35 && title.length <= 70) score += 15;
-    if (seoDescription.length >= 80 && seoDescription.length <= 160) score += 15;
-    if (seoFocusKeyword && title.toLowerCase().includes(seoFocusKeyword.toLowerCase())) score += 10;
-    if (blocks.some((b) => b.type === 'heading')) score += 5;
-    if (featuredImage) score += 5;
-    return Math.min(100, score);
+  // Comprehensive Real-Time SEO Audit & Scoring Engine (0 - 100)
+  const calculateSeoAudit = () => {
+    const leadText = blocks[0]?.content ? String(blocks[0].content).toLowerCase() : '';
+    const cleanKey = seoFocusKeyword.trim().toLowerCase();
+
+    const checks = {
+      titleLength: title.length >= 35 && title.length <= 70,
+      keywordInTitle: !!cleanKey && title.toLowerCase().includes(cleanKey),
+      keywordInSlug: !!cleanKey && (slug || title).toLowerCase().includes(cleanKey.replace(/\s+/g, '-')),
+      keywordInLead: !!cleanKey && leadText.includes(cleanKey),
+      metaDescOptimal: seoDescription.length >= 100 && seoDescription.length <= 160,
+      hasTags: selectedTags.length >= 3,
+      hasSecondaryKeywords: secondaryKeywords.length > 0,
+      wordCountAdequate: wordCount >= 250,
+      hasHeadings: blocks.some((b) => b.type === 'heading'),
+      hasImage: !!featuredImage,
+    };
+
+    let score = 20;
+    if (checks.titleLength) score += 10;
+    if (checks.keywordInTitle) score += 15;
+    if (checks.keywordInSlug) score += 10;
+    if (checks.keywordInLead) score += 10;
+    if (checks.metaDescOptimal) score += 15;
+    if (checks.hasTags) score += 5;
+    if (checks.hasSecondaryKeywords) score += 5;
+    if (checks.wordCountAdequate) score += 5;
+    if (checks.hasHeadings) score += 5;
+    if (checks.hasImage) score += 5;
+
+    return {
+      score: Math.min(100, Math.max(0, score)),
+      checks,
+    };
   };
-  const seoScore = calculateSeoScore();
+
+  const seoAudit = calculateSeoAudit();
+  const seoScore = seoAudit.score;
 
   // Block management
   const handleAddBlock = (type: EditorBlock['type']) => {
@@ -157,12 +203,108 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     setBlocks(newBlocks);
   };
 
-  // Add tag
+  // Tag and Keyword Handlers
   const handleAddTag = () => {
     if (newTagInput.trim() && !selectedTags.includes(newTagInput.trim())) {
       setSelectedTags([...selectedTags, newTagInput.trim()]);
       db.saveTag(newTagInput.trim());
       setNewTagInput('');
+    }
+  };
+
+  const handleQuickAddTag = (tag: string) => {
+    if (!selectedTags.includes(tag)) {
+      setSelectedTags([...selectedTags, tag]);
+      db.saveTag(tag);
+      toast.info(`Tag "${tag}" added!`);
+    }
+  };
+
+  const handleAddSecondaryKeyword = () => {
+    if (newSecondaryKeyword.trim() && !secondaryKeywords.includes(newSecondaryKeyword.trim())) {
+      setSecondaryKeywords([...secondaryKeywords, newSecondaryKeyword.trim()]);
+      setNewSecondaryKeyword('');
+    }
+  };
+
+  const handleRemoveSecondaryKeyword = (kw: string) => {
+    setSecondaryKeywords(secondaryKeywords.filter((k) => k !== kw));
+  };
+
+  // Popular Trending News Tags for 1-Click Addition
+  const popularSuggestedTags = [
+    'US Politics',
+    'Wall Street',
+    'Inflation',
+    'Federal Reserve',
+    'Artificial Intelligence',
+    'Elections 2026',
+    'Global Economy',
+    'Health Tech',
+    'Clean Energy',
+    'SpaceX',
+    'Cybersecurity',
+    'Breaking News',
+  ];
+
+  // Smart AI SEO & Meta Automation Engine
+  const handleAutoGenerateFullSeo = async () => {
+    if (!title.trim() && blocks.length === 0) {
+      toast.warning('Please enter an article headline or write content first so the AI can analyze it.');
+      return;
+    }
+    setIsGeneratingSeo(true);
+    try {
+      const sampleText = blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join('\n\n');
+      const res = await api.generateSeo(title || 'Breaking News Update', sampleText);
+
+      if (res.success && res.data) {
+        const d = res.data;
+        if (d.focusKeyword) setSeoFocusKeyword(d.focusKeyword);
+        if (d.seoTitle) setSeoTitle(d.seoTitle);
+        if (d.metaDescription) setSeoDescription(d.metaDescription);
+        if (d.slug && !slug) setSlug(d.slug);
+        if (d.secondaryKeywords && Array.isArray(d.secondaryKeywords)) {
+          setSecondaryKeywords(d.secondaryKeywords);
+          const merged = Array.from(new Set([...selectedTags, ...d.secondaryKeywords]));
+          setSelectedTags(merged);
+        }
+        toast.success('⚡ Smart AI: Focus keyword, SEO title, meta description, and tags generated!');
+      } else {
+        // Smart fallback parser
+        const words = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ').filter((w) => w.length > 3);
+        const autoKey = words.slice(0, 2).join(' ') || category.toLowerCase();
+        setSeoFocusKeyword(autoKey);
+        setSeoTitle(`${title.slice(0, 55)} | Alif News 24`);
+        setSeoDescription(`${subtitle || title}. Read verified live investigative analysis and market implications on Alif News 24.`);
+        if (!slug) setSlug(title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+        toast.success('⚡ Generated SEO metadata from headline analysis!');
+      }
+    } catch (e: any) {
+      toast.error('AI SEO generation error: ' + (e.message || 'Service unavailable'));
+    } finally {
+      setIsGeneratingSeo(false);
+    }
+  };
+
+  const handleGenerateMetaSnippet = async () => {
+    setIsGeneratingSeo(true);
+    try {
+      const sampleText = `${title}\n\n${blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join(' ')}`;
+      const res = await api.summarizeText(sampleText);
+      const textOutput = res.text || (typeof res.data === 'string' ? res.data : '');
+      if (res.success && textOutput) {
+        const cleanSnippet = textOutput.replace(/^[•\s\n*]+/, '').split('\n')[0].slice(0, 155);
+        setSeoDescription(cleanSnippet);
+        toast.success('Search snippet generated!');
+      } else {
+        setSeoDescription(`${title}. Comprehensive around-the-clock independent coverage on Alif News 24.`);
+        toast.info('Meta description updated!');
+      }
+    } catch {
+      setSeoDescription(`${title}. Live American breaking news and world reports on Alif News 24.`);
+    } finally {
+      setIsGeneratingSeo(false);
     }
   };
 
@@ -289,7 +431,11 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
           title: seoTitle || title,
           description: seoDescription || subtitle || title,
           focusKeyword: seoFocusKeyword || category,
+          secondaryKeywords,
+          canonicalUrl: canonicalUrl.trim() || undefined,
           score: seoScore,
+          metaRobots,
+          schemaType,
         },
       });
       toast.success(`Article "${title}" saved as ${finalStatus}!`);
@@ -758,18 +904,22 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             )}
           </div>
 
-          {/* Category & Tags */}
+          {/* Category & Tags with 1-Click Trending Tags */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2">
-              Category & Tags
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
+                <Tag className="w-4 h-4 text-sky-600" />
+                <span>Category & News Tags</span>
+              </h3>
+              <span className="text-[11px] text-slate-400 font-semibold">{selectedTags.length} active tags</span>
+            </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Category</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Category *</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-medium"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.name}>
@@ -780,47 +930,83 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Tags</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Article Tags</label>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  placeholder="Add tag and press Enter..."
+                  placeholder="Type tag name and press Enter..."
                   className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
                 />
                 <button
                   onClick={handleAddTag}
                   type="button"
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 rounded-lg"
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
                 >
                   Add
                 </button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md"
-                  >
-                    <span>{tag}</span>
-                    <button
-                      onClick={() => setSelectedTags(selectedTags.filter((t) => t !== tag))}
-                      className="text-slate-400 hover:text-red-500 text-xs"
+
+              {selectedTags.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {selectedTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 border border-sky-200 text-sky-800 text-xs font-medium rounded-lg"
                     >
-                      ✕
-                    </button>
-                  </span>
-                ))}
+                      <span>#{tag}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTags(selectedTags.filter((t) => t !== tag))}
+                        className="text-sky-400 hover:text-red-500 text-xs font-bold cursor-pointer"
+                        title="Remove tag"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-amber-600 mb-2 font-medium">⚠️ No tags added. Add at least 3 tags for higher search visibility.</p>
+              )}
+
+              {/* 1-Click Trending Tags Bar */}
+              <div className="pt-2 border-t border-slate-100">
+                <p className="text-[11px] font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 text-red-500" />
+                  <span>ট্রেন্ডিং ট্যাগ সাজেশন (Quick Add):</span>
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {popularSuggestedTags.map((pt) => {
+                    const isAdded = selectedTags.includes(pt);
+                    return (
+                      <button
+                        key={pt}
+                        type="button"
+                        onClick={() => handleQuickAddTag(pt)}
+                        disabled={isAdded}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
+                          isAdded
+                            ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                            : 'bg-slate-50 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {isAdded ? `✓ ${pt}` : `+ ${pt}`}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Featured Image */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2">
-              Featured Image
+            <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+              <ImageIcon className="w-4 h-4 text-emerald-600" />
+              <span>Featured Cover Visual</span>
             </h3>
 
             <input
@@ -832,59 +1018,469 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             />
 
             {featuredImage && (
-              <div className="rounded-xl overflow-hidden border border-slate-200">
+              <div className="rounded-xl overflow-hidden border border-slate-200 relative group">
                 <img
                   src={featuredImage}
                   alt="Featured Preview"
                   className="w-full h-36 object-cover"
                 />
+                <span className="absolute bottom-1 right-1 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded-sm">
+                  16:9 Aspect Ratio
+                </span>
               </div>
             )}
           </div>
 
-          {/* Real-time SEO Inspector */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-extrabold text-sm text-slate-900">SEO Score</h3>
-              <div
-                className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  seoScore >= 80
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : seoScore >= 60
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-red-100 text-red-800'
-                }`}
+          {/* Smart AI SEO & Editorial Power Tools ("বুদ্ধি ও অপটিমাইজেশন") */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-950 text-white p-5 rounded-2xl shadow-md space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-sky-500 flex items-center justify-center text-slate-950 font-bold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-xs text-white">Smart AI SEO Assistant</h3>
+                  <p className="text-[10px] text-sky-200">স্মার্ট এসইও ও ট্যাগ স্বয়ংক্রিয় বুদ্ধি</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 bg-sky-500/20 text-sky-300 font-mono text-[10px] rounded-full border border-sky-400/30">
+                Gemini 3.8
+              </span>
+            </div>
+
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              আর্টিকেলের শিরোনাম ও লেখার বিষয়বস্তু বিশ্লেষণ করে এক ক্লিকে সম্পূর্ণ এসইও ট্যাগ, কি-ওয়ার্ড এবং গুগল সার্চ ডেসক্রিপশন তৈরি করুন:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleAutoGenerateFullSeo}
+                disabled={isGeneratingSeo}
+                className="col-span-full py-2.5 px-3 bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {seoScore} / 100
+                {isGeneratingSeo ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span>⚡ Auto-Generate Full SEO & Tags</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAiHeadlines}
+                disabled={aiLoading}
+                className="py-1.5 px-2.5 bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold rounded-lg border border-white/10 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <Lightbulb className="w-3 h-3 text-amber-400" />
+                <span>Suggest 5 Headlines</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGenerateMetaSnippet}
+                disabled={isGeneratingSeo}
+                className="py-1.5 px-2.5 bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold rounded-lg border border-white/10 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <FileText className="w-3 h-3 text-emerald-400" />
+                <span>Generate Meta Snippet</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Comprehensive Google SEO & Search Inspector */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            {/* Header with SEO Score */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
+                  <Search className="w-4 h-4 text-sky-600" />
+                  <span>Google SEO & Search Metadata</span>
+                </h3>
+                <p className="text-[11px] text-slate-500">গুগল ও সার্চ ইঞ্জিনের জন্য সম্পূর্ণ অপটিমাইজেশন</p>
+              </div>
+
+              <div className="text-right">
+                <div
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black ${
+                    seoScore >= 80
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : seoScore >= 60
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-red-100 text-red-800 border border-red-200'
+                  }`}
+                >
+                  <span>{seoScore}</span>
+                  <span className="text-[10px] opacity-75">/ 100</span>
+                </div>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                  {seoScore >= 80 ? '🟢 Excellent' : seoScore >= 60 ? '🟡 Moderate' : '🔴 Needs Work'}
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Focus Keyword
-              </label>
-              <input
-                type="text"
-                value={seoFocusKeyword}
-                onChange={(e) => setSeoFocusKeyword(e.target.value)}
-                placeholder="e.g. US inflation"
-                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
-              />
+            {/* SEO Subtabs */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+              <button
+                type="button"
+                onClick={() => setSeoActiveTab('meta')}
+                className={`flex-1 py-1 px-2 rounded-lg text-center transition-all cursor-pointer text-[11px] ${
+                  seoActiveTab === 'meta' ? 'bg-white text-slate-900 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+                }`}
+              >
+                Metadata
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeoActiveTab('serp')}
+                className={`flex-1 py-1 px-2 rounded-lg text-center transition-all cursor-pointer text-[11px] ${
+                  seoActiveTab === 'serp' ? 'bg-white text-slate-900 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+                }`}
+              >
+                SERP Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeoActiveTab('checklist')}
+                className={`flex-1 py-1 px-2 rounded-lg text-center transition-all cursor-pointer text-[11px] ${
+                  seoActiveTab === 'checklist' ? 'bg-white text-slate-900 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+                }`}
+              >
+                Checklist
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeoActiveTab('advanced')}
+                className={`flex-1 py-1 px-2 rounded-lg text-center transition-all cursor-pointer text-[11px] ${
+                  seoActiveTab === 'advanced' ? 'bg-white text-slate-900 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+                }`}
+              >
+                Robots/Schema
+              </button>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Meta Description (Search Snippet)
-              </label>
-              <textarea
-                rows={3}
-                value={seoDescription}
-                onChange={(e) => setSeoDescription(e.target.value)}
-                placeholder="Concise 150-character summary for Google & news search results..."
-                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
-              />
-              <span className="text-[10px] text-slate-400">{seoDescription.length} / 160 chars</span>
-            </div>
+            {/* Tab 1: Metadata & Keywords */}
+            {seoActiveTab === 'meta' && (
+              <div className="space-y-3.5 pt-1">
+                {/* Primary Focus Keyword */}
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <label className="font-bold text-slate-700">Primary Focus Keyword *</label>
+                    <span className="text-[10px] text-slate-400">Target Google search phrase</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={seoFocusKeyword}
+                    onChange={(e) => setSeoFocusKeyword(e.target.value)}
+                    placeholder="e.g. US Inflation Federal Reserve"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-medium"
+                  />
+                  {seoFocusKeyword && (
+                    <div className="flex items-center gap-2 mt-1 text-[11px]">
+                      <span className={title.toLowerCase().includes(seoFocusKeyword.toLowerCase()) ? 'text-emerald-600 font-bold' : 'text-amber-600'}>
+                        {title.toLowerCase().includes(seoFocusKeyword.toLowerCase()) ? '✓ Included in Headline' : '⚠️ Missing from Headline'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Secondary SEO Keywords */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Secondary / Related Keywords (অন্যান্য সহায়ক কিওয়ার্ড)
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={newSecondaryKeyword}
+                      onChange={(e) => setNewSecondaryKeyword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSecondaryKeyword())}
+                      placeholder="Add keyword and press Enter..."
+                      className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddSecondaryKeyword}
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-xs font-semibold rounded-lg text-slate-700 cursor-pointer"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                  {secondaryKeywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {secondaryKeywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 text-[11px] rounded-md"
+                        >
+                          <span>{kw}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSecondaryKeyword(kw)}
+                            className="text-slate-400 hover:text-red-500 text-xs"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SEO Search Title */}
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <label className="font-bold text-slate-700">SEO Title (Search Snippet Headline)</label>
+                    <span className={`text-[10px] font-mono ${
+                      (seoTitle || title).length > 60 ? 'text-amber-600 font-bold' : 'text-slate-400'
+                    }`}>
+                      {(seoTitle || title).length} / 60 chars
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    placeholder={title || "Title for Google search results..."}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-medium"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Leave blank to automatically use the main article title.
+                  </p>
+                </div>
+
+                {/* Meta Description */}
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <label className="font-bold text-slate-700">Meta Description (গুগল সার্চ সামারি) *</label>
+                    <span className={`text-[10px] font-mono ${
+                      seoDescription.length > 160 ? 'text-amber-600 font-bold' : 'text-slate-400'
+                    }`}>
+                      {seoDescription.length} / 160 chars
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    placeholder="Concise 120-160 character summary that entices Google users to click and read..."
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 leading-relaxed"
+                  />
+                  {/* Progress bar */}
+                  <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-1">
+                    <div
+                      className={`h-full transition-all ${
+                        seoDescription.length >= 100 && seoDescription.length <= 160
+                          ? 'bg-emerald-500'
+                          : seoDescription.length > 160
+                          ? 'bg-amber-500'
+                          : 'bg-sky-400'
+                      }`}
+                      style={{ width: `${Math.min(100, (seoDescription.length / 160) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Article URL Slug */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">URL Slug</label>
+                  <div className="flex items-center px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 text-xs">
+                    <span className="text-slate-400 shrink-0 font-mono">/news/</span>
+                    <input
+                      type="text"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder={title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || "article-slug"}
+                      className="w-full bg-transparent border-none focus:outline-hidden font-mono text-slate-800 pl-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Live Google SERP Snippet Preview */}
+            {seoActiveTab === 'serp' && (
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Google Search Result Preview:</span>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setSerpPreviewDevice('mobile')}
+                      className={`px-2 py-0.5 rounded-md font-bold flex items-center gap-1 cursor-pointer ${
+                        serpPreviewDevice === 'mobile' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                      }`}
+                    >
+                      <Smartphone className="w-3 h-3" /> Mobile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSerpPreviewDevice('desktop')}
+                      className={`px-2 py-0.5 rounded-md font-bold flex items-center gap-1 cursor-pointer ${
+                        serpPreviewDevice === 'desktop' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                      }`}
+                    >
+                      <Monitor className="w-3 h-3" /> Desktop
+                    </button>
+                  </div>
+                </div>
+
+                {/* Realistic Google Search Card */}
+                <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1.5 font-sans">
+                  {/* Google Breadcrumb */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-white font-black text-[10px] shrink-0">
+                      A
+                    </div>
+                    <div className="leading-tight truncate">
+                      <p className="text-[11px] font-bold text-slate-900">Alif News 24</p>
+                      <p className="text-[10px] text-slate-500 truncate font-mono">
+                        https://alifnews24.com &gt; news &gt; {slug || 'article-url'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Google Search Clickable Title */}
+                  <h4 className="text-sm font-semibold text-[#1a0dab] hover:underline cursor-pointer line-clamp-2 leading-snug pt-0.5">
+                    {seoTitle || title || "Your Headline Will Appear Here in Google Search"} | Alif News 24
+                  </h4>
+
+                  {/* Google Snippet text */}
+                  <p className="text-xs text-[#4d5156] line-clamp-2 leading-relaxed">
+                    <span className="text-slate-400 font-mono text-[10px] mr-1">Nov 12, 2026 —</span>
+                    {seoDescription || subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 150) : "Meta description will be indexed and shown here for search visitors...")}
+                  </p>
+                </div>
+                <p className="text-[10px] text-slate-400 italic">
+                  💡 This simulation approximates how Google mobile and desktop web crawlers display this story.
+                </p>
+              </div>
+            )}
+
+            {/* Tab 3: Real-Time SEO Audit Checklist */}
+            {seoActiveTab === 'checklist' && (
+              <div className="space-y-2 pt-1 text-xs">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] pb-1 border-b border-slate-200 font-bold text-slate-700">
+                    <span>Audit Factor</span>
+                    <span>Status</span>
+                  </div>
+
+                  {[
+                    {
+                      label: 'Focus Keyword in Headline',
+                      passed: seoAudit.checks.keywordInTitle,
+                      tip: 'Include your focus keyword in the main article title',
+                    },
+                    {
+                      label: 'Focus Keyword in First Paragraph',
+                      passed: seoAudit.checks.keywordInLead,
+                      tip: 'Mention your target keyword within the opening lead paragraph',
+                    },
+                    {
+                      label: 'Focus Keyword in URL Slug',
+                      passed: seoAudit.checks.keywordInSlug,
+                      tip: 'Include the keyword in the clean permanent URL slug',
+                    },
+                    {
+                      label: 'Optimal Meta Description Length (100–160 chars)',
+                      passed: seoAudit.checks.metaDescOptimal,
+                      tip: `Current length: ${seoDescription.length} characters`,
+                    },
+                    {
+                      label: 'Article Word Count (Minimum 250 words)',
+                      passed: seoAudit.checks.wordCountAdequate,
+                      tip: `Current count: ${wordCount} words (${readingTime} min read)`,
+                    },
+                    {
+                      label: 'At Least 3 Active News Tags',
+                      passed: seoAudit.checks.hasTags,
+                      tip: `${selectedTags.length} tags currently assigned`,
+                    },
+                    {
+                      label: 'Content Subheadings (H2 / H3)',
+                      passed: seoAudit.checks.hasHeadings,
+                      tip: 'Subheadings improve reader scanability and SEO hierarchy',
+                    },
+                    {
+                      label: 'Featured Cover Image Attached',
+                      passed: seoAudit.checks.hasImage,
+                      tip: 'Provides high-CTR OpenGraph card on social networks',
+                    },
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-start justify-between gap-2 text-[11px]">
+                      <div>
+                        <span className={`font-semibold ${item.passed ? 'text-slate-800' : 'text-slate-600'}`}>
+                          {item.label}
+                        </span>
+                        <p className="text-[10px] text-slate-400">{item.tip}</p>
+                      </div>
+                      <span className="shrink-0 mt-0.5">
+                        {item.passed ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-amber-500" />
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Advanced Robots & Schema.org */}
+            {seoActiveTab === 'advanced' && (
+              <div className="space-y-3 pt-1 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Canonical URL Override
+                  </label>
+                  <input
+                    type="url"
+                    value={canonicalUrl}
+                    onChange={(e) => setCanonicalUrl(e.target.value)}
+                    placeholder="https://alifnews24.com/news/original-source (optional)"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Leave blank to automatically use this page's clean URL as canonical.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Search Robots Indexing Directive
+                  </label>
+                  <select
+                    value={metaRobots}
+                    onChange={(e) => setMetaRobots(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white"
+                  >
+                    <option value="index, follow">index, follow (Default: Full Google Indexing)</option>
+                    <option value="noindex, follow">noindex, follow (Don't index, but follow links)</option>
+                    <option value="noindex, nofollow">noindex, nofollow (Complete Exclusion)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Schema.org Structured Data Type
+                  </label>
+                  <select
+                    value={schemaType}
+                    onChange={(e) => setSchemaType(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white"
+                  >
+                    <option value="NewsArticle">NewsArticle (Default for Breaking News)</option>
+                    <option value="AnalysisNewsArticle">AnalysisNewsArticle (In-depth analysis)</option>
+                    <option value="OpinionNewsArticle">OpinionNewsArticle (Op-Ed & Editorial)</option>
+                    <option value="Report">Report (Investigative & Special Dispatches)</option>
+                    <option value="LiveBlogPosting">LiveBlogPosting (Real-time Developing News)</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
