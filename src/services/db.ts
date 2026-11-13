@@ -16,6 +16,23 @@ import {
   FooterColumn,
   FooterMenuItem,
 } from '../types';
+import {
+  firestoreSync,
+  sanitizePost,
+  sanitizeCategory,
+  sanitizeTag,
+  sanitizePage,
+  sanitizeAd,
+  sanitizeMedia,
+  sanitizeComment,
+  sanitizeUser,
+  sanitizePublicSettings,
+  sanitizeAdminSettings,
+  sanitizeFooterConfig,
+  sanitizeSubscriber,
+  sanitizeCampaign,
+  sanitizeLog,
+} from './firestoreSync';
 
 const STORAGE_KEY = 'alif_news_24_cms_db_v8';
 
@@ -880,9 +897,107 @@ export const initialFooterConfig: FooterConfig = {
 
 class DatabaseService {
   private state: DatabaseState;
+  private listeners = new Set<() => void>();
 
   constructor() {
     this.state = this.loadFromStorage();
+    this.initRealtimeSync();
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach((fn) => {
+      try {
+        fn();
+      } catch (e) {
+        console.error('Subscriber notification error:', e);
+      }
+    });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('db:updated'));
+    }
+  }
+
+  private initRealtimeSync(): void {
+    firestoreSync.start({
+      onPostsUpdate: (posts) => {
+        this.state.posts = posts;
+        this.save();
+      },
+      onCategoriesUpdate: (categories) => {
+        this.state.categories = categories;
+        this.save();
+      },
+      onTagsUpdate: (tags) => {
+        this.state.tags = tags;
+        this.save();
+      },
+      onPagesUpdate: (pages) => {
+        this.state.pages = pages;
+        this.save();
+      },
+      onAdsUpdate: (ads) => {
+        this.state.ads = ads;
+        this.save();
+      },
+      onMediaUpdate: (media) => {
+        this.state.media = media;
+        this.save();
+      },
+      onCommentsUpdate: (comments) => {
+        this.state.comments = comments;
+        this.save();
+      },
+      onPublicSettingsUpdate: (updates) => {
+        this.state.settings = { ...this.state.settings, ...updates };
+        this.save();
+      },
+      onFooterConfigUpdate: (footer) => {
+        this.state.footerConfig = footer;
+        this.save();
+      },
+      onAdminSettingsUpdate: (updates) => {
+        this.state.settings = { ...this.state.settings, ...updates };
+        this.save();
+      },
+      onUsersUpdate: (users) => {
+        this.state.users = users;
+        this.save();
+      },
+      onSubscribersUpdate: (subscribers) => {
+        this.state.subscribers = subscribers;
+        this.save();
+      },
+      onCampaignsUpdate: (campaigns) => {
+        this.state.campaigns = campaigns;
+        this.save();
+      },
+      onLogsUpdate: (logs) => {
+        this.state.logs = logs;
+        this.save();
+      },
+      getSeedState: () => ({
+        posts: this.state.posts,
+        categories: this.state.categories,
+        tags: this.state.tags,
+        pages: this.state.pages,
+        ads: this.state.ads,
+        media: this.state.media,
+        comments: this.state.comments,
+        users: this.state.users,
+        settings: this.state.settings,
+        footerConfig: this.getFooterConfig(),
+        subscribers: this.state.subscribers,
+        campaigns: this.state.campaigns,
+        logs: this.state.logs,
+      }),
+    });
   }
 
   private loadFromStorage(): DatabaseState {
@@ -890,12 +1005,6 @@ class DatabaseService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: DatabaseState = JSON.parse(saved);
-        if (parsed.settings) {
-          parsed.settings.siteName = 'Alif News 24';
-          parsed.settings.tagline = "America's Trusted 24/7 Independent News & Investigative Journalism";
-          parsed.settings.siteUrl = 'https://alifnews24.com';
-          parsed.settings.breakingNewsText = 'BREAKING: US Federal Reserve signals data-driven interest rate adjustments | Wall Street rallies on cooler inflation index | Bipartisan infrastructure accords advance in Congress';
-        }
         if (!parsed.footerConfig || !Array.isArray(parsed.footerConfig.columns)) {
           parsed.footerConfig = initialFooterConfig;
         }
@@ -930,6 +1039,7 @@ class DatabaseService {
     } catch (e) {
       console.error('Failed to write to localStorage', e);
     }
+    this.notifyListeners();
   }
 
   public getState(): DatabaseState {
@@ -961,6 +1071,7 @@ class DatabaseService {
     };
     this.state.logs = [newLog, ...this.state.logs.slice(0, 99)];
     this.save();
+    firestoreSync.writeDoc('logs', newLog.id, sanitizeLog(newLog)).catch(() => {});
   }
 
   // -------------------------
@@ -978,6 +1089,7 @@ class DatabaseService {
     if (post) {
       post.views = (post.views || 0) + 1;
       this.save();
+      firestoreSync.incrementPostViewsRemote(id).catch(() => {});
     }
   }
 
@@ -1077,6 +1189,7 @@ class DatabaseService {
     }
 
     this.save();
+    firestoreSync.writeDoc('posts', post.id, sanitizePost(post)).catch(console.error);
     return post;
   }
 
@@ -1087,9 +1200,11 @@ class DatabaseService {
     if (post.status !== 'trash' && !forcePermanent) {
       post.status = 'trash';
       this.logAction('Post Moved to Trash', `Article "${post.title}" moved to trash.`, 'warning');
+      firestoreSync.writeDoc('posts', post.id, sanitizePost(post)).catch(console.error);
     } else {
       this.state.posts = this.state.posts.filter((p) => p.id !== id);
       this.logAction('Post Permanently Deleted', `Article "${post.title}" permanently removed.`, 'warning');
+      firestoreSync.deleteRemoteDoc('posts', id).catch(console.error);
     }
     this.save();
   }
@@ -1131,6 +1246,7 @@ class DatabaseService {
         this.state.categories[idx] = { ...this.state.categories[idx], ...catData };
         this.logAction('Category Updated', `Updated category "${catData.name}"`);
         this.save();
+        firestoreSync.writeDoc('categories', this.state.categories[idx].id, sanitizeCategory(this.state.categories[idx])).catch(console.error);
         return this.state.categories[idx];
       }
     }
@@ -1150,6 +1266,7 @@ class DatabaseService {
     this.state.categories.push(newCat);
     this.logAction('Category Created', `Created category "${newCat.name}"`);
     this.save();
+    firestoreSync.writeDoc('categories', newCat.id, sanitizeCategory(newCat)).catch(console.error);
     return newCat;
   }
 
@@ -1158,6 +1275,7 @@ class DatabaseService {
     this.state.categories = this.state.categories.filter((c) => c.id !== id);
     if (cat) this.logAction('Category Deleted', `Deleted category "${cat.name}"`, 'warning');
     this.save();
+    firestoreSync.deleteRemoteDoc('categories', id).catch(console.error);
   }
 
   // -------------------------
@@ -1184,12 +1302,14 @@ class DatabaseService {
     };
     this.state.tags.push(newTag);
     this.save();
+    firestoreSync.writeDoc('tags', newTag.id, sanitizeTag(newTag)).catch(console.error);
     return newTag;
   }
 
   public deleteTag(id: string): void {
     this.state.tags = this.state.tags.filter((t) => t.id !== id);
     this.save();
+    firestoreSync.deleteRemoteDoc('tags', id).catch(console.error);
   }
 
   // -------------------------
@@ -1208,6 +1328,7 @@ class DatabaseService {
     this.state.media = [newItem, ...this.state.media];
     this.logAction('Media Uploaded', `Uploaded asset "${newItem.name}" (${newItem.size})`);
     this.save();
+    firestoreSync.writeDoc('media', newItem.id, sanitizeMedia(newItem)).catch(console.error);
     return newItem;
   }
 
@@ -1216,12 +1337,14 @@ class DatabaseService {
     if (idx !== -1) {
       this.state.media[idx] = { ...this.state.media[idx], ...updates };
       this.save();
+      firestoreSync.writeDoc('media', id, sanitizeMedia(this.state.media[idx])).catch(console.error);
     }
   }
 
   public deleteMediaItem(id: string): void {
     this.state.media = this.state.media.filter((m) => m.id !== id);
     this.save();
+    firestoreSync.deleteRemoteDoc('media', id).catch(console.error);
   }
 
   // -------------------------
@@ -1238,6 +1361,7 @@ class DatabaseService {
         this.state.ads[idx] = { ...this.state.ads[idx], ...adData };
         this.logAction('Ad Placement Updated', `Updated placement "${adData.name}"`);
         this.save();
+        firestoreSync.writeDoc('ads', this.state.ads[idx].id, sanitizeAd(this.state.ads[idx])).catch(console.error);
         return this.state.ads[idx];
       }
     }
@@ -1259,6 +1383,7 @@ class DatabaseService {
     this.state.ads.push(newAd);
     this.logAction('Ad Placement Created', `Added new placement "${newAd.name}"`);
     this.save();
+    firestoreSync.writeDoc('ads', newAd.id, sanitizeAd(newAd)).catch(console.error);
     return newAd;
   }
 
@@ -1267,6 +1392,7 @@ class DatabaseService {
     this.state.ads = this.state.ads.filter((a) => a.id !== id);
     if (ad) this.logAction('Ad Placement Deleted', `Removed ad placement "${ad.name}"`, 'warning');
     this.save();
+    firestoreSync.deleteRemoteDoc('ads', id).catch(console.error);
   }
 
   public toggleAdStatus(id: string): void {
@@ -1275,6 +1401,7 @@ class DatabaseService {
       ad.status = ad.status === 'Active' ? 'Inactive' : 'Active';
       this.logAction('Ad Status Changed', `${ad.name} is now ${ad.status}`);
       this.save();
+      firestoreSync.writeDoc('ads', ad.id, sanitizeAd(ad)).catch(console.error);
     }
   }
 
@@ -1300,6 +1427,7 @@ class DatabaseService {
         this.state.users[idx] = { ...this.state.users[idx], ...userData };
         this.logAction('User Profile Updated', `Updated user "${userData.name}"`, 'security');
         this.save();
+        firestoreSync.writeDoc('users', this.state.users[idx].id, sanitizeUser(this.state.users[idx])).catch(console.error);
         return this.state.users[idx];
       }
     }
@@ -1319,6 +1447,7 @@ class DatabaseService {
     this.state.users.push(newUser);
     this.logAction('User Created', `Created user account "${newUser.name}" (${newUser.role})`, 'security');
     this.save();
+    firestoreSync.writeDoc('users', newUser.id, sanitizeUser(newUser)).catch(console.error);
     return newUser;
   }
 
@@ -1330,6 +1459,7 @@ class DatabaseService {
     this.state.users = this.state.users.filter((u) => u.id !== id);
     if (user) this.logAction('User Deleted', `Deleted user account "${user.name}"`, 'security');
     this.save();
+    firestoreSync.deleteRemoteDoc('users', id).catch(console.error);
   }
 
   // -------------------------
@@ -1345,6 +1475,7 @@ class DatabaseService {
       comment.status = status;
       this.logAction('Comment Moderated', `Comment by ${comment.authorName} marked as ${status}`);
       this.save();
+      firestoreSync.writeDoc('comments', comment.id, sanitizeComment(comment)).catch(console.error);
     }
   }
 
@@ -1357,14 +1488,14 @@ class DatabaseService {
       authorEmail,
       authorAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authorName)}`,
       content,
-      status: 'approved',
+      status: 'pending',
       createdAt: 'Just now',
     };
     this.state.comments = [newComment, ...this.state.comments];
-    // increment post commentsCount
     const post = this.state.posts.find((p) => p.id === postId);
     if (post) post.commentsCount += 1;
     this.save();
+    firestoreSync.writeDoc('comments', newComment.id, sanitizeComment(newComment)).catch(console.error);
     return newComment;
   }
 
@@ -1383,6 +1514,7 @@ class DatabaseService {
         this.state.pages[idx] = { ...this.state.pages[idx], ...pageData, updatedAt: now };
         this.logAction('Page Updated', `Updated static page "${pageData.title}"`);
         this.save();
+        firestoreSync.writeDoc('pages', this.state.pages[idx].id, sanitizePage(this.state.pages[idx])).catch(console.error);
         return this.state.pages[idx];
       }
     }
@@ -1402,6 +1534,7 @@ class DatabaseService {
     this.state.pages.push(newPage);
     this.logAction('Page Created', `Created page "${newPage.title}" (Show in Menu: ${newPage.showInMenu ? 'Yes' : 'No'})`);
     this.save();
+    firestoreSync.writeDoc('pages', newPage.id, sanitizePage(newPage)).catch(console.error);
     return newPage;
   }
 
@@ -1414,6 +1547,7 @@ class DatabaseService {
         `Page "${page.title}" is now ${page.showInMenu ? 'visible in the navigation menu' : 'hidden from the navigation menu'}`
       );
       this.save();
+      firestoreSync.writeDoc('pages', page.id, sanitizePage(page)).catch(console.error);
       return page;
     }
     return undefined;
@@ -1425,6 +1559,7 @@ class DatabaseService {
     if (page) {
       this.logAction('Page Deleted', `Deleted page "${page.title}"`, 'warning');
       this.save();
+      firestoreSync.deleteRemoteDoc('pages', id).catch(console.error);
     }
   }
 
@@ -1449,6 +1584,7 @@ class DatabaseService {
     };
     this.state.subscribers = [newSub, ...this.state.subscribers];
     this.save();
+    firestoreSync.writeDoc('subscribers', newSub.id, sanitizeSubscriber(newSub)).catch(console.error);
     return newSub;
   }
 
@@ -1462,6 +1598,7 @@ class DatabaseService {
       if (idx !== -1) {
         this.state.campaigns[idx] = { ...this.state.campaigns[idx], ...campaign };
         this.save();
+        firestoreSync.writeDoc('campaigns', this.state.campaigns[idx].id, sanitizeCampaign(this.state.campaigns[idx])).catch(console.error);
         return this.state.campaigns[idx];
       }
     }
@@ -1475,6 +1612,7 @@ class DatabaseService {
     };
     this.state.campaigns.push(newCamp);
     this.save();
+    firestoreSync.writeDoc('campaigns', newCamp.id, sanitizeCampaign(newCamp)).catch(console.error);
     return newCamp;
   }
 
@@ -1489,6 +1627,8 @@ class DatabaseService {
     this.state.settings = { ...this.state.settings, ...updates };
     this.logAction('Settings Updated', 'Global enterprise CMS configuration updated.');
     this.save();
+    firestoreSync.writeDoc('config', 'site_settings', sanitizePublicSettings(this.state.settings)).catch(console.error);
+    firestoreSync.writeDoc('admin_config', 'system', sanitizeAdminSettings(this.state.settings)).catch(console.error);
     return this.state.settings;
   }
 
@@ -1561,6 +1701,7 @@ class DatabaseService {
     };
     this.logAction('Footer Configuration Updated', 'Footer columns and menu links updated.');
     this.save();
+    firestoreSync.writeDoc('config', 'footer_config', sanitizeFooterConfig(this.state.footerConfig)).catch(console.error);
     return this.state.footerConfig;
   }
 
@@ -1568,6 +1709,7 @@ class DatabaseService {
     this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
     this.logAction('Footer Configuration Reset', 'Footer restored to default editorial template.');
     this.save();
+    firestoreSync.writeDoc('config', 'footer_config', sanitizeFooterConfig(this.state.footerConfig)).catch(console.error);
     return this.state.footerConfig;
   }
 

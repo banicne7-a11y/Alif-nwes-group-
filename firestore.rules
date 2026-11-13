@@ -1,0 +1,320 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // Global Helpers
+    // ---------------------------------------------------------
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (
+          request.auth.token.email_verified == true &&
+          (
+            request.auth.token.email == 'alifsheenshopping@gmail.com' ||
+            request.auth.token.email == 'banicne7@gmail.com'
+          )
+        )
+      );
+    }
+
+    // ---------------------------------------------------------
+    // Validation Blueprints
+    // ---------------------------------------------------------
+    function isValidPost(data) {
+      return data.keys().hasAll(['id', 'title', 'slug', 'category', 'status'])
+        && data.keys().hasOnly([
+          'id', 'title', 'subtitle', 'slug', 'content', 'blocks', 'excerpt',
+          'category', 'tags', 'authorId', 'authorName', 'authorAvatar',
+          'status', 'scheduledAt', 'featuredImage', 'imageCaption', 'seo',
+          'isBreaking', 'isTrending', 'isHomepageSlider', 'isEditorPick',
+          'isAiGenerated', 'aiApprovalStatus', 'editorialNotes',
+          'views', 'commentsCount', 'readTimeMinutes',
+          'createdAt', 'updatedAt', 'publishedAt'
+        ])
+        && isValidId(data.id)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 300
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 300
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 100
+        && data.status in ['published', 'draft', 'scheduled', 'pending_review', 'trash']
+        && (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 500))
+        && (!('content' in data) || (data.content is string && data.content.size() <= 200000))
+        && (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000))
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 25 && (data.tags.size() == 0 || data.tags[0] is string)))
+        && (!('blocks' in data) || (data.blocks is list && data.blocks.size() <= 100 && (data.blocks.size() == 0 || data.blocks[0] is map)))
+        && (!('featuredImage' in data) || (data.featuredImage is string && data.featuredImage.size() <= 2000))
+        && (!('views' in data) || (data.views is number && data.views >= 0));
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'slug'])
+        && data.keys().hasOnly(['id', 'name', 'slug', 'color', 'description', 'image', 'count', 'metaTitle', 'metaDescription'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 120
+        && (!('color' in data) || (data.color is string && data.color.size() <= 32))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 500));
+    }
+
+    function isValidTag(data) {
+      return data.keys().hasAll(['id', 'name', 'slug'])
+        && data.keys().hasOnly(['id', 'name', 'slug', 'count'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 120
+        && (!('count' in data) || (data.count is number && data.count >= 0));
+    }
+
+    function isValidPage(data) {
+      return data.keys().hasAll(['id', 'title', 'slug', 'status'])
+        && data.keys().hasOnly([
+          'id', 'title', 'slug', 'template', 'status', 'content',
+          'updatedAt', 'showInMenu', 'showInFooter', 'menuOrder',
+          'seoTitle', 'seoDescription'
+        ])
+        && isValidId(data.id)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 200
+        && data.status in ['published', 'draft']
+        && (!('content' in data) || (data.content is string && data.content.size() <= 100000));
+    }
+
+    function isValidAd(data) {
+      return data.keys().hasAll(['id', 'name', 'key', 'status'])
+        && data.keys().hasOnly([
+          'id', 'name', 'key', 'type', 'size', 'status',
+          'customCode', 'imageUrl', 'targetUrl', 'impressions',
+          'clicks', 'deviceTarget', 'priority'
+        ])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 150
+        && data.key is string && data.key.size() >= 1 && data.key.size() <= 100
+        && data.status in ['Active', 'Inactive']
+        && (!('customCode' in data) || (data.customCode is string && data.customCode.size() <= 20000));
+    }
+
+    function isValidMedia(data) {
+      return data.keys().hasAll(['id', 'name', 'url', 'type'])
+        && data.keys().hasOnly([
+          'id', 'name', 'url', 'type', 'size', 'dimensions',
+          'format', 'altText', 'caption', 'uploadedAt'
+        ])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && data.url is string && data.url.size() >= 1 && data.url.size() <= 2000
+        && data.type in ['image', 'video'];
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['id', 'postId', 'authorName', 'content', 'status'])
+        && data.keys().hasOnly([
+          'id', 'postId', 'postTitle', 'authorName', 'authorAvatar',
+          'content', 'status', 'createdAt', 'replies'
+        ])
+        && isValidId(data.id)
+        && data.postId is string && data.postId.size() >= 1 && data.postId.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 120
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 3000
+        && data.status in ['approved', 'pending', 'spam', 'trash'];
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role', 'status'])
+        && data.keys().hasOnly([
+          'id', 'name', 'email', 'avatar', 'role', 'status',
+          'twoFactorEnabled', 'articlesCount', 'bio', 'lastLogin',
+          'loginHistory', 'activityLogs'
+        ])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.email is string && data.email.size() <= 200
+        && data.role in ['Administrator', 'Editor', 'Author', 'Contributor']
+        && data.status in ['active', 'suspended'];
+    }
+
+    function isValidPublicConfig(data) {
+      return data.keys().hasAll(['id'])
+        && data.keys().hasOnly([
+          'id', 'siteName', 'tagline', 'siteUrl', 'language', 'timezone',
+          'permalinkStructure', 'logoUrl', 'faviconUrl', 'primaryColor',
+          'darkMode', 'googleAnalyticsId', 'searchConsoleCode', 'adsenseClientId',
+          'autoAds', 'breakingNewsTickerActive', 'breakingNewsText',
+          'aboutText', 'publisherText', 'copyrightText', 'columns'
+        ])
+        && isValidId(data.id)
+        && (!('siteName' in data) || (data.siteName is string && data.siteName.size() <= 150))
+        && (!('breakingNewsText' in data) || (data.breakingNewsText is string && data.breakingNewsText.size() <= 1000))
+        && (!('columns' in data) || (data.columns is list && data.columns.size() <= 10 && (data.columns.size() == 0 || data.columns[0] is map)));
+    }
+
+    function isValidAdminConfig(data) {
+      return data.keys().hasAll(['id'])
+        && data.keys().hasOnly([
+          'id', 'smtpHost', 'smtpPort', 'smtpUser', 'smtpSecure',
+          'robotsTxt', 'sitemapAutoPing', 'backupDaily', 'backupTime',
+          'lastBackupAt', 'ipBlacklist', 'ipWhitelist', 'maxLoginAttempts'
+        ])
+        && isValidId(data.id);
+    }
+
+    function isValidSubscriber(data) {
+      return data.keys().hasAll(['id', 'email', 'status'])
+        && data.keys().hasOnly(['id', 'email', 'name', 'status', 'subscribedAt', 'tags'])
+        && isValidId(data.id)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.status in ['active', 'unsubscribed']
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 10 && (data.tags.size() == 0 || data.tags[0] is string)));
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['id', 'subject', 'status'])
+        && data.keys().hasOnly(['id', 'subject', 'template', 'status', 'sentAt', 'recipientsCount', 'openRate', 'clickRate'])
+        && isValidId(data.id)
+        && data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 300
+        && data.status in ['draft', 'scheduled', 'sent'];
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['id', 'action', 'timestamp'])
+        && data.keys().hasOnly(['id', 'userId', 'userName', 'action', 'details', 'ip', 'timestamp', 'level'])
+        && isValidId(data.id)
+        && data.action is string && data.action.size() <= 200
+        && data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    // ---------------------------------------------------------
+    // Collection Rules
+    // ---------------------------------------------------------
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && (isAdmin() || (isSignedIn() && request.auth.uid == uid));
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow get: if isValidId(postId) && (existing().status == 'published' || isAdmin());
+      allow list: if existing().status == 'published' || isAdmin();
+      allow create: if isValidId(postId) && isAdmin() && isValidPost(incoming());
+      allow update: if isValidId(postId) && isValidPost(incoming()) && (
+        isAdmin() ||
+        (
+          existing().status == 'published' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+          incoming().views is number &&
+          incoming().views == existing().views + 1
+        )
+      );
+      allow delete: if isValidId(postId) && isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create, update: if isValidId(categoryId) && isAdmin() && isValidCategory(incoming());
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    match /tags/{tagId} {
+      allow get: if isValidId(tagId);
+      allow list: if true;
+      allow create, update: if isValidId(tagId) && isAdmin() && isValidTag(incoming());
+      allow delete: if isValidId(tagId) && isAdmin();
+    }
+
+    match /pages/{pageId} {
+      allow get: if isValidId(pageId) && (existing().status == 'published' || isAdmin());
+      allow list: if existing().status == 'published' || isAdmin();
+      allow create, update: if isValidId(pageId) && isAdmin() && isValidPage(incoming());
+      allow delete: if isValidId(pageId) && isAdmin();
+    }
+
+    match /ads/{adId} {
+      allow get: if isValidId(adId);
+      allow list: if true;
+      allow create, update: if isValidId(adId) && isAdmin() && isValidAd(incoming());
+      allow delete: if isValidId(adId) && isAdmin();
+    }
+
+    match /media/{mediaId} {
+      allow get: if isValidId(mediaId);
+      allow list: if true;
+      allow create, update: if isValidId(mediaId) && isAdmin() && isValidMedia(incoming());
+      allow delete: if isValidId(mediaId) && isAdmin();
+    }
+
+    match /comments/{commentId} {
+      allow get: if isValidId(commentId) && (existing().status == 'approved' || isAdmin());
+      allow list: if existing().status == 'approved' || isAdmin();
+      allow create: if isValidId(commentId) && isValidComment(incoming()) && (isAdmin() || incoming().status == 'pending');
+      allow update: if isValidId(commentId) && isAdmin() && isValidComment(incoming());
+      allow delete: if isValidId(commentId) && isAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isAdmin() || (isSignedIn() && request.auth.uid == userId));
+      allow list: if isAdmin();
+      allow create, update: if isValidId(userId) && isAdmin() && isValidUser(incoming());
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /config/{configId} {
+      allow get: if isValidId(configId);
+      allow list: if true;
+      allow create, update: if isValidId(configId) && isAdmin() && isValidPublicConfig(incoming());
+      allow delete: if isValidId(configId) && isAdmin();
+    }
+
+    match /admin_config/{configId} {
+      allow get: if isValidId(configId) && isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isValidId(configId) && isAdmin() && isValidAdminConfig(incoming());
+      allow delete: if isValidId(configId) && isAdmin();
+    }
+
+    match /subscribers/{subscriberId} {
+      allow get: if isValidId(subscriberId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(subscriberId) && isValidSubscriber(incoming()) && (isAdmin() || incoming().status == 'active');
+      allow update: if isValidId(subscriberId) && isAdmin() && isValidSubscriber(incoming());
+      allow delete: if isValidId(subscriberId) && isAdmin();
+    }
+
+    match /campaigns/{campaignId} {
+      allow get: if isValidId(campaignId) && isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isValidId(campaignId) && isAdmin() && isValidCampaign(incoming());
+      allow delete: if isValidId(campaignId) && isAdmin();
+    }
+
+    match /logs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isValidId(logId) && isAdmin() && isValidActivityLog(incoming());
+      allow delete: if isValidId(logId) && isAdmin();
+    }
+  }
+}

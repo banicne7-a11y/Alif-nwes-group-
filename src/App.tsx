@@ -77,8 +77,9 @@ export default function App() {
   });
 
   const [postsFilterParam, setPostsFilterParam] = useState<any>('all');
+  const [, setDbRevision] = useState(0);
 
-  // Synchronize browser address bar and SEO meta tags
+  // Synchronize browser address bar, real-time Firestore state, and SEO meta tags
   React.useEffect(() => {
     applyGoogleVerificationTag();
 
@@ -88,13 +89,13 @@ export default function App() {
         if (!authService.isAuthenticated()) {
           setIsWebsiteMode(true);
           setIsLoginModalOpen(true);
-          updatePageSeo({ title: "Admin Login | Alif News 24" });
+          updatePageSeo({ title: 'Editorial Desk | Alif News 24' });
         } else {
           setIsWebsiteMode(false);
           setCurrentView(route.view || 'dashboard');
           setPreviewArticle(null);
           setPreviewPage(null);
-          updatePageSeo({ title: `Admin Panel - ${route.view || 'Dashboard'}` });
+          updatePageSeo({ title: `Editorial Workspace - ${route.view || 'Dashboard'}` });
         }
       } else if (route.type === 'article') {
         const found = db.getPosts().find((p) => p.slug === route.slug || p.id === route.slug);
@@ -127,9 +128,22 @@ export default function App() {
         updatePageSeo({ title: `${route.slug.toUpperCase()} News` });
       } else {
         setIsWebsiteMode(true);
+        setPreviewArticle(null);
+        setPreviewPage(null);
         updatePageSeo({ title: "America's 24/7 Live News Portal" });
       }
     };
+
+    handleSync();
+
+    const unsubscribeDb = db.subscribe(() => {
+      setDbRevision((r) => r + 1);
+      applyGoogleVerificationTag();
+      const route = parseCurrentRoute();
+      if (route.type === 'article' || route.type === 'page') {
+        handleSync();
+      }
+    });
 
     window.addEventListener('popstate', handleSync);
     window.addEventListener('app:route-changed', handleSync);
@@ -141,6 +155,7 @@ export default function App() {
     window.addEventListener('app:auth-changed', handleAuthEvent);
 
     return () => {
+      unsubscribeDb();
       window.removeEventListener('popstate', handleSync);
       window.removeEventListener('app:route-changed', handleSync);
       window.removeEventListener('app:auth-changed', handleAuthEvent);

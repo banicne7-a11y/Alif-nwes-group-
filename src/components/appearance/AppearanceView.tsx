@@ -10,17 +10,29 @@ import {
   MoveDown,
   Trash2,
   Plus,
+  RotateCcw,
+  Save,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
+import { FooterConfig } from '../../types';
 
 export const AppearanceView: React.FC = () => {
   const [settings, setSettings] = useState(db.getSettings());
-  const [activeTab, setActiveTab] = useState<'theme' | 'builder' | 'menu'>('theme');
+  const [activeTab, setActiveTab] = useState<'theme' | 'builder' | 'menu' | 'footer'>('theme');
 
   // Theme settings
   const [primaryColor, setPrimaryColor] = useState(settings.primaryColor);
   const [darkMode, setDarkMode] = useState(settings.darkMode);
+
+  // Footer Menu & Brand config state
+  const [footerConfig, setFooterConfig] = useState<FooterConfig>(() =>
+    JSON.parse(JSON.stringify(db.getFooterConfig()))
+  );
+  const [newColTitle, setNewColTitle] = useState('');
+  const [newItemLabels, setNewItemLabels] = useState<Record<string, string>>({});
+  const [newItemUrls, setNewItemUrls] = useState<Record<string, string>>({});
 
   // Homepage section layout reordering
   const [sections, setSections] = useState([
@@ -113,6 +125,14 @@ export const AppearanceView: React.FC = () => {
             }`}
           >
             Navigation Menu
+          </button>
+          <button
+            onClick={() => setActiveTab('footer')}
+            className={`px-3.5 py-1.5 rounded-lg transition-colors ${
+              activeTab === 'footer' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+            }`}
+          >
+            Footer Menus
           </button>
         </div>
       </div>
@@ -293,6 +313,306 @@ export const AppearanceView: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'footer' && (
+        <div className="space-y-6">
+          {/* Save & Reset Bar */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="font-extrabold text-base text-slate-900">
+                Footer Menu & Columns Manager
+              </h2>
+              <p className="text-xs text-slate-500">
+                Edit every footer column, link label, link URL, brand description, and copyright line. Syncs live to all devices via Firebase.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const reset = db.resetFooterConfig();
+                  setFooterConfig(JSON.parse(JSON.stringify(reset)));
+                  toast.info('Footer restored to default editorial template.');
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Default</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  db.updateFooterConfig(footerConfig);
+                  toast.success('Footer menus saved and published live across all devices!');
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#00C5FF] hover:bg-cyan-500 text-slate-950 rounded-xl text-xs font-extrabold cursor-pointer shadow-sm"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Footer Changes</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Brand Bio, Publisher & Copyright */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 text-xs">
+            <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2">
+              Brand Column & Copyright Text
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Footer About Text</label>
+                <textarea
+                  rows={3}
+                  value={footerConfig.aboutText}
+                  onChange={(e) => setFooterConfig({ ...footerConfig, aboutText: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Publisher Line</label>
+                  <input
+                    type="text"
+                    value={footerConfig.publisherText}
+                    onChange={(e) => setFooterConfig({ ...footerConfig, publisherText: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Bottom Copyright Line</label>
+                  <input
+                    type="text"
+                    value={footerConfig.copyrightText}
+                    onChange={(e) => setFooterConfig({ ...footerConfig, copyrightText: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Add New Footer Column */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center gap-3 text-xs">
+            <input
+              type="text"
+              value={newColTitle}
+              onChange={(e) => setNewColTitle(e.target.value)}
+              placeholder="New footer column title (e.g. Regional Desks)..."
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-xl"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (!newColTitle.trim()) return;
+                const newCol = {
+                  id: `col-${Date.now()}`,
+                  title: newColTitle.trim(),
+                  items: [],
+                };
+                const updated = { ...footerConfig, columns: [...footerConfig.columns, newCol] };
+                setFooterConfig(updated);
+                db.updateFooterConfig(updated);
+                setNewColTitle('');
+                toast.success(`Added footer column "${newCol.title}"`);
+              }}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Footer Column</span>
+            </button>
+          </div>
+
+          {/* Columns Editor Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {footerConfig.columns.map((col, colIdx) => (
+              <div
+                key={col.id}
+                className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 flex flex-col"
+              >
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <input
+                    type="text"
+                    value={col.title}
+                    onChange={(e) => {
+                      const updatedCols = footerConfig.columns.map((c) =>
+                        c.id === col.id ? { ...c, title: e.target.value } : c
+                      );
+                      setFooterConfig({ ...footerConfig, columns: updatedCols });
+                    }}
+                    className="font-extrabold text-sm text-slate-900 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updatedCols = footerConfig.columns.filter((c) => c.id !== col.id);
+                      const updated = { ...footerConfig, columns: updatedCols };
+                      setFooterConfig(updated);
+                      db.updateFooterConfig(updated);
+                      toast.info(`Removed column "${col.title}"`);
+                    }}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                    title="Delete Column"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Links inside this column */}
+                <div className="space-y-2.5 flex-1">
+                  {col.items.map((item, itemIdx) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5 text-xs"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={item.label}
+                          onChange={(e) => {
+                            const updatedCols = footerConfig.columns.map((c) => {
+                              if (c.id !== col.id) return c;
+                              return {
+                                ...c,
+                                items: c.items.map((it) =>
+                                  it.id === item.id ? { ...it, label: e.target.value } : it
+                                ),
+                              };
+                            });
+                            setFooterConfig({ ...footerConfig, columns: updatedCols });
+                          }}
+                          placeholder="Link label"
+                          className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-800"
+                        />
+                        <button
+                          type="button"
+                          disabled={itemIdx === 0}
+                          onClick={() => {
+                            const items = [...col.items];
+                            const tmp = items[itemIdx];
+                            items[itemIdx] = items[itemIdx - 1];
+                            items[itemIdx - 1] = tmp;
+                            const updatedCols = footerConfig.columns.map((c) =>
+                              c.id === col.id ? { ...c, items } : c
+                            );
+                            setFooterConfig({ ...footerConfig, columns: updatedCols });
+                          }}
+                          className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 cursor-pointer"
+                          title="Move Up"
+                        >
+                          <MoveUp className="w-3.5 h-3.5 text-slate-600" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={itemIdx === col.items.length - 1}
+                          onClick={() => {
+                            const items = [...col.items];
+                            const tmp = items[itemIdx];
+                            items[itemIdx] = items[itemIdx + 1];
+                            items[itemIdx + 1] = tmp;
+                            const updatedCols = footerConfig.columns.map((c) =>
+                              c.id === col.id ? { ...c, items } : c
+                            );
+                            setFooterConfig({ ...footerConfig, columns: updatedCols });
+                          }}
+                          className="p-1 hover:bg-slate-200 rounded disabled:opacity-30 cursor-pointer"
+                          title="Move Down"
+                        >
+                          <MoveDown className="w-3.5 h-3.5 text-slate-600" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedCols = footerConfig.columns.map((c) =>
+                              c.id === col.id
+                                ? { ...c, items: c.items.filter((it) => it.id !== item.id) }
+                                : c
+                            );
+                            setFooterConfig({ ...footerConfig, columns: updatedCols });
+                          }}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
+                          title="Remove Link"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <LinkIcon className="w-3 h-3 text-slate-400 shrink-0" />
+                        <input
+                          type="text"
+                          value={item.url}
+                          onChange={(e) => {
+                            const updatedCols = footerConfig.columns.map((c) => {
+                              if (c.id !== col.id) return c;
+                              return {
+                                ...c,
+                                items: c.items.map((it) =>
+                                  it.id === item.id ? { ...it, url: e.target.value } : it
+                                ),
+                              };
+                            });
+                            setFooterConfig({ ...footerConfig, columns: updatedCols });
+                          }}
+                          placeholder="/category/business or /page/about-us"
+                          className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-md font-mono text-[11px] text-slate-600"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Link to this Column */}
+                <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
+                  <input
+                    type="text"
+                    value={newItemLabels[col.id] || ''}
+                    onChange={(e) =>
+                      setNewItemLabels({ ...newItemLabels, [col.id]: e.target.value })
+                    }
+                    placeholder="New link label (e.g. World News)"
+                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg"
+                  />
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={newItemUrls[col.id] || ''}
+                      onChange={(e) =>
+                        setNewItemUrls({ ...newItemUrls, [col.id]: e.target.value })
+                      }
+                      placeholder="/category/... or https://..."
+                      className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono text-[11px]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const label = (newItemLabels[col.id] || '').trim();
+                        const url = (newItemUrls[col.id] || '').trim() || '/';
+                        if (!label) return;
+                        const newItem = {
+                          id: `item-${Date.now()}-${colIdx}`,
+                          label,
+                          url,
+                        };
+                        const updatedCols = footerConfig.columns.map((c) =>
+                          c.id === col.id ? { ...c, items: [...c.items, newItem] } : c
+                        );
+                        const updated = { ...footerConfig, columns: updatedCols };
+                        setFooterConfig(updated);
+                        db.updateFooterConfig(updated);
+                        setNewItemLabels({ ...newItemLabels, [col.id]: '' });
+                        setNewItemUrls({ ...newItemUrls, [col.id]: '' });
+                        toast.success(`Added "${label}" to ${col.title}`);
+                      }}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg cursor-pointer"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

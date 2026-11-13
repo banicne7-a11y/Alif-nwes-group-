@@ -47,9 +47,11 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   initialPost,
   initialPage,
 }) => {
-  const [posts] = useState<Post[]>(db.getPosts().filter((p) => p.status === 'published'));
-  const [categories] = useState(db.getCategories());
-  const [pages] = useState<Page[]>(db.getPages());
+  const [posts, setPosts] = useState<Post[]>(() => db.getPosts().filter((p) => p.status === 'published'));
+  const [categories, setCategories] = useState(() => db.getCategories());
+  const [pages, setPages] = useState<Page[]>(() => db.getPages());
+  const [settings, setSettings] = useState(() => db.getSettings());
+  const [footerConfig, setFooterConfig] = useState(() => db.getFooterConfig());
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeArticle, setActiveArticle] = useState<Post | null>(initialPost || null);
   const [activePage, setActivePage] = useState<Page | null>(initialPage || null);
@@ -88,7 +90,25 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const settings = db.getSettings();
+  // Real-time Firestore DB listener so edits from Admin reflect live on all phones
+  React.useEffect(() => {
+    const refreshFromDb = () => {
+      const latestPosts = db.getPosts().filter((p) => p.status === 'published');
+      setPosts(latestPosts);
+      setCategories([...db.getCategories()]);
+      setPages([...db.getPages()]);
+      setSettings({ ...db.getSettings() });
+      setFooterConfig({ ...db.getFooterConfig() });
+
+      setActiveArticle((prev) => {
+        if (!prev) return prev;
+        return latestPosts.find((p) => p.id === prev.id || p.slug === prev.slug) || prev;
+      });
+    };
+
+    const unsub = db.subscribe(refreshFromDb);
+    return unsub;
+  }, []);
 
   const footerPages = pages.filter((p) => p.showInFooter && p.status === 'published');
 
@@ -181,31 +201,69 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleFooterLinkClick = (url: string) => {
+    const cleanUrl = (url || '/').trim();
+    if (cleanUrl === '#login' || cleanUrl === '/admin') {
+      onOpenAdminLogin();
+      return;
+    }
+    if (cleanUrl === '/' || cleanUrl === '') {
+      handleSelectHome();
+      return;
+    }
+    if (cleanUrl.startsWith('/category/')) {
+      const slug = cleanUrl.replace(/^\/category\//, '').split('/')[0];
+      const matched = categories.find(
+        (c) => c.slug.toLowerCase() === slug.toLowerCase() || c.name.toLowerCase() === slug.toLowerCase()
+      );
+      handleSelectCategory(matched ? matched.name : slug);
+      return;
+    }
+    if (cleanUrl.startsWith('/page/')) {
+      const slug = cleanUrl.replace(/^\/page\//, '').split('/')[0];
+      const matched = pages.find((p) => p.slug === slug || p.id === slug);
+      if (matched) {
+        handleSelectPage(matched);
+        return;
+      }
+    }
+    if (cleanUrl.startsWith('/news/') || cleanUrl.startsWith('/article/')) {
+      const slug = cleanUrl.replace(/^\/(news|article)\//, '').split('/')[0];
+      const matched = posts.find((p) => p.slug === slug || p.id === slug);
+      if (matched) {
+        handleOpenArticle(matched);
+        return;
+      }
+    }
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      window.open(cleanUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    handleSelectHome();
+  };
+
   // Synchronize route on popstate and initial load
   React.useEffect(() => {
     if (initialPost) {
-      handleOpenArticle(initialPost);
+      setActiveArticle(initialPost);
+      setActivePage(null);
+      updatePageSeo({
+        title: initialPost.title,
+        description: initialPost.excerpt,
+        ogImage: initialPost.featuredImage,
+        ogType: 'article',
+      });
     } else if (initialPage) {
-      handleSelectPage(initialPage);
+      setActivePage(initialPage);
+      setActiveArticle(null);
+      updatePageSeo({
+        title: initialPage.seoTitle || initialPage.title,
+        description: initialPage.seoDescription || initialPage.title,
+      });
     } else {
       const route = parseCurrentRoute();
       if (route.type === 'article') {
-        const found = posts.find((p) => p.slug === route.slug || p.id === route.slug);
-        if (found) handleOpenArticle(found);
-      } else if (route.type === 'page') {
-        const found = pages.find((p) => p.slug === route.slug || p.id === route.slug);
-        if (found) handleSelectPage(found);
-      } else if (route.type === 'category') {
-        handleSelectCategory(route.slug);
-      } else {
-        updatePageSeo({ title: "America's 24/7 Live News Portal" });
-      }
-    }
-
-    const handlePopState = () => {
-      const route = parseCurrentRoute();
-      if (route.type === 'article') {
-        const found = posts.find((p) => p.slug === route.slug || p.id === route.slug);
+        const found = db.getPosts().find((p) => p.slug === route.slug || p.id === route.slug);
         if (found) {
           setActiveArticle(found);
           setActivePage(null);
@@ -217,7 +275,43 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           });
         }
       } else if (route.type === 'page') {
-        const found = pages.find((p) => p.slug === route.slug || p.id === route.slug);
+        const found = db.getPages().find((p) => p.slug === route.slug || p.id === route.slug);
+        if (found) {
+          setActivePage(found);
+          setActiveArticle(null);
+          updatePageSeo({
+            title: found.seoTitle || found.title,
+            description: found.seoDescription || found.title,
+          });
+        }
+      } else if (route.type === 'category') {
+        setSelectedCategory(route.slug);
+        setActiveArticle(null);
+        setActivePage(null);
+        updatePageSeo({ title: `${route.slug.toUpperCase()} News` });
+      } else {
+        updatePageSeo({ title: "America's 24/7 Live News Portal" });
+      }
+    }
+
+    const handlePopState = () => {
+      const route = parseCurrentRoute();
+      const latestPosts = db.getPosts().filter((p) => p.status === 'published');
+      const latestPages = db.getPages();
+      if (route.type === 'article') {
+        const found = latestPosts.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (found) {
+          setActiveArticle(found);
+          setActivePage(null);
+          updatePageSeo({
+            title: found.title,
+            description: found.excerpt,
+            ogImage: found.featuredImage,
+            ogType: 'article',
+          });
+        }
+      } else if (route.type === 'page') {
+        const found = latestPages.find((p) => p.slug === route.slug || p.id === route.slug);
         if (found) {
           setActivePage(found);
           setActiveArticle(null);
@@ -278,32 +372,27 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 <button
                   onClick={onBackToAdmin}
                   className="flex items-center gap-1.5 px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-md font-bold text-xs transition-colors shadow-xs cursor-pointer"
-                  title="Open Admin Panel"
+                  title="Open Editorial Workspace"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Admin Panel</span>
+                  <span>Workspace</span>
                 </button>
                 <button
                   onClick={onLogoutAdmin}
                   className="px-2.5 py-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-md text-xs font-semibold transition-colors cursor-pointer"
-                  title="Log out of Admin"
+                  title="Sign Out"
                 >
-                  Log Out
+                  Exit
                 </button>
               </div>
             ) : (
               <button
                 onClick={onOpenAdminLogin}
-                className="flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-100 text-slate-800 rounded-md font-bold text-xs transition-colors shadow-xs cursor-pointer border border-slate-300"
-                title="Sign in with Google"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-md font-medium text-[11px] transition-colors cursor-pointer"
+                title="US Edition"
               >
-                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
-                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
-                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-                </svg>
-                <span>Google Login</span>
+                <Globe className="w-3.5 h-3.5 text-slate-400" />
+                <span>US Edition</span>
               </button>
             )}
           </div>
@@ -491,7 +580,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    <span>Go to Admin Panel</span>
+                    <span>Open Editorial Workspace</span>
                   </button>
                   <button
                     onClick={() => {
@@ -500,7 +589,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     }}
                     className="w-full py-2 text-center text-xs text-red-500 hover:text-red-600 font-semibold cursor-pointer"
                   >
-                    Log Out of Admin
+                    Sign Out
                   </button>
                 </div>
               ) : (
@@ -509,15 +598,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     setDrawerMenuOpen(false);
                     onOpenAdminLogin();
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-800 rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer border border-slate-300"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-semibold text-xs transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
                 >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-                  </svg>
-                  <span>Google Sign In (Gmail)</span>
+                  <Globe className="w-4 h-4 text-slate-500 shrink-0" />
+                  <span>Newsroom Edition · Desk</span>
                 </button>
               )}
 
@@ -1229,7 +1313,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         )}
       </main>
 
-      {/* 7. PRESTIGIOUS NEWSPAPER FOOTER */}
+      {/* 7. DYNAMIC ADMIN-MANAGED NEWSPAPER FOOTER */}
       <footer className="mt-16 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Column 1: Brand & Editorial Policy */}
@@ -1245,95 +1329,76 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               </div>
             </div>
             <p className="text-xs leading-relaxed text-slate-500">
-              Alif News 24 is an independent American news organization committed to rigorous, non-partisan, around-the-clock investigative journalism covering Capitol Hill, Wall Street, Silicon Valley, and global affairs.
+              {footerConfig.aboutText}
             </p>
-            <p className="text-[11px] text-slate-400">
-              Editor-in-Chief & Publisher: <strong>Alif Media Group, LLC.</strong>
+            <p className="text-[11px] text-slate-400 font-medium">
+              {footerConfig.publisherText}
             </p>
           </div>
 
-          {/* Column 2: News Categories */}
-          <div className="space-y-2">
-            <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-              News Desks
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {categories.slice(0, 8).map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => handleSelectCategory(c.name)}
-                  className="text-left hover:text-red-600 transition-colors cursor-pointer"
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Column 3: Static Pages (All published pages) */}
-          <div className="space-y-2">
-            <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-              Company & Legal
-            </h4>
-            <div className="space-y-1.5 text-xs">
-              {footerPages.map((page) => (
-                <button
-                  key={page.id}
-                  onClick={() => handleSelectPage(page)}
-                  className="block text-left hover:text-red-600 transition-colors cursor-pointer"
-                >
-                  {page.title}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Column 4: Admin Quick Switch & Legal */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
-              Newsroom Management
-            </h4>
-            <p className="text-xs text-slate-500">
-              Access the full enterprise CMS, editorial publishing workflows, AI copilot, and system configuration.
-            </p>
-            {isAdminAuthenticated ? (
-              <div className="space-y-2">
-                <button
-                  onClick={onBackToAdmin}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl transition-colors cursor-pointer text-xs"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Return to Admin Panel</span>
-                </button>
-                <div>
+          {/* Dynamic Footer Columns controlled from Admin -> Appearance -> Footer Menu */}
+          {(footerConfig.columns || []).map((col) => (
+            <div key={col.id} className="space-y-2.5">
+              <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
+                {col.title}
+              </h4>
+              <div className="space-y-1.5 text-xs">
+                {col.items.map((item) => (
                   <button
-                    onClick={onLogoutAdmin}
-                    className="text-xs text-red-500 hover:text-red-600 font-semibold underline cursor-pointer"
+                    key={item.id}
+                    onClick={() => handleFooterLinkClick(item.url)}
+                    className="block text-left hover:text-red-600 transition-colors cursor-pointer"
                   >
-                    Sign Out of Admin
+                    {item.label}
                   </button>
-                </div>
+                ))}
+                {col.id === 'col-2' &&
+                  footerPages
+                    .filter((fp) => !col.items.some((it) => it.url.includes(fp.slug)))
+                    .map((page) => (
+                      <button
+                        key={page.id}
+                        onClick={() => handleSelectPage(page)}
+                        className="block text-left hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        {page.title}
+                      </button>
+                    ))}
               </div>
-            ) : (
-              <button
-                onClick={onOpenAdminLogin}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 font-bold rounded-xl transition-colors cursor-pointer text-xs shadow-xs border border-slate-300"
-              >
-                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
-                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
-                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-                </svg>
-                <span>Google Admin Login</span>
-              </button>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
 
-        {/* Bottom Copyright bar */}
-        <div className="border-t border-slate-200 dark:border-slate-800 py-4 bg-slate-50 dark:bg-slate-950 text-slate-400 text-center text-xs">
-          <p>© 2026 Alif News 24 Media Enterprise, LLC. All rights reserved.</p>
+        {/* Bottom Copyright bar (Discreet Edition trigger) */}
+        <div className="border-t border-slate-200 dark:border-slate-800 py-4 px-4 sm:px-8 bg-slate-50 dark:bg-slate-950 text-slate-400 text-xs">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>{footerConfig.copyrightText}</p>
+            <div className="flex items-center gap-3">
+              {isAdminAuthenticated ? (
+                <>
+                  <button
+                    onClick={onBackToAdmin}
+                    className="text-sky-600 hover:text-sky-500 font-semibold cursor-pointer"
+                  >
+                    Editorial Workspace
+                  </button>
+                  <button
+                    onClick={onLogoutAdmin}
+                    className="text-slate-400 hover:text-red-500 cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={onOpenAdminLogin}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer text-[11px]"
+                >
+                  US Bureau · Edition v24.1
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </footer>
     </div>

@@ -7,24 +7,22 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
+import firebaseConfig from '../../firebase-applet-config.json';
 
-// User's provided Firebase configuration for Alif News 24
-export const firebaseConfig = {
-  apiKey: 'AIzaSyCEQNccVV1p1g8lwYwYY31kOdOtLyxQGfs',
-  authDomain: 'alif-nwes-24.firebaseapp.com',
-  projectId: 'alif-nwes-24',
-  storageBucket: 'alif-nwes-24.firebasestorage.app',
-  messagingSenderId: '15785083133',
-  appId: '1:15785083133:web:6718252a43373e26ca3e94',
-  measurementId: 'G-MMSG4DCC9V',
-};
+export { firebaseConfig };
 
-// Initialize Firebase App singleton
+// Initialize Firebase App singleton using provisioned config
 export const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Initialize Auth
 export const auth = getAuth(firebaseApp);
+
+// Initialize Firestore targeting the provisioned database ID
+export const firestoreDb = firebaseConfig.firestoreDatabaseId
+  ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId)
+  : getFirestore(firebaseApp);
 
 // Initialize Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
@@ -45,6 +43,67 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Required boot connection test per Firebase integration guidelines
+async function testConnection() {
+  if (typeof window === 'undefined') return;
+  try {
+    await getDocFromServer(doc(firestoreDb, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error('Please check your Firebase configuration.');
+    }
+  }
+}
+testConnection();
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo:
+        auth.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 /**
  * Sign in using Google OAuth Popup
  */
@@ -54,14 +113,15 @@ export async function signInWithGoogle(): Promise<{ success: boolean; user?: Fir
     return { success: true, user: result.user };
   } catch (error: any) {
     console.error('Google Sign-In Error:', error);
-    // Provide user-friendly error messages
     let message = error.message || 'Google Sign-In failed. Please try again.';
     if (error.code === 'auth/popup-closed-by-user') {
-      message = 'Google sign-in popup was closed before completing. Please try again.';
+      message = 'Sign-in window was closed before completing. Please try again.';
     } else if (error.code === 'auth/popup-blocked') {
       message = 'Popup was blocked by your browser. Please allow popups for this site.';
     } else if (error.code === 'auth/unauthorized-domain') {
-      message = `This domain is not authorized in Firebase Console yet. Please add "${typeof window !== 'undefined' ? window.location.hostname : 'your-domain'}" under Firebase Console -> Authentication -> Settings -> Authorized domains.`;
+      message = `This domain is not authorized in Firebase Console yet. Please add "${
+        typeof window !== 'undefined' ? window.location.hostname : 'your-domain'
+      }" under Firebase Console -> Authentication -> Settings -> Authorized domains.`;
     }
     return { success: false, error: message };
   }
