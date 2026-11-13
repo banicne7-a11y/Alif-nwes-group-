@@ -48,6 +48,10 @@ export const PostsView: React.FC<PostsViewProps> = ({
     setPosts([...db.getPosts()]);
   };
 
+  React.useEffect(() => {
+    return db.subscribe(refreshPosts);
+  }, []);
+
   const filteredPosts = posts.filter((post) => {
     if (statusFilter !== 'all' && post.status !== statusFilter) return false;
     if (categoryFilter !== 'all' && post.category !== categoryFilter) return false;

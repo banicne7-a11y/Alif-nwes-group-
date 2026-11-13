@@ -225,7 +225,10 @@ service cloud.firestore {
           existing().status == 'published' &&
           incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
           incoming().views is number &&
-          incoming().views == existing().views + 1
+          (
+            (('views' in existing()) && existing().views is number && incoming().views == existing().views + 1) ||
+            (!('views' in existing()) && incoming().views == 1)
+          )
         )
       );
       allow delete: if isValidId(postId) && isAdmin();

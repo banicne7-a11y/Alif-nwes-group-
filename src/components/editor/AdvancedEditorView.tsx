@@ -40,6 +40,7 @@ import { db } from '../../services/db';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
 import { Post, EditorBlock, PostStatus } from '../../types';
+import { formatArticleForReader, parseTextToEditorBlocks } from '../../utils/articleFormatter';
 
 interface AdvancedEditorViewProps {
   postToEdit?: Post | null;
@@ -201,6 +202,48 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     newBlocks[index] = newBlocks[targetIdx];
     newBlocks[targetIdx] = temp;
     setBlocks(newBlocks);
+  };
+
+  const handleAutoFormatBlocks = () => {
+    const combinedRaw = blocks
+      .map((b) => {
+        if (b.type === 'heading') return `## ${b.content}`;
+        if (b.type === 'quote') return `> ${b.content}`;
+        if (b.type === 'paragraph') return String(b.content || '');
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    const nonTextBlocks = blocks.filter((b) => b.type === 'image' || b.type === 'table');
+    const formatted = parseTextToEditorBlocks(combinedRaw);
+    setBlocks([...formatted, ...nonTextBlocks]);
+    toast.success(`Formatted into ${formatted.length} clean editorial blocks!`);
+  };
+
+  const handleParagraphPaste = (
+    e: React.ClipboardEvent<HTMLTextAreaElement>,
+    blockIndex: number
+  ) => {
+    const pasted = e.clipboardData?.getData('text/plain') || '';
+    // Automatically split pasted long multi-paragraph articles into structured blocks
+    if (pasted.length > 350 || /\n\s*\n/.test(pasted) || (pasted.split('\n').length >= 3)) {
+      e.preventDefault();
+      const target = blocks[blockIndex];
+      const currentVal = String(target?.content || '').trim();
+      const combined =
+        currentVal && !currentVal.startsWith('Write the introductory') && !currentVal.startsWith('Write paragraph')
+          ? `${currentVal}\n\n${pasted}`
+          : pasted;
+      const splitBlocks = parseTextToEditorBlocks(combined);
+      const next = [
+        ...blocks.slice(0, blockIndex),
+        ...splitBlocks,
+        ...blocks.slice(blockIndex + 1),
+      ];
+      setBlocks(next);
+      toast.success(`Auto-formatted pasted article into ${splitBlocks.length} clean blocks!`);
+    }
   };
 
   // Tag and Keyword Handlers
@@ -663,11 +706,12 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                 {/* Block Content Renderers / Editors */}
                 {block.type === 'paragraph' && (
                   <textarea
-                    rows={4}
+                    rows={5}
                     value={block.content}
                     onChange={(e) => handleUpdateBlock(block.id, { content: e.target.value })}
+                    onPaste={(e) => handleParagraphPaste(e, index)}
                     className="w-full text-sm text-slate-700 leading-relaxed border-none focus:outline-hidden resize-y placeholder:text-slate-300"
-                    placeholder="Type article paragraph..."
+                    placeholder="Type or paste article content here (automatically splits into clean paragraphs & headings)..."
                   />
                 )}
 
@@ -805,6 +849,14 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
               className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 shadow-2xs"
             >
               <TableIcon className="w-3.5 h-3.5 text-amber-600" /> Table
+            </button>
+            <button
+              type="button"
+              onClick={handleAutoFormatBlocks}
+              className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg text-xs font-bold text-sky-700 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Automatically break long text into clean headings & paragraphs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-sky-600" /> Auto-Format Paragraphs
             </button>
           </div>
         </div>
@@ -1348,7 +1400,9 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
                   {/* Google Snippet text */}
                   <p className="text-xs text-[#4d5156] line-clamp-2 leading-relaxed">
-                    <span className="text-slate-400 font-mono text-[10px] mr-1">Nov 12, 2026 —</span>
+                    <span className="text-slate-400 font-mono text-[10px] mr-1">
+                      {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} —
+                    </span>
                     {seoDescription || subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 150) : "Meta description will be indexed and shown here for search visitors...")}
                   </p>
                 </div>
@@ -1559,28 +1613,42 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                   />
                 )}
 
-                <div className="space-y-4 pt-2">
-                  {blocks.map((block) => (
-                    <div key={block.id}>
-                      {block.type === 'paragraph' && (
-                        <p className="text-sm md:text-base text-slate-700 leading-relaxed">
-                          {block.content}
+                <div className="space-y-4 pt-2 font-['Source_Serif_4',Georgia,serif]">
+                  {formatArticleForReader(blocks).map((sec) => (
+                    <div key={sec.id}>
+                      {sec.type === 'paragraph' && (
+                        <p className="text-[16px] text-slate-800 leading-[1.8]">
+                          {sec.text}
                         </p>
                       )}
-                      {block.type === 'heading' && (
-                        <h2 className="text-xl font-bold text-slate-900 mt-4">
-                          {block.content}
+                      {sec.type === 'heading' && (
+                        <h2 className="font-['Playfair_Display',Georgia,serif] text-xl font-bold text-slate-950 mt-5 pt-3 border-t border-slate-100">
+                          {sec.text}
                         </h2>
                       )}
-                      {block.type === 'quote' && (
-                        <blockquote className="border-l-4 border-sky-500 pl-4 py-2 italic font-serif text-slate-800 bg-slate-50 rounded-r-lg">
-                          "{block.content}"
-                          {block.caption && (
+                      {sec.type === 'list' && (
+                        <ul className="pl-5 list-disc space-y-1.5 text-[15px] text-slate-800">
+                          {sec.items.map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {sec.type === 'quote' && (
+                        <blockquote className="border-y border-slate-200 py-4 my-4 text-center italic font-['Playfair_Display',Georgia,serif] text-lg text-slate-900">
+                          “{sec.text}”
+                          {sec.caption && (
                             <cite className="block text-xs font-sans not-italic text-slate-500 mt-1">
-                              — {block.caption}
+                              — {sec.caption}
                             </cite>
                           )}
                         </blockquote>
+                      )}
+                      {sec.type === 'image' && (
+                        <img
+                          src={sec.url}
+                          alt={sec.caption || title}
+                          className="w-full max-h-72 object-cover rounded-xl my-3"
+                        />
                       )}
                     </div>
                   ))}

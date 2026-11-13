@@ -29,6 +29,11 @@ import { db } from '../../services/db';
 import { Post, Comment, Page } from '../../types';
 import { navigateTo, parseCurrentRoute } from '../../services/router';
 import { updatePageSeo } from '../../services/seo';
+import {
+  formatArticleForReader,
+  estimateReadingTimeMinutes,
+  FormattedSection,
+} from '../../utils/articleFormatter';
 
 interface PublicWebsiteViewProps {
   onBackToAdmin: () => void;
@@ -52,6 +57,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const [pages, setPages] = useState<Page[]>(() => db.getPages());
   const [settings, setSettings] = useState(() => db.getSettings());
   const [footerConfig, setFooterConfig] = useState(() => db.getFooterConfig());
+  const [commentsList, setCommentsList] = useState<Comment[]>(() => db.getComments().filter((c) => c.status === 'approved'));
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeArticle, setActiveArticle] = useState<Post | null>(initialPost || null);
   const [activePage, setActivePage] = useState<Page | null>(initialPage || null);
@@ -59,6 +65,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const [pageSearchQuery, setPageSearchQuery] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [drawerMenuOpen, setDrawerMenuOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
+  const [readerTextSize, setReaderTextSize] = useState<'normal' | 'large'>('normal');
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   // New comment form state on article page
   const [commentName, setCommentName] = useState('');
@@ -77,7 +86,6 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const [shareCopied, setShareCopied] = useState(false);
 
   const handleOpenArticle = (post: Post) => {
-    db.incrementPostViews(post.id);
     setActiveArticle(post);
     setActivePage(null);
     navigateTo('/news/' + post.slug);
@@ -90,6 +98,44 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Real live clock for top newspaper masthead bar
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  // Reading progress indicator while reading an article
+  React.useEffect(() => {
+    if (!activeArticle) {
+      setScrollProgress(0);
+      return;
+    }
+    const onScroll = () => {
+      const docEl = document.documentElement;
+      const total = docEl.scrollHeight - window.innerHeight;
+      if (total <= 0) {
+        setScrollProgress(0);
+        return;
+      }
+      setScrollProgress(Math.min(100, Math.max(0, (window.scrollY / total) * 100)));
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [activeArticle]);
+
+  // Strict 1-person = 1-view counter for both card clicks and direct shared URLs
+  React.useEffect(() => {
+    if (activeArticle && activeArticle.status === 'published') {
+      db.incrementPostViews(activeArticle.id);
+      const updated = db.getPosts().find((p) => p.id === activeArticle.id);
+      if (updated && updated.views !== activeArticle.views) {
+        setActiveArticle(updated);
+      }
+    }
+  }, [activeArticle?.id, activeArticle?.status]);
+
   // Real-time Firestore DB listener so edits from Admin reflect live on all phones
   React.useEffect(() => {
     const refreshFromDb = () => {
@@ -99,6 +145,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
       setPages([...db.getPages()]);
       setSettings({ ...db.getSettings() });
       setFooterConfig({ ...db.getFooterConfig() });
+      setCommentsList(db.getComments().filter((c) => c.status === 'approved'));
 
       setActiveArticle((prev) => {
         if (!prev) return prev;
@@ -156,7 +203,19 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     setTimeout(() => setNewsletterSubscribed(false), 5000);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    if (activeArticle && typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({
+          title: activeArticle.title,
+          text: activeArticle.subtitle || activeArticle.excerpt,
+          url: window.location.href,
+        });
+        return;
+      } catch {
+        // Fallback to clipboard copy if user dismisses native sheet
+      }
+    }
     if (navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href);
       setShareCopied(true);
@@ -337,34 +396,76 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     return () => window.removeEventListener('popstate', handlePopState);
   }, [initialPost, initialPage]);
 
+  const liveDateLabel = currentTime.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const liveClockLabel = currentTime.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  const activeSections: FormattedSection[] = activeArticle
+    ? formatArticleForReader(activeArticle.blocks, activeArticle.content)
+    : [];
+  const activeReadMinutes = activeArticle
+    ? estimateReadingTimeMinutes(activeSections, activeArticle.title)
+    : 1;
+  const activeArticleComments = activeArticle
+    ? commentsList.filter((c) => c.postId === activeArticle.id)
+    : [];
+  const relatedArticles = activeArticle
+    ? posts
+        .filter((p) => p.id !== activeArticle.id)
+        .sort((a, b) => {
+          const aSame = a.category === activeArticle.category ? 1 : 0;
+          const bSame = b.category === activeArticle.category ? 1 : 0;
+          return bSame - aSame;
+        })
+        .slice(0, 3)
+    : [];
+
   return (
     <div
       className={`min-h-screen font-['Plus_Jakarta_Sans',sans-serif] ${
-        darkMode ? 'bg-[#0B0F19] text-slate-100' : 'bg-[#FAFAFB] text-slate-900'
+        darkMode ? 'dark bg-[#0B0F19] text-slate-100' : 'bg-[#FAFAFB] text-slate-900'
       }`}
     >
-      {/* 1. TOP GLOBAL NEWSPAPER BAR */}
+      {/* Reading progress hairline while reading an article */}
+      {activeArticle && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-transparent pointer-events-none">
+          <div
+            className="h-full bg-red-600 transition-all duration-150"
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
+      )}
+
+      {/* 1. TOP GLOBAL NEWSPAPER BAR (REAL LIVE DATE & CLOCK) */}
       <div className="bg-[#0B132B] text-slate-300 border-b border-slate-800 text-xs px-4 sm:px-8 py-2">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4 text-[11px]">
+          <div className="flex items-center gap-3 sm:gap-4 text-[11px]">
             <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-sky-400" />
-              Tuesday, November 10, 2026
+              <Calendar className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <span>{liveDateLabel}</span>
+            </span>
+            <span className="text-slate-500">·</span>
+            <span className="font-mono tabular-nums text-sky-300 font-semibold flex items-center gap-1">
+              <Clock className="w-3 h-3 text-sky-400 shrink-0" />
+              {liveClockLabel}
             </span>
             <span className="hidden md:inline text-slate-500">|</span>
             <span className="hidden md:inline text-slate-400">
-              Edition: <strong className="text-white">United States · Washington, D.C. & New York</strong>
-            </span>
-            <span className="hidden lg:inline text-slate-500">|</span>
-            <span className="hidden lg:inline text-slate-400">
-              Washington, D.C.: 64°F Partly Sunny
+              Edition: <strong className="text-white">United States · International Desk</strong>
             </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Live 24/7 US News Desk
+            <span className="hidden sm:inline text-slate-300 font-semibold text-[11px]">
+              24/7 News Desk
             </span>
 
             {isAdminAuthenticated ? (
@@ -825,121 +926,388 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             </div>
           </div>
         ) : activeArticle ? (
-          /* VIEW 2: ARTICLE READER VIEW */
-          <div className="space-y-6 max-w-4xl mx-auto">
-            <button
-              onClick={handleSelectHome}
-              className="flex items-center gap-2 text-xs font-bold text-sky-600 hover:text-sky-700 cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back to Frontpage
-            </button>
+          /* VIEW 2: EDITORIAL ARTICLE READER VIEW */
+          <div className="space-y-8 max-w-4xl mx-auto">
+            {/* Top Reader Navigation & Accessibility Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button
+                onClick={handleSelectHome}
+                className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Frontpage</span>
+              </button>
 
-            <article className={`p-6 md:p-10 rounded-2xl border shadow-xs space-y-6 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <span className="text-red-600 font-bold uppercase">{activeArticle.category}</span>
-                <span>·</span>
-                <span>{activeArticle.publishedAt}</span>
-                <span>·</span>
-                <span>{activeArticle.views} reads</span>
-              </div>
-
-              <h1 className="text-2xl sm:text-4xl font-serif font-black leading-tight text-slate-950 dark:text-white">
-                {activeArticle.title}
-              </h1>
-
-              {activeArticle.subtitle && (
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                  {activeArticle.subtitle}
-                </p>
-              )}
-
-              {/* Author byline */}
-              <div className="flex flex-wrap items-center justify-between py-3 border-y border-slate-200 dark:border-slate-800 text-xs gap-3">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={activeArticle.author.avatar}
-                    alt={activeArticle.author.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-white">{activeArticle.author.name}</p>
-                    <p className="text-slate-500">{activeArticle.author.role}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-slate-400">Text size:</span>
+                <div className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5 text-xs">
                   <button
-                    onClick={handleShare}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer"
+                    type="button"
+                    onClick={() => setReaderTextSize('normal')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                      readerTextSize === 'normal'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>{shareCopied ? 'Link Copied!' : 'Share Story'}</span>
+                    A
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReaderTextSize('large')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                      readerTextSize === 'large'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    A+
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* Featured Image */}
+            <article
+              className={`px-5 py-7 sm:px-10 sm:py-10 md:px-14 md:py-12 rounded-2xl border shadow-xs ${
+                darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90'
+              }`}
+            >
+              {/* Article Editorial Header Column */}
+              <header className="max-w-[68ch] mx-auto space-y-5">
+                {/* Clean unboxed metadata kicker */}
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCategory(activeArticle.category)}
+                    className="text-red-600 dark:text-red-400 font-extrabold uppercase tracking-wider hover:underline cursor-pointer"
+                  >
+                    {activeArticle.category}
+                  </button>
+                  <span aria-hidden="true">·</span>
+                  <span>{activeArticle.publishedAt || activeArticle.updatedAt}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{activeReadMinutes} min read</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1 tabular-nums font-semibold text-slate-600 dark:text-slate-300">
+                    <Eye className="w-3.5 h-3.5 text-slate-400" />
+                    {(activeArticle.views || 0).toLocaleString()}{' '}
+                    {(activeArticle.views || 0) === 1 ? 'view' : 'views'}
+                  </span>
+                </div>
+
+                {/* High-contrast Editorial Display Headline */}
+                <h1 className="font-['Playfair_Display',Georgia,serif] text-[26px] sm:text-4xl md:text-[42px] font-extrabold leading-[1.16] tracking-tight text-slate-950 dark:text-white text-balance">
+                  {activeArticle.title}
+                </h1>
+
+                {/* Lead Deck / Subtitle */}
+                {activeArticle.subtitle && (
+                  <p className="text-base sm:text-[19px] text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+                    {activeArticle.subtitle}
+                  </p>
+                )}
+
+                {/* Clean Author Byline & Share Strip */}
+                <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-y border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    {activeArticle.author?.avatar ? (
+                      <img
+                        src={activeArticle.author.avatar}
+                        alt={activeArticle.author.name}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
+                        {(activeArticle.author?.name || 'A').charAt(0)}
+                      </div>
+                    )}
+                    <div className="text-xs leading-snug">
+                      <p className="font-bold text-slate-900 dark:text-white">
+                        By {activeArticle.author?.name || 'Alif News 24 Desk'}
+                      </p>
+                      <p className="text-slate-500 dark:text-slate-400">
+                        {activeArticle.author?.role || 'Correspondent'} · Alif News 24
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-100 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>{shareCopied ? 'Link Copied' : 'Share Story'}</span>
+                  </button>
+                </div>
+              </header>
+
+              {/* Featured Image with Figure Caption */}
               {activeArticle.featuredImage && (
-                <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                  <img
-                    src={activeArticle.featuredImage}
-                    alt={activeArticle.title}
-                    className="w-full max-h-[500px] object-cover"
-                  />
+                <figure className="max-w-3xl mx-auto my-7 sm:my-9">
+                  <div className="rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-800">
+                    <img
+                      src={activeArticle.featuredImage}
+                      alt={activeArticle.title}
+                      referrerPolicy="no-referrer"
+                      className="w-full max-h-[480px] object-cover"
+                    />
+                  </div>
+                  <figcaption className="mt-2.5 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed">
+                    {(activeArticle as any).imageCaption || activeArticle.subtitle || activeArticle.title}
+                  </figcaption>
+                </figure>
+              )}
+
+              {/* Optimal Reading Measure Prose Body */}
+              <div
+                className={`max-w-[68ch] mx-auto font-['Source_Serif_4',Georgia,serif] text-slate-800 dark:text-slate-200 ${
+                  readerTextSize === 'large'
+                    ? 'text-[18.5px] sm:text-[19.5px] leading-[1.85]'
+                    : 'text-[16.5px] sm:text-[17.5px] leading-[1.82]'
+                } space-y-5`}
+              >
+                {(() => {
+                  let renderedFirstParagraph = false;
+                  return activeSections.map((sec) => {
+                    if (sec.type === 'paragraph') {
+                      const isLead = !renderedFirstParagraph && sec.text.length > 60;
+                      if (isLead) renderedFirstParagraph = true;
+                      return (
+                        <p
+                          key={sec.id}
+                          className={
+                            isLead
+                              ? "first-letter:font-['Playfair_Display',Georgia,serif] first-letter:text-5xl first-letter:font-black first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:leading-[0.85] first-letter:text-slate-950 dark:first-letter:text-white"
+                              : ''
+                          }
+                        >
+                          {sec.text}
+                        </p>
+                      );
+                    }
+
+                    if (sec.type === 'heading') {
+                      const TagName = sec.level === 4 ? 'h4' : sec.level === 3 ? 'h3' : 'h2';
+                      return (
+                        <TagName
+                          key={sec.id}
+                          className="font-['Playfair_Display',Georgia,serif] font-bold text-xl sm:text-2xl text-slate-950 dark:text-white pt-5 mt-7 mb-1 border-t border-slate-100 dark:border-slate-800/80 leading-snug text-balance"
+                        >
+                          {sec.text}
+                        </TagName>
+                      );
+                    }
+
+                    if (sec.type === 'list') {
+                      const ListEl = sec.ordered ? 'ol' : 'ul';
+                      return (
+                        <ListEl
+                          key={sec.id}
+                          className={`my-4 pl-6 space-y-2 ${
+                            sec.ordered ? 'list-decimal' : 'list-disc'
+                          } marker:text-red-600`}
+                        >
+                          {sec.items.map((item, idx) => (
+                            <li key={idx} className="pl-1">
+                              {item}
+                            </li>
+                          ))}
+                        </ListEl>
+                      );
+                    }
+
+                    if (sec.type === 'quote') {
+                      return (
+                        <blockquote
+                          key={sec.id}
+                          className="my-7 py-5 px-2 sm:px-6 border-y border-slate-200 dark:border-slate-700 text-center"
+                        >
+                          <p className="font-['Playfair_Display',Georgia,serif] italic text-xl sm:text-2xl leading-relaxed text-slate-900 dark:text-slate-100">
+                            “{sec.text}”
+                          </p>
+                          {sec.caption && (
+                            <cite className="block font-['Plus_Jakarta_Sans',sans-serif] text-xs not-italic font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-3">
+                              — {sec.caption}
+                            </cite>
+                          )}
+                        </blockquote>
+                      );
+                    }
+
+                    if (sec.type === 'callout') {
+                      return (
+                        <div
+                          key={sec.id}
+                          className="my-5 p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 font-['Plus_Jakarta_Sans',sans-serif] text-sm leading-relaxed text-slate-700 dark:text-slate-200"
+                        >
+                          {sec.text}
+                        </div>
+                      );
+                    }
+
+                    if (sec.type === 'image') {
+                      return (
+                        <figure key={sec.id} className="my-7">
+                          <img
+                            src={sec.url}
+                            alt={sec.caption || activeArticle.title}
+                            referrerPolicy="no-referrer"
+                            className="w-full rounded-xl object-cover max-h-[420px] border border-slate-200 dark:border-slate-800"
+                          />
+                          {sec.caption && (
+                            <figcaption className="mt-2 text-xs font-['Plus_Jakarta_Sans',sans-serif] text-slate-500 dark:text-slate-400 italic">
+                              {sec.caption}
+                            </figcaption>
+                          )}
+                        </figure>
+                      );
+                    }
+
+                    if (sec.type === 'table') {
+                      return (
+                        <div key={sec.id} className="my-6 overflow-x-auto font-['Plus_Jakarta_Sans',sans-serif]">
+                          <table className="w-full text-xs sm:text-sm border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                            <tbody>
+                              {sec.rows.map((row, rIdx) => (
+                                <tr
+                                  key={rIdx}
+                                  className={
+                                    rIdx === 0
+                                      ? 'bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white'
+                                      : 'border-t border-slate-200 dark:border-slate-800'
+                                  }
+                                >
+                                  {row.map((cell, cIdx) => (
+                                    <td key={cIdx} className="px-3 py-2.5">
+                                      {cell}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  });
+                })()}
+              </div>
+
+              {/* Clean Topic Index / Tags */}
+              {Array.isArray(activeArticle.tags) && activeArticle.tags.length > 0 && (
+                <div className="max-w-[68ch] mx-auto mt-10 pt-5 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="uppercase tracking-wider font-bold text-[11px] text-slate-400">
+                    Topics:
+                  </span>
+                  {activeArticle.tags.map((t, idx) => (
+                    <React.Fragment key={t}>
+                      <span
+                        onClick={() => {
+                          setSearchQuery(t);
+                          handleSelectHome();
+                        }}
+                        className="hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer font-semibold"
+                      >
+                        {t}
+                      </span>
+                      {idx < activeArticle.tags.length - 1 && (
+                        <span className="text-slate-300 dark:text-slate-700">/</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </article>
+
+            {/* Related Dispatches */}
+            {relatedArticles.length > 0 && (
+              <section className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <h3 className="font-['Playfair_Display',Georgia,serif] font-extrabold text-xl text-slate-900 dark:text-white">
+                    More Dispatches
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleSelectHome}
+                    className="text-xs font-bold text-red-600 hover:underline cursor-pointer"
+                  >
+                    All Stories
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  {relatedArticles.map((rel) => (
+                    <div
+                      key={rel.id}
+                      onClick={() => handleOpenArticle(rel)}
+                      className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden hover:shadow-md transition-all flex flex-col"
+                    >
+                      <div className="aspect-16/10 bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <img
+                          src={rel.featuredImage}
+                          alt={rel.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-600">
+                            {rel.category}
+                          </span>
+                          <h4 className="font-['Playfair_Display',Georgia,serif] font-bold text-sm leading-snug text-slate-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-2 mt-1">
+                            {rel.title}
+                          </h4>
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 tabular-nums">
+                          <span>{rel.publishedAt}</span>
+                          <span>
+                            {(rel.views || 0).toLocaleString()} {(rel.views || 0) === 1 ? 'view' : 'views'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Reader Comments Section */}
+            <div className={`p-6 md:p-8 rounded-2xl border shadow-xs space-y-6 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-['Playfair_Display',Georgia,serif] font-bold text-xl text-slate-900 dark:text-white">
+                  Reader Discussion ({activeArticleComments.length})
+                </h3>
+                <MessageSquare className="w-4 h-4 text-slate-400" />
+              </div>
+
+              {activeArticleComments.length > 0 && (
+                <div className="space-y-4">
+                  {activeArticleComments.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-900 dark:text-white">{c.authorName}</span>
+                        <span className="text-slate-400 text-[11px]">{c.createdAt}</span>
+                      </div>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {c.content}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Gutenberg Blocks */}
-              <div className="space-y-4 pt-2">
-                {activeArticle.blocks.map((block) => (
-                  <div key={block.id}>
-                    {block.type === 'paragraph' && (
-                      <p className="text-base leading-relaxed text-slate-800 dark:text-slate-200">
-                        {block.content}
-                      </p>
-                    )}
-                    {block.type === 'heading' && (
-                      <h2 className="text-xl md:text-2xl font-serif font-bold mt-6 mb-2 text-slate-950 dark:text-white">
-                        {block.content}
-                      </h2>
-                    )}
-                    {block.type === 'quote' && (
-                      <blockquote className="border-l-4 border-red-600 pl-4 py-2 italic font-serif text-lg bg-slate-50 dark:bg-slate-800 rounded-r-lg my-4 text-slate-800 dark:text-slate-200">
-                        "{block.content}"
-                        {block.caption && (
-                          <cite className="block text-xs font-sans not-italic text-slate-500 mt-1">
-                            — {block.caption}
-                          </cite>
-                        )}
-                      </blockquote>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Tags */}
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap gap-2 text-xs">
-                {(activeArticle.tags || []).map((t) => (
-                  <span
-                    key={t}
-                    className="text-slate-500 hover:text-red-600 font-semibold cursor-pointer"
-                  >
-                    #{t}
-                  </span>
-                ))}
-              </div>
-            </article>
-
-            {/* Reader Comments Section */}
-            <div className={`p-6 md:p-8 rounded-2xl border shadow-xs space-y-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-              <h3 className="font-serif font-bold text-lg text-slate-900 dark:text-white">
-                Reader Discussion & Community Comments
-              </h3>
-
               {commentSubmitted ? (
                 <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-emerald-600" />
-                  <span>Thank you! Your perspective has been posted and submitted to the news desk.</span>
+                  <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>Thank you! Your comment has been submitted for moderation.</span>
                 </div>
               ) : (
                 <form onSubmit={handlePostComment} className="space-y-3 text-xs">
@@ -950,14 +1318,14 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       value={commentName}
                       onChange={(e) => setCommentName(e.target.value)}
                       placeholder="Your Full Name *"
-                      className="p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
+                      className="p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                     />
                     <input
                       type="email"
                       value={commentEmail}
                       onChange={(e) => setCommentEmail(e.target.value)}
                       placeholder="Your Email (Optional)"
-                      className="p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
+                      className="p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                     />
                   </div>
                   <textarea
@@ -966,11 +1334,11 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Share your perspective on this report..."
-                    className="w-full p-3 border rounded-xl focus:outline-hidden dark:bg-slate-800 dark:border-slate-700"
+                    className="w-full p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                   />
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl cursor-pointer"
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-bold rounded-xl cursor-pointer transition-colors"
                   >
                     Post Comment
                   </button>
@@ -1158,9 +1526,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                           </h4>
                           <p className="text-xs text-slate-500 line-clamp-2 mt-1.5">{post.excerpt}</p>
                         </div>
-                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
+                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 tabular-nums">
                           <span>{post.publishedAt}</span>
-                          <span>{post.views} reads</span>
+                          <span>{(post.views || 0).toLocaleString()} {(post.views || 0) === 1 ? 'view' : 'views'}</span>
                         </div>
                       </div>
                     </div>
@@ -1210,9 +1578,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                           </h4>
                           <p className="text-xs text-slate-500 line-clamp-2 mt-1.5">{post.excerpt}</p>
                         </div>
-                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
+                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 tabular-nums">
                           <span>{post.publishedAt}</span>
-                          <span>{post.views} reads</span>
+                          <span>{(post.views || 0).toLocaleString()} {(post.views || 0) === 1 ? 'view' : 'views'}</span>
                         </div>
                       </div>
                     </div>
@@ -1257,9 +1625,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         </h4>
                         <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mt-1.5">{post.excerpt}</p>
                       </div>
-                      <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+                      <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 tabular-nums">
                         <span>By {post.author.name}</span>
-                        <span>{post.views} reads</span>
+                        <span>{(post.views || 0).toLocaleString()} {(post.views || 0) === 1 ? 'view' : 'views'}</span>
                       </div>
                     </div>
                   </div>

@@ -47,8 +47,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       setSubscribers([...db.getSubscribers()]);
     };
 
+    const unsub = db.subscribe(refreshData);
     window.addEventListener('storage', refreshData);
-    return () => window.removeEventListener('storage', refreshData);
+    return () => {
+      unsub();
+      window.removeEventListener('storage', refreshData);
+    };
   }, []);
 
   // 100% Real Calculated Metrics
@@ -246,16 +250,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-xs font-semibold text-slate-500 mt-0.5">Featured Stories</p>
           </div>
 
-          {/* 2. Languages */}
+          {/* 2. Reader Comments */}
           <div
-            onClick={() => onNavigate('settings')}
+            onClick={() => onNavigate('comments')}
             className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col items-center justify-center text-center hover:border-rose-300 transition-all cursor-pointer group"
           >
             <div className="w-12 h-12 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform mb-3">
-              <Volume2 className="w-6 h-6" />
+              <MessageSquare className="w-6 h-6" />
             </div>
-            <p className="text-xl font-extrabold text-slate-900">5</p>
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">Global Editions</p>
+            <p className="text-xl font-extrabold text-slate-900">{totalCommentsCount}</p>
+            <p className="text-xs font-semibold text-slate-500 mt-0.5">Reader Comments</p>
           </div>
 
           {/* 3. Ad Spaces */}
@@ -430,7 +434,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {/* Tooltip on active / hovered bar */}
                     {isHovered && (
                       <div className="absolute -top-14 z-30 bg-white border border-slate-200 rounded-lg shadow-xl px-2.5 py-1.5 text-[10px] whitespace-nowrap animate-in fade-in zoom-in-95 pointer-events-none">
-                        <p className="font-bold text-slate-800 text-[11px]">{d.label} 2026</p>
+                        <p className="font-bold text-slate-800 text-[11px]">{d.label} {new Date().getFullYear()}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-cyan-600 font-semibold">• Reads: {d.readers.toLocaleString()}</span>
                           <span className="text-amber-600 font-semibold">• Active Subs: {d.subscribers}</span>

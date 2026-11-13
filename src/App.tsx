@@ -188,7 +188,6 @@ export default function App() {
   };
 
   const handleOpenPreview = (post: Post) => {
-    db.incrementPostViews(post.id);
     setPreviewArticle(post);
     setPreviewPage(null);
     setIsWebsiteMode(true);

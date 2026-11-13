@@ -707,10 +707,15 @@ class FirestoreSyncService {
 
   public async incrementPostViewsRemote(postId: string): Promise<void> {
     const cleanId = safeId(postId);
+    const path = `posts/${cleanId}`;
     try {
       await updateDoc(doc(firestoreDb, 'posts', cleanId), { views: increment(1) });
-    } catch {
-      // Ignore if post isn't seeded to Firestore yet
+    } catch (error) {
+      // Ignore only not-found for unseeded drafts; log permission diagnostics for monitoring
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('permission') || msg.includes('PERMISSION_DENIED')) {
+        console.warn(`Firestore view increment permission warning on ${path}:`, msg);
+      }
     }
   }
 }

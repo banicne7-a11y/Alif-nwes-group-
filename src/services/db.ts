@@ -1084,13 +1084,37 @@ class DatabaseService {
     }));
   }
 
+  public hasViewedPost(id: string): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = localStorage.getItem('alif_viewed_posts_v1');
+      if (!raw) return false;
+      const list = JSON.parse(raw);
+      return Array.isArray(list) && list.includes(id);
+    } catch {
+      return false;
+    }
+  }
+
   public incrementPostViews(id: string): void {
     const post = this.state.posts.find((p) => p.id === id);
-    if (post) {
-      post.views = (post.views || 0) + 1;
-      this.save();
-      firestoreSync.incrementPostViewsRemote(id).catch(() => {});
+    if (!post || post.status !== 'published') return;
+    if (this.hasViewedPost(id)) return;
+
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('alif_viewed_posts_v1');
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        const updated = Array.isArray(list) ? [...list.slice(-499), id] : [id];
+        localStorage.setItem('alif_viewed_posts_v1', JSON.stringify(updated));
+      } catch {
+        // Proceed even if storage quota is full
+      }
     }
+
+    post.views = (post.views || 0) + 1;
+    this.save();
+    firestoreSync.incrementPostViewsRemote(id).catch(() => {});
   }
 
   public getPostById(id: string): Post | undefined {
@@ -1109,7 +1133,8 @@ class DatabaseService {
     let post: Post;
     if (isNew) {
       const id = `post-${Date.now()}`;
-      const slug = (postData.slug || postData.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const rawSlug = (postData.slug || postData.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const slug = rawSlug || id;
       post = {
         id,
         title: postData.title,
