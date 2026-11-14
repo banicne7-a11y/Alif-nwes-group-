@@ -1539,16 +1539,27 @@ class DatabaseService {
   }
 
   public addComment(postId: string, postTitle: string, authorName: string, authorEmail: string, content: string): Comment {
+    const cleanName = authorName.trim();
+    const cleanContent = content.trim();
+    const spamTriggers = ['http://', 'https://', 'crypto-airdrop', 'free-casino', 'buy-followers', 'scam-link'];
+    const lowerContent = cleanContent.toLowerCase();
+    const isFlagged = spamTriggers.some((trigger) => lowerContent.includes(trigger));
+    const formattedTime = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
     const newComment: Comment = {
-      id: `comm-${Date.now()}`,
+      id: `comm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       postId,
       postTitle,
-      authorName,
+      authorName: cleanName,
       authorEmail,
-      authorAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authorName)}`,
-      content,
-      status: 'pending',
-      createdAt: 'Just now',
+      authorAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
+      content: cleanContent,
+      status: isFlagged ? 'pending' : 'approved',
+      createdAt: formattedTime,
     };
     this.state.comments = [newComment, ...this.state.comments];
     const post = this.state.posts.find((p) => p.id === postId);
@@ -1556,6 +1567,24 @@ class DatabaseService {
     this.save();
     firestoreSync.writeDoc('comments', newComment.id, sanitizeComment(newComment)).catch(console.error);
     return newComment;
+  }
+
+  public replyToComment(id: string, author: string, content: string): void {
+    const comment = this.state.comments.find((c) => c.id === id);
+    if (!comment || !content.trim()) return;
+    const reply = {
+      id: `rep-${Date.now()}`,
+      author,
+      content: content.trim(),
+      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+    comment.replies = [...(comment.replies || []), reply];
+    if (comment.status === 'pending') {
+      comment.status = 'approved';
+    }
+    this.logAction('Comment Replied', `Editorial response added to comment by ${comment.authorName}`);
+    this.save();
+    firestoreSync.writeDoc('comments', comment.id, sanitizeComment(comment)).catch(console.error);
   }
 
   // -------------------------

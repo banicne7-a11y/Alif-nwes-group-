@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MessageSquare,
   Check,
@@ -30,6 +30,13 @@ export const CommentsView: React.FC = () => {
     setComments([...db.getComments()]);
   };
 
+  useEffect(() => {
+    const unsub = db.subscribe(() => {
+      setComments([...db.getComments()]);
+    });
+    return unsub;
+  }, []);
+
   const filtered = comments.filter((c) => {
     if (filter === 'all') return c.status !== 'trash';
     return c.status === filter;
@@ -44,24 +51,9 @@ export const CommentsView: React.FC = () => {
   const handleSendReply = (comment: Comment) => {
     if (!replyText.trim()) return;
     const adminUser = db.getState().currentUser;
-    // Append reply
-    const updatedReplies = [
-      ...(comment.replies || []),
-      {
-        id: `rep-${Date.now()}`,
-        author: `${adminUser.name} (Editorial Desk)`,
-        content: replyText.trim(),
-        createdAt: 'Just now',
-      },
-    ];
-
-    const idx = comments.findIndex((c) => c.id === comment.id);
-    if (idx !== -1) {
-      comments[idx].replies = updatedReplies;
-      db.logAction('Comment Replied', `Editorial response added to comment by ${comment.authorName}`);
-      refreshComments();
-      toast.success('Editorial reply posted!');
-    }
+    db.replyToComment(comment.id, `${adminUser.name} (Editorial Desk)`, replyText.trim());
+    refreshComments();
+    toast.success('Editorial reply posted!');
 
     setReplyingToId(null);
     setReplyText('');

@@ -137,7 +137,11 @@ service cloud.firestore {
         && data.postId is string && data.postId.size() >= 1 && data.postId.size() <= 128
         && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 120
         && data.content is string && data.content.size() >= 1 && data.content.size() <= 3000
-        && data.status in ['approved', 'pending', 'spam', 'trash'];
+        && data.status in ['approved', 'pending', 'spam', 'trash']
+        && (!('postTitle' in data) || (data.postTitle is string && data.postTitle.size() <= 300))
+        && (!('authorAvatar' in data) || (data.authorAvatar is string && data.authorAvatar.size() <= 1000))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('replies' in data) || (data.replies is list && data.replies.size() <= 50));
     }
 
     function isValidUser(data) {
@@ -273,7 +277,7 @@ service cloud.firestore {
     match /comments/{commentId} {
       allow get: if isValidId(commentId) && (existing().status == 'approved' || isAdmin());
       allow list: if existing().status == 'approved' || isAdmin();
-      allow create: if isValidId(commentId) && isValidComment(incoming()) && (isAdmin() || incoming().status == 'pending');
+      allow create: if isValidId(commentId) && isValidComment(incoming()) && (isAdmin() || incoming().status in ['approved', 'pending']);
       allow update: if isValidId(commentId) && isAdmin() && isValidComment(incoming());
       allow delete: if isValidId(commentId) && isAdmin();
     }

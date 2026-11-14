@@ -73,7 +73,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const [commentName, setCommentName] = useState('');
   const [commentEmail, setCommentEmail] = useState('');
   const [commentText, setCommentText] = useState('');
-  const [commentSubmitted, setCommentSubmitted] = useState(false);
+  const [commentSubmitted, setCommentSubmitted] = useState<'approved' | 'pending' | null>(null);
 
   // Contact page form simulator
   const [contactSent, setContactSent] = useState(false);
@@ -209,21 +209,22 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeArticle || !commentName || !commentText) return;
+    if (!activeArticle || !commentName.trim() || !commentText.trim()) return;
 
-    db.addComment(
+    const created = db.addComment(
       activeArticle.id,
       activeArticle.title,
-      commentName,
-      commentEmail || 'reader@example.com',
-      commentText
+      commentName.trim(),
+      commentEmail.trim() || 'reader@example.com',
+      commentText.trim()
     );
 
-    setCommentSubmitted(true);
+    setCommentsList(db.getComments().filter((c) => c.status === 'approved'));
+    setCommentSubmitted(created.status === 'approved' ? 'approved' : 'pending');
     setCommentName('');
     setCommentEmail('');
     setCommentText('');
-    setTimeout(() => setCommentSubmitted(false), 4000);
+    setTimeout(() => setCommentSubmitted(null), 4000);
   };
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
@@ -1341,6 +1342,15 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                         {c.content}
                       </p>
+                      {(c.replies || []).map((rep) => (
+                        <div
+                          key={rep.id}
+                          className="mt-2 ml-4 pl-3 border-l-2 border-red-600 text-xs text-slate-600 dark:text-slate-300 space-y-0.5"
+                        >
+                          <div className="font-bold text-red-700 dark:text-red-400">{rep.author}</div>
+                          <p>{rep.content}</p>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -1349,7 +1359,11 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               {commentSubmitted ? (
                 <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span>Thank you! Your comment has been submitted for moderation.</span>
+                  <span>
+                    {commentSubmitted === 'approved'
+                      ? 'Thank you! Your comment has been posted.'
+                      : 'Thank you! Your comment has been submitted for moderation.'}
+                  </span>
                 </div>
               ) : (
                 <form onSubmit={handlePostComment} className="space-y-3 text-xs">
