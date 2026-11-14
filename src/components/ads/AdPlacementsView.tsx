@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Pencil,
@@ -6,10 +6,6 @@ import {
   Code2,
   Tv,
   CheckCircle,
-  Eye,
-  MousePointerClick,
-  Sparkles,
-  ExternalLink,
   Info,
   LayoutGrid,
   List,
@@ -17,6 +13,25 @@ import {
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
 import { AdPlacement } from '../../types';
+
+const WEBSITE_POSITION_PRESETS: Array<{
+  key: string;
+  name: string;
+  label: string;
+  size: string;
+  deviceTarget: 'all' | 'desktop' | 'mobile';
+}> = [
+  { key: 'global_header_top', name: 'Global - Header Top', label: 'সকল পেজের একদম ওপরে (Header Top)', size: 'Responsive', deviceTarget: 'all' },
+  { key: 'home_mobile_top', name: 'Home - Mobile Top', label: 'হোমপেজ - মোবাইলের ওপরে (Home Mobile Top)', size: '320x100', deviceTarget: 'mobile' },
+  { key: 'home_sidebar_top', name: 'Home - Sidebar Top', label: 'হোমপেজ - ডান পাশের সাইডবার ওপরে (Sidebar Top)', size: '300x250', deviceTarget: 'desktop' },
+  { key: 'home_sidebar_bottom', name: 'Home - Sidebar Bottom', label: 'হোমপেজ - সাইডবার নিচে (Sidebar Bottom)', size: '300x600', deviceTarget: 'desktop' },
+  { key: 'article_header', name: 'Article - Header (All)', label: 'নিউজ পেজ - শিরোনামের ওপরে (Article Top)', size: 'Responsive', deviceTarget: 'all' },
+  { key: 'article_mobile_top', name: 'Article - Mobile Top', label: 'নিউজ পেজ - মোবাইলের ওপরে (Article Mobile Top)', size: '320x100', deviceTarget: 'mobile' },
+  { key: 'article_after_cover', name: 'Article - After Cover Image', label: 'নিউজ পেজ - বড় ছবির ঠিক নিচে (After Cover)', size: 'Responsive', deviceTarget: 'all' },
+  { key: 'article_in_content', name: 'Article - Inside Story (Mid-Text)', label: 'নিউজ পেজ - লেখার মাঝখানে (২য় প্যারার পর)', size: 'Responsive', deviceTarget: 'all' },
+  { key: 'article_bottom', name: 'Article - End of Story', label: 'নিউজ পেজ - লেখা শেষ হওয়ার পর (Article Bottom)', size: 'Responsive', deviceTarget: 'all' },
+  { key: 'global_sticky_bottom', name: 'Global - Mobile Sticky Bottom', label: 'মোবাইলের নিচে ফিক্সড স্টিকি ব্যানার (Mobile Sticky)', size: '320x50', deviceTarget: 'mobile' },
+];
 
 export const AdPlacementsView: React.FC = () => {
   const [ads, setAds] = useState<AdPlacement[]>(db.getAds());
@@ -37,6 +52,13 @@ export const AdPlacementsView: React.FC = () => {
   const refreshAds = () => {
     setAds([...db.getAds()]);
   };
+
+  useEffect(() => {
+    const unsub = db.subscribe(() => {
+      setAds([...db.getAds()]);
+    });
+    return unsub;
+  }, []);
 
   const handleOpenCreate = () => {
     setEditingAd(null);
@@ -130,21 +152,45 @@ export const AdPlacementsView: React.FC = () => {
         </button>
       </div>
 
+      {/* How AdSense Works Banner */}
+      <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-sky-900">
+        <Info className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-bold">AdSense অ্যাড কাস্টমাইজ করার নিয়ম:</p>
+          <p className="text-sky-800 leading-relaxed">
+            ১) পুরো সাইটে Auto Ads চালাতে <strong>Settings → Google Integrations &amp; AdSense</strong>-এ আপনার <code className="bg-white px-1 rounded font-mono">ca-pub-...</code> আইডি সেভ করুন।
+            ২) নির্দিষ্ট জায়গায় (যেমন: <em>হেডার, কভার ছবির নিচে, লেখার মাঝখানে, সাইডবারে বা মোবাইলের নিচে</em>) অ্যাড বসাতে নিচের যেকোনো স্লটের <strong>Edit (✏️)</strong> বা <strong>New Placement</strong>-এ গিয়ে আপনার AdSense কোড (বা শুধু <strong>Ad Slot ID</strong>) বসিয়ে <strong>Active</strong> করুন।
+          </p>
+        </div>
+      </div>
+
       {/* Stats summary banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
-          <p className="text-xs font-semibold text-slate-500">Total Active Slots</p>
+          <p className="text-xs font-semibold text-slate-500">Active Ad Slots</p>
           <p className="text-xl font-extrabold text-slate-900 mt-1">
             {ads.filter((a) => a.status === 'Active').length} of {ads.length}
           </p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
-          <p className="text-xs font-semibold text-slate-500">Total Monthly Impressions</p>
-          <p className="text-xl font-extrabold text-sky-600 mt-1">1.84M</p>
+          <p className="text-xs font-semibold text-slate-500">Configured Ad Units</p>
+          <p className="text-xl font-extrabold text-sky-600 mt-1">
+            {
+              ads.filter(
+                (a) =>
+                  a.status === 'Active' &&
+                  ((a.type === 'Image' && Boolean(a.imageUrl?.trim())) ||
+                    Boolean((a.customCode || '').replace(/<!--[\s\S]*?-->/g, '').trim()))
+              ).length
+            }{' '}
+            Live
+          </p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
-          <p className="text-xs font-semibold text-slate-500">AdSense Estimated Revenue</p>
-          <p className="text-xl font-extrabold text-emerald-600 mt-1">$4,850.00</p>
+          <p className="text-xs font-semibold text-slate-500">AdSense Publisher</p>
+          <p className="text-sm font-extrabold font-mono text-emerald-600 mt-1.5 truncate">
+            {db.getSettings().adsenseClientId || 'Not set'}
+          </p>
         </div>
       </div>
 
@@ -345,6 +391,34 @@ export const AdPlacementsView: React.FC = () => {
             </p>
 
             <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Quick Website Location Preset (অ্যাডের জায়গা বাছাই করুন)
+                </label>
+                <select
+                  value={WEBSITE_POSITION_PRESETS.some((p) => p.key === key) ? key : ''}
+                  onChange={(e) => {
+                    const preset = WEBSITE_POSITION_PRESETS.find((p) => p.key === e.target.value);
+                    if (preset) {
+                      setKey(preset.key);
+                      if (!name.trim() || WEBSITE_POSITION_PRESETS.some((p) => p.name === name)) {
+                        setName(preset.name);
+                      }
+                      setSize(preset.size);
+                      setDeviceTarget(preset.deviceTarget);
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="">-- Custom / Select a Website Position --</option>
+                  {WEBSITE_POSITION_PRESETS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -355,7 +429,7 @@ export const AdPlacementsView: React.FC = () => {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Article - Top Leaderboard"
+                    placeholder="e.g. Article - Inside Story"
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
@@ -369,7 +443,7 @@ export const AdPlacementsView: React.FC = () => {
                     required
                     value={key}
                     onChange={(e) => setKey(e.target.value)}
-                    placeholder="e.g. article_top_banner"
+                    placeholder="e.g. article_in_content"
                     className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
@@ -423,15 +497,18 @@ export const AdPlacementsView: React.FC = () => {
               {type === 'Code' || type === 'AdSense' ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Ad / Script Code
+                    AdSense Code / Ad Slot ID
                   </label>
                   <textarea
                     rows={4}
                     value={customCode}
                     onChange={(e) => setCustomCode(e.target.value)}
-                    placeholder="<!-- Paste Google AdSense or sponsor script here -->"
+                    placeholder="পুরো <ins class='adsbygoogle' ...> কোড পেস্ট করুন অথবা শুধু 10 ডিজিটের Ad Slot ID (যেমন 1234567890) লিখুন"
                     className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
                   />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    শুধু Slot ID দিলে Settings-এ সেভ করা Publisher ID দিয়ে অটোমেটিক Responsive AdSense ইউনিট তৈরি হবে।
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">

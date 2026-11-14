@@ -26,9 +26,14 @@ import {
   Lock,
 } from 'lucide-react';
 import { db } from '../../services/db';
-import { Post, Comment, Page } from '../../types';
+import { Post, Comment, Page, AdPlacement } from '../../types';
 import { navigateTo, parseCurrentRoute } from '../../services/router';
 import { updatePageSeo } from '../../services/seo';
+import {
+  AdSlotRenderer,
+  ensureAdSenseScript,
+  isRealPublisherId,
+} from './AdSlotRenderer';
 import {
   formatArticleForReader,
   estimateReadingTimeMinutes,
@@ -55,9 +60,11 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const [posts, setPosts] = useState<Post[]>(() => db.getPosts().filter((p) => p.status === 'published'));
   const [categories, setCategories] = useState(() => db.getCategories());
   const [pages, setPages] = useState<Page[]>(() => db.getPages());
+  const [ads, setAds] = useState<AdPlacement[]>(() => db.getAds());
   const [settings, setSettings] = useState(() => db.getSettings());
   const [footerConfig, setFooterConfig] = useState(() => db.getFooterConfig());
   const [commentsList, setCommentsList] = useState<Comment[]>(() => db.getComments().filter((c) => c.status === 'approved'));
+  const [stickyAdDismissed, setStickyAdDismissed] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeArticle, setActiveArticle] = useState<Post | null>(initialPost || null);
   const [activePage, setActivePage] = useState<Page | null>(initialPage || null);
@@ -143,6 +150,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
       setPosts(latestPosts);
       setCategories([...db.getCategories()]);
       setPages([...db.getPages()]);
+      setAds([...db.getAds()]);
       setSettings({ ...db.getSettings() });
       setFooterConfig({ ...db.getFooterConfig() });
       setCommentsList(db.getComments().filter((c) => c.status === 'approved'));
@@ -156,6 +164,16 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     const unsub = db.subscribe(refreshFromDb);
     return unsub;
   }, []);
+
+  // Load Google AdSense script when real Publisher ID + Auto Ads or active AdSense slots exist
+  React.useEffect(() => {
+    const hasActiveAdSenseSlot = ads.some(
+      (a) => a.status === 'Active' && a.type === 'AdSense' && a.customCode?.trim()
+    );
+    if (isRealPublisherId(settings.adsenseClientId) && (settings.autoAds || hasActiveAdSenseSlot)) {
+      ensureAdSenseScript(settings.adsenseClientId);
+    }
+  }, [settings.adsenseClientId, settings.autoAds, ads]);
 
   const footerPages = pages.filter((p) => p.showInFooter && p.status === 'published');
 
@@ -877,10 +895,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
       {/* 6. MAIN CONTENT AREA */}
       <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6">
         {/* Ad Space: Global Header Top Slot */}
-        <div className="mb-6 p-3 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-          <Tv className="w-4 h-4 text-slate-400" />
-          <span>Sponsored Banner • [Global - Header Top Slot • 728x90 Billboard Placement]</span>
-        </div>
+        <AdSlotRenderer
+          placementKey="global_header_top"
+          ads={ads}
+          publisherId={settings.adsenseClientId}
+          className="mb-6"
+        />
 
         {/* VIEW 1: STATIC PAGE READER (When clicked from 3-tooth drawer or footer) */}
         {activePage ? (
@@ -1003,6 +1023,17 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               </div>
             </div>
 
+            <AdSlotRenderer
+              placementKey="article_header"
+              ads={ads}
+              publisherId={settings.adsenseClientId}
+            />
+            <AdSlotRenderer
+              placementKey="article_mobile_top"
+              ads={ads}
+              publisherId={settings.adsenseClientId}
+            />
+
             <article
               className={`px-5 py-7 sm:px-10 sm:py-10 md:px-14 md:py-12 rounded-2xl border shadow-xs ${
                 darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90'
@@ -1103,6 +1134,13 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 </figure>
               )}
 
+              <AdSlotRenderer
+                placementKey="article_after_cover"
+                ads={ads}
+                publisherId={settings.adsenseClientId}
+                className="max-w-3xl mx-auto my-6"
+              />
+
               {/* Optimal Reading Measure Prose Body */}
               <div
                 className={`max-w-[68ch] mx-auto font-['Source_Serif_4',Georgia,serif] text-slate-800 dark:text-slate-200 ${
@@ -1113,21 +1151,32 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               >
                 {(() => {
                   let renderedFirstParagraph = false;
+                  let paragraphCount = 0;
                   return activeSections.map((sec) => {
                     if (sec.type === 'paragraph') {
                       const isLead = !renderedFirstParagraph && sec.text.length > 60;
                       if (isLead) renderedFirstParagraph = true;
+                      paragraphCount += 1;
                       return (
-                        <p
-                          key={sec.id}
-                          className={
-                            isLead
-                              ? "first-letter:font-['Playfair_Display',Georgia,serif] first-letter:text-5xl first-letter:font-black first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:leading-[0.85] first-letter:text-slate-950 dark:first-letter:text-white"
-                              : ''
-                          }
-                        >
-                          {sec.text}
-                        </p>
+                        <React.Fragment key={sec.id}>
+                          <p
+                            className={
+                              isLead
+                                ? "first-letter:font-['Playfair_Display',Georgia,serif] first-letter:text-5xl first-letter:font-black first-letter:float-left first-letter:mr-3 first-letter:mt-1 first-letter:leading-[0.85] first-letter:text-slate-950 dark:first-letter:text-white"
+                                : ''
+                            }
+                          >
+                            {sec.text}
+                          </p>
+                          {paragraphCount === 2 && (
+                            <AdSlotRenderer
+                              placementKey="article_in_content"
+                              ads={ads}
+                              publisherId={settings.adsenseClientId}
+                              className="my-6"
+                            />
+                          )}
+                        </React.Fragment>
                       );
                     }
 
@@ -1265,6 +1314,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 </div>
               )}
             </article>
+
+            <AdSlotRenderer
+              placementKey="article_bottom"
+              ads={ads}
+              publisherId={settings.adsenseClientId}
+            />
 
             {/* Related Dispatches */}
             {relatedArticles.length > 0 && (
@@ -1405,6 +1460,11 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         ) : (
           /* VIEW 3: NEWSPAPER ENTERPRISE HOMEPAGE DESIGN (100% US / ENGLISH CONTENT) */
           <div className="space-y-10">
+            <AdSlotRenderer
+              placementKey="home_mobile_top"
+              ads={ads}
+              publisherId={settings.adsenseClientId}
+            />
             {/* 3.1 HERO EDITORIAL LEAD SECTION: 3 Columns (Lead 7 cols + Trending & Opinion 5 cols) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-8 border-b border-slate-200 dark:border-slate-800">
               {/* Left Column (7 cols): Main Lead Story + 2 Secondary Leads */}
@@ -1512,11 +1572,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   </div>
                 </div>
 
-                {/* Sidebar Ad Placement */}
-                <div className="p-4 bg-slate-100 dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-400">
-                  <span className="font-bold block text-slate-500 uppercase tracking-wider text-[11px]">Sponsored Space</span>
-                  <span className="text-[10px]">Author Profile - Sidebar Top (300x250)</span>
-                </div>
+                {/* Sidebar Ad Placement Top */}
+                <AdSlotRenderer
+                  placementKey="home_sidebar_top"
+                  ads={ads}
+                  publisherId={settings.adsenseClientId}
+                />
 
                 {/* Editorial Quote / Opinion Spotlight */}
                 {opinionPost && (
@@ -1540,6 +1601,13 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Sidebar Ad Placement Bottom */}
+                <AdSlotRenderer
+                  placementKey="home_sidebar_bottom"
+                  ads={ads}
+                  publisherId={settings.adsenseClientId}
+                />
               </div>
             </div>
 
@@ -1829,6 +1897,32 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* Mobile Sticky Bottom Ad Slot (if active & configured) */}
+      {!stickyAdDismissed &&
+        ads.some(
+          (a) =>
+            a.key === 'global_sticky_bottom' &&
+            a.status === 'Active' &&
+            ((a.type === 'Image' && Boolean(a.imageUrl?.trim())) ||
+              Boolean((a.customCode || '').replace(/<!--[\s\S]*?-->/g, '').trim()))
+        ) && (
+          <div className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-3 py-2 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setStickyAdDismissed(true)}
+              className="absolute -top-6 right-2 bg-slate-900 text-white rounded-t-lg px-2 py-0.5 text-[10px] font-bold cursor-pointer"
+              aria-label="Close advertisement"
+            >
+              ✕
+            </button>
+            <AdSlotRenderer
+              placementKey="global_sticky_bottom"
+              ads={ads}
+              publisherId={settings.adsenseClientId}
+            />
+          </div>
+        )}
     </div>
   );
 };
