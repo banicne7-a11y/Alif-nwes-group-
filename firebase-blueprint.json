@@ -13,6 +13,7 @@
         "blocks": { "type": "array" },
         "excerpt": { "type": "string", "maxLength": 1000 },
         "category": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "categories": { "type": "array" },
         "tags": { "type": "array" },
         "authorId": { "type": "string", "maxLength": 128 },
         "authorName": { "type": "string", "maxLength": 120 },

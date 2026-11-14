@@ -60,7 +60,16 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   const [title, setTitle] = useState(postToEdit?.title || '');
   const [subtitle, setSubtitle] = useState(postToEdit?.subtitle || '');
   const [slug, setSlug] = useState(postToEdit?.slug || '');
-  const [category, setCategory] = useState(postToEdit?.category || 'Business');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
+    const raw =
+      postToEdit?.categories && postToEdit.categories.length > 0
+        ? postToEdit.categories
+        : postToEdit?.category
+        ? [postToEdit.category]
+        : [categories[0]?.name || 'Business'];
+    return Array.from(new Set(raw.filter(Boolean)));
+  });
+  const category = selectedCategories[0] || 'Business';
   const [selectedTags, setSelectedTags] = useState<string[]>(postToEdit?.tags || ['News']);
   const [newTagInput, setNewTagInput] = useState('');
   const [featuredImage, setFeaturedImage] = useState(
@@ -247,6 +256,27 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   };
 
   // Tag and Keyword Handlers
+  const handleToggleCategory = (catName: string) => {
+    setSelectedCategories((prev) => {
+      const exists = prev.some((c) => c.toLowerCase() === catName.toLowerCase());
+      if (exists) {
+        if (prev.length <= 1) {
+          toast.warning('কমপক্ষে ১টি ক্যাটাগরি সিলেক্ট করা থাকতে হবে।');
+          return prev;
+        }
+        return prev.filter((c) => c.toLowerCase() !== catName.toLowerCase());
+      }
+      return [...prev, catName];
+    });
+  };
+
+  const handleSetPrimaryCategory = (catName: string) => {
+    setSelectedCategories((prev) => [
+      catName,
+      ...prev.filter((c) => c.toLowerCase() !== catName.toLowerCase()),
+    ]);
+  };
+
   const handleAddTag = () => {
     if (newTagInput.trim() && !selectedTags.includes(newTagInput.trim())) {
       setSelectedTags([...selectedTags, newTagInput.trim()]);
@@ -362,7 +392,9 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         const d = res.data;
         if (d.title) setTitle(d.title);
         if (d.subtitle) setSubtitle(d.subtitle);
-        if (d.category) setCategory(d.category);
+        if (d.category) {
+          setSelectedCategories((prev) => Array.from(new Set([d.category, ...prev])));
+        }
         if (d.tags && Array.isArray(d.tags)) setSelectedTags(d.tags);
         if (d.seoKeyword) setSeoFocusKeyword(d.seoKeyword);
         if (d.metaDescription) setSeoDescription(d.metaDescription);
@@ -458,7 +490,8 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         blocks,
         content: blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join('\n\n'),
         excerpt: subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 160) : title),
-        category,
+        category: selectedCategories[0] || 'Business',
+        categories: selectedCategories,
         tags: selectedTags,
         featuredImage,
         status: finalStatus,
@@ -967,18 +1000,72 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Category *</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-medium"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Categories * (একাধিক সিলেক্ট করুন)
+                </label>
+                <span className="text-[11px] font-bold text-sky-700">
+                  {selectedCategories.length} selected
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                {categories.map((c) => {
+                  const isSelected = selectedCategories.some(
+                    (sc) => sc.toLowerCase() === c.name.toLowerCase()
+                  );
+                  const isPrimary =
+                    selectedCategories[0]?.toLowerCase() === c.name.toLowerCase();
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => handleToggleCategory(c.name)}
+                      className={`flex items-center justify-between gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-sky-50 border-sky-400 text-sky-900 shadow-2xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: c.color || '#0284C7' }}
+                        />
+                        <span className="truncate">{c.name}</span>
+                      </span>
+                      {isPrimary ? (
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-700 shrink-0">
+                          Main
+                        </span>
+                      ) : isSelected ? (
+                        <Check className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedCategories.length > 1 && (
+                <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-slate-400 font-semibold">Primary:</span>
+                  {selectedCategories.map((catName, idx) => (
+                    <button
+                      key={catName}
+                      type="button"
+                      onClick={() => handleSetPrimaryCategory(catName)}
+                      className={`px-2 py-0.5 rounded-md border text-[11px] font-semibold cursor-pointer transition-colors ${
+                        idx === 0
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-sky-400 hover:text-sky-700'
+                      }`}
+                      title={idx === 0 ? 'Primary category' : 'Click to make primary category'}
+                    >
+                      {catName}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -1593,9 +1680,9 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                     : 'w-full max-w-3xl'
                 }`}
               >
-                <span className="px-3 py-1 bg-sky-100 text-sky-800 text-xs font-bold rounded-full">
-                  {category}
-                </span>
+                <div className="text-xs font-extrabold uppercase tracking-wider text-sky-700">
+                  {selectedCategories.join(' · ')}
+                </div>
 
                 <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 leading-tight">
                   {title || 'Headline Article Title'}

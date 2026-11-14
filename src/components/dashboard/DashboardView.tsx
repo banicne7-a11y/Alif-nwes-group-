@@ -118,11 +118,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     100
   );
 
-  // Category wise counts dynamically computed from actual articles
+  // Category wise counts dynamically computed from actual articles (supports multi-category)
   const categoryCounts = categories.map((cat) => {
-    const count = posts.filter(
-      (p) => p.category.toLowerCase().trim() === cat.name.toLowerCase().trim()
-    ).length;
+    const target = cat.name.toLowerCase().trim();
+    const count = posts.filter((p) => {
+      const cats = p.categories && p.categories.length > 0 ? p.categories : [p.category];
+      return cats.some((pc) => pc.toLowerCase().trim() === target);
+    }).length;
     return {
       ...cat,
       realCount: count,
@@ -503,7 +505,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
                 <div className="min-w-0 flex-1">
                   <span className="text-[10px] font-bold text-sky-600">
-                    | {post.category}
+                    | {(post.categories && post.categories.length > 0 ? post.categories : [post.category]).join(' · ')}
                   </span>
                   <h4 className="text-xs font-bold text-slate-800 line-clamp-2 group-hover:text-sky-600 transition-colors leading-snug">
                     {post.title}

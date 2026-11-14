@@ -5,6 +5,11 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import {
+  generateStandardSitemapXml,
+  generateNewsSitemapXml,
+  generateRobotsTxt,
+} from './src/services/sitemapGenerator';
 
 dotenv.config();
 
@@ -292,53 +297,38 @@ app.get('/google:hash.html', (req, res) => {
 });
 
 // 2. robots.txt endpoint
-app.get('/robots.txt', (req, res) => {
-  const host = req.get('host') || 'alifnews24.com';
-  const protocol = req.protocol || 'https';
-  res.type('text/plain').send(
-    `User-agent: *\nAllow: /\n\nSitemap: ${protocol}://${host}/sitemap.xml\n`
-  );
+app.get(['/robots.txt', '/api/robots'], (req, res) => {
+  const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+  res.type('text/plain').send(generateRobotsTxt(`${protocol}://${host}`));
 });
 
-// 3. sitemap.xml endpoint for Google Search Console
-app.get('/sitemap.xml', (req, res) => {
-  const host = req.get('host') || 'alifnews24.com';
-  const protocol = req.protocol || 'https';
+// 3. Live Firestore-backed sitemap.xml & google-news-sitemap.xml endpoints for Google Search Console
+app.get(['/sitemap.xml', '/api/sitemap'], async (req, res) => {
+  const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const baseUrl = `${protocol}://${host}`;
-  const now = new Date().toISOString().slice(0, 10);
+  try {
+    const xml =
+      req.query?.type === 'news'
+        ? await generateNewsSitemapXml(baseUrl)
+        : await generateStandardSitemapXml(baseUrl);
+    res.type('application/xml').send(xml);
+  } catch (err: any) {
+    res.status(500).type('text/plain').send(err?.message || 'Error generating sitemap');
+  }
+});
 
-  const defaultSlugs = [
-    '',
-    'category/business',
-    'category/politics',
-    'category/technology',
-    'category/health',
-    'category/science',
-    'category/sports',
-    'page/about-us',
-    'page/contact-us',
-    'page/privacy-policy',
-    'page/editorial-standards',
-    'news/what-if-trump-had-lost-in-2016-10-years-alternate-history',
-    'news/chinas-military-tech-emerges-both-sides-saudi-houthi-war',
-    'news/us-inflation-decelerating-economic-outlook-federal-reserve',
-  ];
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${defaultSlugs
-  .map(
-    (slug) => `  <url>
-    <loc>${baseUrl}/${slug}</loc>
-    <lastmod>${now}</lastmod>
-    <changefreq>${slug === '' ? 'hourly' : slug.startsWith('news/') ? 'daily' : 'weekly'}</changefreq>
-    <priority>${slug === '' ? '1.0' : slug.startsWith('news/') ? '0.8' : '0.6'}</priority>
-  </url>`
-  )
-  .join('\n')}
-</urlset>`;
-
-  res.type('application/xml').send(xml);
+app.get('/google-news-sitemap.xml', async (req, res) => {
+  const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const baseUrl = `${protocol}://${host}`;
+  try {
+    const xml = await generateNewsSitemapXml(baseUrl);
+    res.type('application/xml').send(xml);
+  } catch (err: any) {
+    res.status(500).type('text/plain').send(err?.message || 'Error generating news sitemap');
+  }
 });
 
 // 4. Update Google Search Console verification code & index.html

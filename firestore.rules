@@ -46,7 +46,7 @@ service cloud.firestore {
       return data.keys().hasAll(['id', 'title', 'slug', 'category', 'status'])
         && data.keys().hasOnly([
           'id', 'title', 'subtitle', 'slug', 'content', 'blocks', 'excerpt',
-          'category', 'tags', 'authorId', 'authorName', 'authorAvatar',
+          'category', 'categories', 'tags', 'authorId', 'authorName', 'authorAvatar',
           'status', 'scheduledAt', 'featuredImage', 'imageCaption', 'seo',
           'isBreaking', 'isTrending', 'isHomepageSlider', 'isEditorPick',
           'isAiGenerated', 'aiApprovalStatus', 'editorialNotes',
@@ -61,6 +61,7 @@ service cloud.firestore {
         && (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 500))
         && (!('content' in data) || (data.content is string && data.content.size() <= 200000))
         && (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000))
+        && (!('categories' in data) || (data.categories is list && data.categories.size() <= 10 && (data.categories.size() == 0 || (data.categories[0] is string && data.categories[0].size() <= 100))))
         && (!('tags' in data) || (data.tags is list && data.tags.size() <= 25 && (data.tags.size() == 0 || data.tags[0] is string)))
         && (!('blocks' in data) || (data.blocks is list && data.blocks.size() <= 100 && (data.blocks.size() == 0 || data.blocks[0] is map)))
         && (!('featuredImage' in data) || (data.featuredImage is string && data.featuredImage.size() <= 2000))

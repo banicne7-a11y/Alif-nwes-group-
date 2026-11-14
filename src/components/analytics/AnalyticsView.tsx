@@ -251,7 +251,7 @@ export const AnalyticsView: React.FC = () => {
                   </td>
                   <td className="py-3 px-6">
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                      {p.category}
+                      {(p.categories && p.categories.length > 0 ? p.categories : [p.category]).join(' · ')}
                     </span>
                   </td>
                   <td className="py-3 px-6 text-slate-600 font-semibold">

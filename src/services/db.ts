@@ -1130,11 +1130,32 @@ class DatabaseService {
     const isNew = !postData.id;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
+    const normalizeCats = (cats?: string[], primary?: string, fallback: string = 'Business'): string[] => {
+      const merged = [
+        ...(Array.isArray(cats) ? cats : []),
+        ...(primary ? [primary] : []),
+      ]
+        .map((c) => String(c || '').trim())
+        .filter(Boolean);
+      const unique: string[] = [];
+      const seen = new Set<string>();
+      for (const c of merged) {
+        const key = c.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(c);
+        }
+        if (unique.length >= 10) break;
+      }
+      return unique.length > 0 ? unique : [fallback];
+    };
+
     let post: Post;
     if (isNew) {
       const id = `post-${Date.now()}`;
       const rawSlug = (postData.slug || postData.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const slug = rawSlug || id;
+      const cats = normalizeCats(postData.categories, postData.category, 'Business');
       post = {
         id,
         title: postData.title,
@@ -1146,7 +1167,8 @@ class DatabaseService {
         ],
         excerpt: postData.excerpt || postData.title,
         featuredImage: postData.featuredImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80',
-        category: postData.category || 'Business',
+        category: cats[0],
+        categories: cats,
         subcategory: postData.subcategory,
         tags: postData.tags || ['News'],
         author: postData.author || {
@@ -1194,6 +1216,12 @@ class DatabaseService {
       if (index === -1) throw new Error('Post not found');
       const existing = this.state.posts[index];
 
+      const cats = normalizeCats(
+        postData.categories ?? existing.categories,
+        postData.category ?? existing.category,
+        existing.category || 'Business'
+      );
+
       const newRevision = {
         id: `rev-${Date.now()}`,
         timestamp: now,
@@ -1206,6 +1234,8 @@ class DatabaseService {
       post = {
         ...existing,
         ...postData,
+        category: cats[0],
+        categories: cats,
         updatedAt: now,
         revisions: [newRevision, ...(existing.revisions || [])].slice(0, 15),
       };
@@ -1256,12 +1286,16 @@ class DatabaseService {
   // Category Operations
   // -------------------------
   public getCategories(): Category[] {
-    return this.state.categories.map((c) => ({
-      ...c,
-      count: this.state.posts.filter(
-        (p) => p.category.toLowerCase().trim() === c.name.toLowerCase().trim()
-      ).length,
-    }));
+    return this.state.categories.map((c) => {
+      const target = c.name.toLowerCase().trim();
+      return {
+        ...c,
+        count: this.state.posts.filter((p) => {
+          const cats = p.categories && p.categories.length > 0 ? p.categories : [p.category];
+          return cats.some((pc) => pc.toLowerCase().trim() === target);
+        }).length,
+      };
+    });
   }
 
   public saveCategory(catData: Partial<Category> & { name: string }): Category {

@@ -53,13 +53,19 @@ export const PostsView: React.FC<PostsViewProps> = ({
   }, []);
 
   const filteredPosts = posts.filter((post) => {
+    const postCats = post.categories && post.categories.length > 0 ? post.categories : [post.category];
     if (statusFilter !== 'all' && post.status !== statusFilter) return false;
-    if (categoryFilter !== 'all' && post.category !== categoryFilter) return false;
+    if (
+      categoryFilter !== 'all' &&
+      !postCats.some((c) => c.toLowerCase().trim() === categoryFilter.toLowerCase().trim())
+    ) {
+      return false;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchTitle = post.title.toLowerCase().includes(q);
       const matchAuthor = post.author.name.toLowerCase().includes(q);
-      const matchCategory = post.category.toLowerCase().includes(q);
+      const matchCategory = postCats.some((c) => c.toLowerCase().includes(q));
       if (!matchTitle && !matchAuthor && !matchCategory) return false;
     }
     return true;
@@ -344,10 +350,21 @@ export const PostsView: React.FC<PostsViewProps> = ({
                         <span className="text-xs font-semibold text-slate-800">{post.author.name}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-100">
-                        {post.category}
-                      </span>
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-wrap gap-1 max-w-[170px]">
+                        {(post.categories && post.categories.length > 0 ? post.categories : [post.category]).map((catName, idx) => (
+                          <span
+                            key={catName}
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
+                              idx === 0
+                                ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {catName}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="flex flex-wrap gap-1 max-w-[140px]">

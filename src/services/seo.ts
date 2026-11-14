@@ -27,6 +27,36 @@ export function cleanGoogleVerificationCode(input: string): string {
   return str;
 }
 
+export function applyDynamicFavicon(customUrl?: string): string {
+  const settings = db.getSettings();
+  const href = (customUrl !== undefined ? customUrl : settings.faviconUrl || '').trim() || '/favicon.svg';
+
+  if (typeof document !== 'undefined') {
+    let iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!iconLink) {
+      iconLink = document.createElement('link');
+      iconLink.rel = 'icon';
+      document.head.appendChild(iconLink);
+    }
+    iconLink.href = href;
+    if (href.endsWith('.svg')) {
+      iconLink.type = 'image/svg+xml';
+    } else {
+      iconLink.removeAttribute('type');
+    }
+
+    let appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    if (!appleLink) {
+      appleLink = document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      document.head.appendChild(appleLink);
+    }
+    appleLink.href = href;
+  }
+
+  return href;
+}
+
 /**
  * Dynamically injects or updates the Google Search Console verification tag in document <head>.
  */
@@ -43,6 +73,7 @@ export function applyGoogleVerificationTag(code?: string): string {
       document.head.appendChild(metaTag);
     }
     metaTag.content = cleanCode;
+    applyDynamicFavicon();
   }
 
   return cleanCode;
@@ -98,7 +129,7 @@ export function updatePageSeo(options: {
     setMeta('twitter:image', options.ogImage);
   }
 
-  // Always ensure Google Site Verification is synced
+  // Always ensure Google Site Verification and Favicon are synced
   applyGoogleVerificationTag();
 }
 

@@ -159,11 +159,35 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
   const footerPages = pages.filter((p) => p.showInFooter && p.status === 'published');
 
+  const getPostCategoryList = (post: Post): string[] => {
+    const raw =
+      Array.isArray(post.categories) && post.categories.length > 0
+        ? post.categories
+        : post.category
+        ? [post.category]
+        : ['General'];
+    return Array.from(new Set(raw.filter(Boolean)));
+  };
+
+  const postHasCategory = (post: Post, targetCat: string): boolean => {
+    const norm = targetCat.toLowerCase().trim();
+    return getPostCategoryList(post).some((c) => {
+      const cNorm = c.toLowerCase().trim();
+      const cSlug = cNorm.replace(/[^a-z0-9]+/g, '-');
+      return cNorm === norm || cSlug === norm;
+    });
+  };
+
   const filteredPosts = posts.filter((p) => {
-    if (selectedCategory !== 'all' && p.category !== selectedCategory) return false;
+    if (selectedCategory !== 'all' && !postHasCategory(p, selectedCategory)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return p.title.toLowerCase().includes(q) || p.excerpt.toLowerCase().includes(q);
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.excerpt.toLowerCase().includes(q) ||
+        getPostCategoryList(p).some((c) => c.toLowerCase().includes(q)) ||
+        (p.tags || []).some((t) => t.toLowerCase().includes(q))
+      );
     }
     return true;
   });
@@ -171,8 +195,16 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const featuredPost = posts.find((p) => p.isBreaking) || posts[0];
   const secondaryLeads = posts.filter((p) => p.id !== featuredPost?.id).slice(0, 2);
   const mostReadPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
-  const businessPosts = posts.filter((p) => p.category.toLowerCase().includes('business') || p.category.toLowerCase().includes('finance')).slice(0, 4);
-  const techPosts = posts.filter((p) => p.category.toLowerCase().includes('tech') || p.category.toLowerCase().includes('science')).slice(0, 4);
+  const businessPosts = posts
+    .filter((p) =>
+      getPostCategoryList(p).some((c) => c.toLowerCase().includes('business') || c.toLowerCase().includes('finance'))
+    )
+    .slice(0, 4);
+  const techPosts = posts
+    .filter((p) =>
+      getPostCategoryList(p).some((c) => c.toLowerCase().includes('tech') || c.toLowerCase().includes('science'))
+    )
+    .slice(0, 4);
   const opinionPost = posts.find((p) => p.isEditorPick) || posts[1] || posts[0];
 
   const handlePostComment = (e: React.FormEvent) => {
@@ -418,14 +450,17 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     ? commentsList.filter((c) => c.postId === activeArticle.id)
     : [];
   const relatedArticles = activeArticle
-    ? posts
-        .filter((p) => p.id !== activeArticle.id)
-        .sort((a, b) => {
-          const aSame = a.category === activeArticle.category ? 1 : 0;
-          const bSame = b.category === activeArticle.category ? 1 : 0;
-          return bSame - aSame;
-        })
-        .slice(0, 3)
+    ? (() => {
+        const activeCats = getPostCategoryList(activeArticle).map((c) => c.toLowerCase());
+        return posts
+          .filter((p) => p.id !== activeArticle.id)
+          .sort((a, b) => {
+            const aShared = getPostCategoryList(a).filter((c) => activeCats.includes(c.toLowerCase())).length;
+            const bShared = getPostCategoryList(b).filter((c) => activeCats.includes(c.toLowerCase())).length;
+            return bShared - aShared;
+          })
+          .slice(0, 3);
+      })()
     : [];
 
   return (
@@ -975,14 +1010,21 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               {/* Article Editorial Header Column */}
               <header className="max-w-[68ch] mx-auto space-y-5">
                 {/* Clean unboxed metadata kicker */}
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectCategory(activeArticle.category)}
-                    className="text-red-600 dark:text-red-400 font-extrabold uppercase tracking-wider hover:underline cursor-pointer"
-                  >
-                    {activeArticle.category}
-                  </button>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {getPostCategoryList(activeArticle).map((catName, idx, arr) => (
+                    <React.Fragment key={catName}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCategory(catName)}
+                        className="text-red-600 dark:text-red-400 font-extrabold uppercase tracking-wider hover:underline cursor-pointer"
+                      >
+                        {catName}
+                      </button>
+                      {idx < arr.length - 1 && (
+                        <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">/</span>
+                      )}
+                    </React.Fragment>
+                  ))}
                   <span aria-hidden="true">·</span>
                   <span>{activeArticle.publishedAt || activeArticle.updatedAt}</span>
                   <span aria-hidden="true">·</span>
@@ -1257,7 +1299,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
                         <div>
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-600">
-                            {rel.category}
+                            {getPostCategoryList(rel).join(' · ')}
                           </span>
                           <h4 className="font-['Playfair_Display',Georgia,serif] font-bold text-sm leading-snug text-slate-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-2 mt-1">
                             {rel.title}
@@ -1371,8 +1413,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                        <span className="text-red-600 font-bold uppercase">{featuredPost.category}</span>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium flex-wrap">
+                        <span className="text-red-600 font-bold uppercase">
+                          {getPostCategoryList(featuredPost).join(' · ')}
+                        </span>
                         <span>·</span>
                         <span>By {featuredPost.author.name}</span>
                         <span>·</span>
@@ -1407,7 +1451,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       </div>
                       <div className="space-y-1">
                         <span className="text-[11px] font-bold text-red-600 uppercase">
-                          {post.category}
+                          {getPostCategoryList(post).join(' · ')}
                         </span>
                         <h3 className="font-serif font-bold text-sm leading-snug group-hover:text-red-600 transition-colors line-clamp-2">
                           {post.title}
@@ -1443,7 +1487,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         </span>
                         <div className="min-w-0 flex-1 space-y-1">
                           <span className="text-[10px] font-bold text-slate-400 uppercase">
-                            {post.category} · {post.publishedAt}
+                            {getPostCategoryList(post).join(' · ')} · {post.publishedAt}
                           </span>
                           <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-red-600 transition-colors line-clamp-2 leading-snug">
                             {post.title}
@@ -1616,9 +1660,11 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     </div>
                     <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                       <div>
-                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                          <span className="text-red-600 uppercase">{post.category}</span>
-                          <span>{post.publishedAt}</span>
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 gap-2">
+                          <span className="text-red-600 uppercase truncate">
+                            {getPostCategoryList(post).join(' · ')}
+                          </span>
+                          <span className="shrink-0">{post.publishedAt}</span>
                         </div>
                         <h4 className="font-serif font-bold text-sm sm:text-base leading-snug group-hover:text-red-600 transition-colors line-clamp-2 mt-1">
                           {post.title}

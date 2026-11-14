@@ -73,6 +73,25 @@ function trunc(val: any, max: number): string {
 // Strict Payload Sanitizers matching firestore.rules allowlists
 // -------------------------------------------------------------
 export function sanitizePost(p: Post): Record<string, any> {
+  const rawCats = [
+    ...(Array.isArray(p.categories) ? p.categories : []),
+    ...(p.category ? [p.category] : []),
+  ]
+    .map((c) => trunc(c, 100).trim())
+    .filter(Boolean);
+  const dedupedCats: string[] = [];
+  const seenCats = new Set<string>();
+  for (const c of rawCats) {
+    const key = c.toLowerCase();
+    if (!seenCats.has(key)) {
+      seenCats.add(key);
+      dedupedCats.push(c);
+    }
+    if (dedupedCats.length >= 10) break;
+  }
+  const primaryCategory = dedupedCats[0] || trunc(p.category || 'General', 100);
+  const normalizedCategories = dedupedCats.length > 0 ? dedupedCats : [primaryCategory];
+
   const allowed: Record<string, any> = {
     id: safeId(p.id),
     title: trunc(p.title || 'Untitled', 300),
@@ -81,7 +100,8 @@ export function sanitizePost(p: Post): Record<string, any> {
     content: trunc(p.content || '', 199000),
     blocks: Array.isArray(p.blocks) ? p.blocks.slice(0, 100) : [],
     excerpt: trunc(p.excerpt || p.title || '', 1000),
-    category: trunc(p.category || 'General', 100),
+    category: primaryCategory,
+    categories: normalizedCategories,
     tags: Array.isArray(p.tags) ? p.tags.slice(0, 25).map((t) => trunc(t, 60)) : [],
     authorId: trunc(p.author?.id || (p as any).authorId || 'u-1', 128),
     authorName: trunc(p.author?.name || (p as any).authorName || 'Editorial Desk', 120),
@@ -482,6 +502,11 @@ class FirestoreSyncService {
             return {
               ...raw,
               id: raw.id || d.id,
+              category: raw.category || (Array.isArray(raw.categories) && raw.categories[0]) || 'General',
+              categories:
+                Array.isArray(raw.categories) && raw.categories.length > 0
+                  ? raw.categories
+                  : [raw.category || 'General'],
               blocks: Array.isArray(raw.blocks) ? raw.blocks : [],
               tags: Array.isArray(raw.tags) ? raw.tags : [],
               author: raw.author || {

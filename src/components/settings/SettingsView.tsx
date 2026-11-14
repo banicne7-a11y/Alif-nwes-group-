@@ -19,6 +19,7 @@ export const SettingsView: React.FC = () => {
   const [siteUrl, setSiteUrl] = useState(currentSettings.siteUrl);
   const [timezone, setTimezone] = useState(currentSettings.timezone);
   const [permalinkStructure, setPermalinkStructure] = useState(currentSettings.permalinkStructure);
+  const [faviconUrl, setFaviconUrl] = useState(currentSettings.faviconUrl || '');
 
   // SMTP
   const [smtpHost, setSmtpHost] = useState(currentSettings.smtpHost);
@@ -39,6 +40,7 @@ export const SettingsView: React.FC = () => {
       siteUrl,
       timezone,
       permalinkStructure,
+      faviconUrl: faviconUrl.trim(),
       smtpHost,
       smtpPort,
       smtpUser,
@@ -119,18 +121,40 @@ export const SettingsView: React.FC = () => {
           </div>
 
           {/* Permalinks */}
-          <div className="pt-2 text-xs">
-            <label className="block font-semibold text-slate-700 mb-1">Permalink URL Structure</label>
-            <select
-              value={permalinkStructure}
-              onChange={(e) => setPermalinkStructure(e.target.value)}
-              className="w-full px-3 py-2 font-mono border border-slate-200 rounded-lg"
-            >
-              <option value="/%year%/%month%/%postname%/">/%year%/%month%/%postname%/ (Default SEO)</option>
-              <option value="/news/%postname%/">/news/%postname%/</option>
-              <option value="/%postname%/">/%postname%/ (Short)</option>
-              <option value="/?p=%post_id%">/?p=%post_id% (Plain)</option>
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Permalink URL Structure</label>
+              <select
+                value={permalinkStructure}
+                onChange={(e) => setPermalinkStructure(e.target.value)}
+                className="w-full px-3 py-2 font-mono border border-slate-200 rounded-lg"
+              >
+                <option value="/%year%/%month%/%postname%/">/%year%/%month%/%postname%/ (Default SEO)</option>
+                <option value="/news/%postname%/">/news/%postname%/</option>
+                <option value="/%postname%/">/%postname%/ (Short)</option>
+                <option value="/?p=%post_id%">/?p=%post_id% (Plain)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Browser Tab Icon (Favicon URL)
+              </label>
+              <div className="flex items-center gap-2">
+                <img
+                  src={faviconUrl.trim() || '/favicon.svg'}
+                  alt="Tab Icon"
+                  className="w-8 h-8 rounded-lg border border-slate-200 object-contain bg-slate-50 shrink-0 p-0.5"
+                />
+                <input
+                  type="text"
+                  value={faviconUrl}
+                  onChange={(e) => setFaviconUrl(e.target.value)}
+                  placeholder="/favicon.svg (Default A24 Icon)"
+                  className="w-full px-3 py-2 font-mono border border-slate-200 rounded-lg"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

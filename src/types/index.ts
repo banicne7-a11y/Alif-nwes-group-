@@ -30,6 +30,7 @@ export interface Post {
   excerpt: string;
   featuredImage: string;
   category: string;
+  categories?: string[];
   subcategory?: string;
   tags: string[];
   author: {
