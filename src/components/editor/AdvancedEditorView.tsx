@@ -278,10 +278,85 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   };
 
   const handleAddTag = () => {
-    if (newTagInput.trim() && !selectedTags.includes(newTagInput.trim())) {
-      setSelectedTags([...selectedTags, newTagInput.trim()]);
-      db.saveTag(newTagInput.trim());
-      setNewTagInput('');
+    const parsed = newTagInput
+      .split(/[,\n]+/)
+      .map((t) => t.replace(/^#+/, '').trim())
+      .filter(Boolean);
+    if (parsed.length === 0) return;
+
+    const existingLower = new Set(selectedTags.map((t) => t.toLowerCase()));
+    const toAdd: string[] = [];
+    for (const tag of parsed) {
+      if (!existingLower.has(tag.toLowerCase())) {
+        existingLower.add(tag.toLowerCase());
+        toAdd.push(tag);
+        db.saveTag(tag);
+      }
+    }
+
+    if (toAdd.length > 0) {
+      setSelectedTags([...selectedTags, ...toAdd]);
+      toast.success(toAdd.length > 1 ? `${toAdd.length}টি ট্যাগ একসাথে যুক্ত হয়েছে!` : `Tag "${toAdd[0]}" added!`);
+    }
+    setNewTagInput('');
+  };
+
+  const handleAutoGenerateSlug = () => {
+    const source = (title || seoFocusKeyword || '').trim();
+    if (!source) {
+      toast.warning('আগে শিরোনাম (Headline) লিখুন, তারপর Slug জেনারেট করুন।');
+      return;
+    }
+    const generated = source
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 80)
+      .replace(/(^-|-$)/g, '');
+    const finalSlug = generated || `news-${Date.now()}`;
+    setSlug(finalSlug);
+    toast.success(`URL Slug জেনারেট হয়েছে: /news/${finalSlug}`);
+  };
+
+  const handleAutoGenerateTags = async () => {
+    const sampleText = blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join(' ');
+    if (!title.trim() && !sampleText.trim()) {
+      toast.warning('ট্যাগ জেনারেট করতে আগে শিরোনাম বা কনটেন্ট লিখুন।');
+      return;
+    }
+    setIsGeneratingSeo(true);
+    try {
+      const res = await api.generateSeo(title || 'Breaking News', sampleText);
+      const aiTags: string[] = Array.isArray(res?.data?.secondaryKeywords)
+        ? res.data.secondaryKeywords
+        : [];
+      const stopWords = new Set([
+        'about', 'after', 'around', 'because', 'before', 'between', 'could', 'first', 'found',
+        'their', 'there', 'these', 'those', 'through', 'under', 'where', 'which', 'while',
+        'would', 'inside', 'update', 'latest', 'breaking', 'report', 'news', 'today', 'story',
+      ]);
+      const extractedWords = `${title} ${sampleText.slice(0, 400)}`
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 3 && !stopWords.has(w.toLowerCase()));
+      const uniqueExtracted = Array.from(new Set(extractedWords)).slice(0, 5);
+      const candidates = Array.from(new Set([...aiTags, ...uniqueExtracted, category])).slice(0, 6);
+
+      const existingLower = new Set(selectedTags.map((t) => t.toLowerCase()));
+      const newlyAdded = candidates.filter((t) => t.trim() && !existingLower.has(t.toLowerCase()));
+      newlyAdded.forEach((t) => db.saveTag(t));
+      if (newlyAdded.length > 0) {
+        setSelectedTags([...selectedTags, ...newlyAdded]);
+        toast.success(`⚡ ${newlyAdded.length}টি স্মার্ট ট্যাগ জেনারেট হয়েছে!`);
+      } else {
+        toast.info('প্রাসঙ্গিক ট্যাগগুলো ইতিমধ্যেই যুক্ত আছে।');
+      }
+    } catch {
+      toast.error('ট্যাগ জেনারেট করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsGeneratingSeo(false);
     }
   };
 
@@ -294,10 +369,22 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   };
 
   const handleAddSecondaryKeyword = () => {
-    if (newSecondaryKeyword.trim() && !secondaryKeywords.includes(newSecondaryKeyword.trim())) {
-      setSecondaryKeywords([...secondaryKeywords, newSecondaryKeyword.trim()]);
-      setNewSecondaryKeyword('');
+    const parsed = newSecondaryKeyword
+      .split(/[,\n]+/)
+      .map((k) => k.trim())
+      .filter(Boolean);
+    if (parsed.length === 0) return;
+
+    const existingLower = new Set(secondaryKeywords.map((k) => k.toLowerCase()));
+    const toAdd = parsed.filter((k) => {
+      if (existingLower.has(k.toLowerCase())) return false;
+      existingLower.add(k.toLowerCase());
+      return true;
+    });
+    if (toAdd.length > 0) {
+      setSecondaryKeywords([...secondaryKeywords, ...toAdd]);
     }
+    setNewSecondaryKeyword('');
   };
 
   const handleRemoveSecondaryKeyword = (kw: string) => {
@@ -482,6 +569,13 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     const finalStatus: PostStatus = targetStatus || status;
 
     const doSave = () => {
+      const pendingTags = newTagInput
+        .split(/[,\n]+/)
+        .map((t) => t.replace(/^#+/, '').trim())
+        .filter(Boolean);
+      const mergedTags = Array.from(new Set([...selectedTags, ...pendingTags]));
+      pendingTags.forEach((t) => db.saveTag(t));
+
       const saved = db.savePost({
         id: postToEdit?.id,
         title,
@@ -492,7 +586,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         excerpt: subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 160) : title),
         category: selectedCategories[0] || 'Business',
         categories: selectedCategories,
-        tags: selectedTags,
+        tags: mergedTags,
         featuredImage,
         status: finalStatus,
         scheduledAt: finalStatus === 'scheduled' ? scheduledAt : undefined,
@@ -625,23 +719,53 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
               className="flex-1 px-4 py-2 text-xs bg-white border border-purple-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-purple-500"
             />
             <button
+              type="button"
               onClick={handleAiGenerateArticle}
               disabled={aiLoading}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50"
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
               {aiLoading ? 'Generating...' : 'Generate Full Story'}
             </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-2.5 border-t border-purple-200/70">
+            <span className="text-[11px] font-bold text-purple-900 mr-1">AI দিয়ে যা জেনারেট করবেন:</span>
             <button
+              type="button"
               onClick={handleAiHeadlines}
               disabled={aiLoading}
-              className="px-3.5 py-2 bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
             >
               5 Headlines
             </button>
             <button
+              type="button"
+              onClick={handleAutoGenerateTags}
+              disabled={isGeneratingSeo}
+              className="px-3 py-1.5 bg-white hover:bg-purple-100 text-sky-700 border border-sky-200 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              ⚡ Generate Tags
+            </button>
+            <button
+              type="button"
+              onClick={handleAutoGenerateFullSeo}
+              disabled={isGeneratingSeo}
+              className="px-3 py-1.5 bg-white hover:bg-purple-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              Full SEO & Meta
+            </button>
+            <button
+              type="button"
+              onClick={handleAutoGenerateSlug}
+              className="px-3 py-1.5 bg-white hover:bg-purple-100 text-slate-700 border border-slate-200 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              URL Slug / ID
+            </button>
+            <button
+              type="button"
               onClick={() => handleAiTranslate('Spanish')}
               disabled={aiLoading}
-              className="px-3.5 py-2 bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
               title="Translate to Spanish"
             >
               Translate Spanish
@@ -680,14 +804,23 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             />
 
             {/* Word count & Read time bar */}
-            <div className="flex items-center gap-4 pt-3 border-t border-slate-100 text-xs text-slate-400">
-              <span>{wordCount} words</span>
-              <span>•</span>
-              <span>{readingTime} min read</span>
-              <span>•</span>
-              <span className="font-mono text-slate-400">
-                slug: /{slug || (title ? title.toLowerCase().slice(0, 30).replace(/[^a-z0-9]/g, '-') : 'untitled')}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center gap-3">
+                <span>{wordCount} words</span>
+                <span>•</span>
+                <span>{readingTime} min read</span>
+                <span>•</span>
+                <span className="font-mono text-slate-500">
+                  slug: /{slug || (title ? title.toLowerCase().slice(0, 30).replace(/[^a-z0-9]/g, '-') : 'untitled')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoGenerateSlug}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 rounded-md text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                ⚡ Generate Slug / ID
+              </button>
             </div>
           </div>
 
@@ -1069,14 +1202,27 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Article Tags</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Article Tags (কমা `,` দিয়ে একসাথে একাধিক)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateTags}
+                  disabled={isGeneratingSeo}
+                  className="text-[11px] font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>{isGeneratingSeo ? 'Generating...' : 'AI Generate'}</span>
+                </button>
+              </div>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  placeholder="Type tag name and press Enter..."
+                  placeholder="tag1, tag2, tag3 লিখে Enter বা Add চাপুন..."
                   className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
                 />
                 <button
@@ -1423,7 +1569,17 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
                 {/* Article URL Slug */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">URL Slug</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">URL Slug / Post ID</label>
+                    <button
+                      type="button"
+                      onClick={handleAutoGenerateSlug}
+                      className="text-[11px] font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Generate</span>
+                    </button>
+                  </div>
                   <div className="flex items-center px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 text-xs">
                     <span className="text-slate-400 shrink-0 font-mono">/news/</span>
                     <input

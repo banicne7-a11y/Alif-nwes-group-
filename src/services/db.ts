@@ -1350,13 +1350,19 @@ class DatabaseService {
   }
 
   public saveTag(name: string): Tag {
-    const existing = this.state.tags.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    const cleanName = name.trim();
+    const existing = this.state.tags.find((t) => t.name.toLowerCase() === cleanName.toLowerCase());
     if (existing) return existing;
 
+    const cleanSlug = cleanName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
     const newTag: Tag = {
-      id: `t-${Date.now()}`,
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      id: `t-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      name: cleanName || 'news',
+      slug: cleanSlug || `tag-${Date.now()}`,
       count: 1,
     };
     this.state.tags.push(newTag);
