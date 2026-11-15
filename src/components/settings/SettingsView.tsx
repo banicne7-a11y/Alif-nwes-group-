@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
+import { cleanAdSensePublisherId, applyAdSenseVerificationTags } from '../../services/seo';
 
 export const SettingsView: React.FC = () => {
   const currentSettings = db.getSettings();
@@ -32,8 +33,12 @@ export const SettingsView: React.FC = () => {
   const [autoAds, setAutoAds] = useState(currentSettings.autoAds);
   const [gaId, setGaId] = useState(currentSettings.googleAnalyticsId);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedAdSense = cleanAdSensePublisherId(adsenseId) || adsenseId.trim();
+    if (normalizedAdSense !== adsenseId) {
+      setAdsenseId(normalizedAdSense);
+    }
     db.updateSettings({
       siteName,
       tagline,
@@ -44,10 +49,22 @@ export const SettingsView: React.FC = () => {
       smtpHost,
       smtpPort,
       smtpUser,
-      adsenseClientId: adsenseId,
+      adsenseClientId: normalizedAdSense,
       autoAds,
       googleAnalyticsId: gaId,
     });
+    if (normalizedAdSense) {
+      applyAdSenseVerificationTags(normalizedAdSense);
+      try {
+        await fetch('/api/adsense/verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publisherId: normalizedAdSense }),
+        });
+      } catch {
+        // Ignore on static hosts
+      }
+    }
     toast.success('System settings updated successfully!');
   };
 

@@ -9,6 +9,7 @@ import {
   generateStandardSitemapXml,
   generateNewsSitemapXml,
   generateRobotsTxt,
+  generateAdsTxt,
 } from './src/services/sitemapGenerator';
 
 dotenv.config();
@@ -366,6 +367,56 @@ app.post('/api/seo/verification', (req, res) => {
     res.json({ success: true, cleanCode });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Dynamic /ads.txt endpoint for Google AdSense domain verification
+app.get(['/ads.txt', '/api/ads-txt'], async (_req, res) => {
+  try {
+    const txt = await generateAdsTxt();
+    res.type('text/plain').send(txt);
+  } catch (err: any) {
+    res.status(500).type('text/plain').send('# Error generating ads.txt: ' + (err?.message || 'Unknown error'));
+  }
+});
+
+// 6. Update Google AdSense meta tag & Auto-Ads script in index.html
+app.post('/api/adsense/verification', (req, res) => {
+  try {
+    const raw = String(req.body?.publisherId || '').trim();
+    const match = raw.match(/(?:ca-)?(pub-\d{10,})/i);
+    const cleanId = match ? `ca-${match[1].toLowerCase()}` : '';
+
+    const indexPath = path.resolve(__dirname, 'index.html');
+    if (fs.existsSync(indexPath) && cleanId) {
+      let indexHtml = fs.readFileSync(indexPath, 'utf8');
+
+      const metaTag = `<meta name="google-adsense-account" content="${cleanId}" id="google-adsense-account" />`;
+      if (indexHtml.includes('name="google-adsense-account"')) {
+        indexHtml = indexHtml.replace(
+          /<meta\s+name="google-adsense-account"\s+content="[^"]*"\s*(?:id="[^"]*")?\s*\/?>/i,
+          metaTag
+        );
+      } else {
+        indexHtml = indexHtml.replace(/<head>/i, `<head>\n    ${metaTag}`);
+      }
+
+      const scriptTag = `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${cleanId}" crossorigin="anonymous" data-alif-adsense="true"></script>`;
+      if (indexHtml.includes('data-alif-adsense="true"') || indexHtml.includes('pagead2.googlesyndication.com/pagead/js/adsbygoogle.js')) {
+        indexHtml = indexHtml.replace(
+          /<script[^>]*pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^>]*><\/script>/i,
+          scriptTag
+        );
+      } else {
+        indexHtml = indexHtml.replace(/<\/head>/i, `    ${scriptTag}\n  </head>`);
+      }
+
+      fs.writeFileSync(indexPath, indexHtml, 'utf8');
+    }
+
+    res.json({ success: true, cleanId });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to update AdSense tags' });
   }
 });
 

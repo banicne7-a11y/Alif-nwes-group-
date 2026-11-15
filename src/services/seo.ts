@@ -79,6 +79,62 @@ export function applyGoogleVerificationTag(code?: string): string {
   return cleanCode;
 }
 
+const PLACEHOLDER_ADSENSE_ID = 'ca-pub-9386736849071234';
+
+/**
+ * Extracts a normalized AdSense Publisher ID (ca-pub-XXXXXXXXXXXXXXXX) from:
+ * - Raw ID: ca-pub-1234567890123456 or pub-1234567890123456
+ * - Script snippet: <script async src="...client=ca-pub-1234567890123456"...></script>
+ * - Meta tag: <meta name="google-adsense-account" content="ca-pub-1234567890123456">
+ * - ads.txt line: google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0
+ */
+export function cleanAdSensePublisherId(input: string): string {
+  if (!input) return '';
+  const match = input.trim().match(/(?:ca-)?(pub-\d{10,})/i);
+  if (!match) return '';
+  return `ca-${match[1].toLowerCase()}`;
+}
+
+export function isValidAdSensePublisherId(input?: string): boolean {
+  const clean = cleanAdSensePublisherId(input || '');
+  return /^ca-pub-\d{10,}$/.test(clean) && clean !== PLACEHOLDER_ADSENSE_ID;
+}
+
+/**
+ * Injects or updates Google AdSense domain verification <meta name="google-adsense-account">
+ * and the official AdSense verification <script> in document <head>.
+ */
+export function applyAdSenseVerificationTags(code?: string): string {
+  const settings = db.getSettings();
+  const raw = code !== undefined ? code : settings.adsenseClientId;
+  const cleanId = cleanAdSensePublisherId(raw);
+
+  if (typeof document !== 'undefined' && cleanId && cleanId !== PLACEHOLDER_ADSENSE_ID) {
+    let metaTag = document.querySelector<HTMLMetaElement>('meta[name="google-adsense-account"]');
+    if (!metaTag) {
+      metaTag = document.createElement('meta');
+      metaTag.name = 'google-adsense-account';
+      document.head.appendChild(metaTag);
+    }
+    metaTag.content = cleanId;
+
+    const desiredSrc = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(cleanId)}`;
+    let script = document.querySelector<HTMLScriptElement>('script[data-alif-adsense="true"]');
+    if (!script) {
+      script = document.createElement('script');
+      script.async = true;
+      script.src = desiredSrc;
+      script.crossOrigin = 'anonymous';
+      script.setAttribute('data-alif-adsense', 'true');
+      document.head.appendChild(script);
+    } else if (script.src !== desiredSrc) {
+      script.src = desiredSrc;
+    }
+  }
+
+  return cleanId;
+}
+
 /**
  * Dynamically updates page metadata (title, description, canonical URL, OpenGraph)
  */
@@ -129,8 +185,9 @@ export function updatePageSeo(options: {
     setMeta('twitter:image', options.ogImage);
   }
 
-  // Always ensure Google Site Verification and Favicon are synced
+  // Always ensure Google Site Verification, AdSense Verification, and Favicon are synced
   applyGoogleVerificationTag();
+  applyAdSenseVerificationTags();
 }
 
 function setMeta(name: string, content: string) {

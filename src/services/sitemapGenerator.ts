@@ -210,3 +210,32 @@ Sitemap: ${cleanBase}/sitemap.xml
 Sitemap: ${cleanBase}/google-news-sitemap.xml
 `;
 }
+
+export async function generateAdsTxt(): Promise<string> {
+  const projectId = firebaseConfig.projectId;
+  const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+  const apiKey = firebaseConfig.apiKey;
+  const endpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/${encodeURIComponent(databaseId)}/documents/config/site_settings?key=${encodeURIComponent(apiKey)}`;
+
+  let clientId = '';
+  try {
+    const res = await fetch(endpoint);
+    if (res.ok) {
+      const docData: any = await res.json();
+      clientId = readStringField(docData?.fields, 'adsenseClientId').trim();
+    }
+  } catch {
+    // Fallback below if Firestore fetch fails
+  }
+
+  const pubMatch = clientId.match(/(?:ca-)?(pub-\d{10,})/i);
+  const pubId = pubMatch ? pubMatch[1].toLowerCase() : '';
+  const isPlaceholder = pubId === 'pub-9386736849071234';
+
+  if (!pubId || isPlaceholder) {
+    return '# Google AdSense Publisher ID is not configured yet.\n# Add your ca-pub-XXXXXXXXXXXXXXXX ID in Admin Panel -> Ad Placements -> AdSense Domain Verification.\n';
+  }
+
+  return `google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`;
+}
+

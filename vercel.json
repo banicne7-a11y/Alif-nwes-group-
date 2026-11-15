@@ -13,6 +13,10 @@
       "destination": "/api/robots"
     },
     {
+      "source": "/ads.txt",
+      "destination": "/api/ads-txt"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

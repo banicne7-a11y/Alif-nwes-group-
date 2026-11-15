@@ -29,7 +29,7 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { db } from './services/db';
 import { Post } from './types';
 import { parseCurrentRoute, navigateTo, RouteInfo } from './services/router';
-import { updatePageSeo, applyGoogleVerificationTag } from './services/seo';
+import { updatePageSeo, applyGoogleVerificationTag, applyAdSenseVerificationTags } from './services/seo';
 import { authService } from './services/auth';
 import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { toast } from './services/toast';
@@ -82,6 +82,7 @@ export default function App() {
   // Synchronize browser address bar, real-time Firestore state, and SEO meta tags
   React.useEffect(() => {
     applyGoogleVerificationTag();
+    applyAdSenseVerificationTags();
 
     const handleSync = () => {
       const route = parseCurrentRoute();
@@ -139,6 +140,7 @@ export default function App() {
     const unsubscribeDb = db.subscribe(() => {
       setDbRevision((r) => r + 1);
       applyGoogleVerificationTag();
+      applyAdSenseVerificationTags();
       const route = parseCurrentRoute();
       if (route.type === 'article' || route.type === 'page') {
         handleSync();

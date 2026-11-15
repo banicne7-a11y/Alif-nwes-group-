@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileCode,
   Plus,
@@ -42,6 +42,13 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
   const refreshPages = () => {
     setPages([...db.getPages()]);
   };
+
+  useEffect(() => {
+    const unsub = db.subscribe(() => {
+      setPages([...db.getPages()]);
+    });
+    return unsub;
+  }, []);
 
   const handleOpenCreate = () => {
     setEditingPage(null);
@@ -103,6 +110,13 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
     if (updated) {
       toast.info(updated.showInMenu ? `"${updated.title}" added to Homepage Menu` : `"${updated.title}" removed from Homepage Menu`);
     }
+  };
+
+  const handleToggleFooterVisibility = (page: Page, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const updated = db.savePage({ ...page, showInFooter: !page.showInFooter });
+    refreshPages();
+    toast.info(updated.showInFooter ? `"${updated.title}" shown in Footer` : `"${updated.title}" hidden from Footer`);
   };
 
   const handleDelete = (id: string, pageTitle: string) => {
@@ -199,28 +213,42 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
                     </span>
                   </td>
                   <td className="py-3.5 px-6">
-                    {/* One-click toggle button to show or hide page in Homepage Menu */}
-                    <button
-                      onClick={(e) => handleToggleMenuVisibility(p.id, e)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs ${
-                        p.showInMenu
-                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                      }`}
-                      title={p.showInMenu ? 'Click to Hide from Menu' : 'Click to Show in Homepage Menu'}
-                    >
-                      {p.showInMenu ? (
-                        <>
-                          <Eye className="w-3.5 h-3.5 text-white" />
-                          <span>Visible in Menu</span>
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Hidden from Menu</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {/* One-click toggle button to show or hide page in Homepage Menu */}
+                      <button
+                        onClick={(e) => handleToggleMenuVisibility(p.id, e)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-2xs cursor-pointer ${
+                          p.showInMenu
+                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                        }`}
+                        title={p.showInMenu ? 'Click to Hide from Top Menu' : 'Click to Show in Top Menu'}
+                      >
+                        {p.showInMenu ? (
+                          <>
+                            <Eye className="w-3 h-3 text-white" />
+                            <span>Top Menu</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="w-3 h-3 text-slate-500" />
+                            <span>Hidden</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={(e) => handleToggleFooterVisibility(p, e)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-2xs cursor-pointer ${
+                          p.showInFooter
+                            ? 'bg-sky-600 text-white hover:bg-sky-700'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                        title="Toggle Footer Visibility"
+                      >
+                        <span>{p.showInFooter ? '✓ Footer' : 'No Footer'}</span>
+                      </button>
+                    </div>
                   </td>
                   <td className="py-3.5 px-6">
                     <span

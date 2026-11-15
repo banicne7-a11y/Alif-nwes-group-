@@ -13,10 +13,12 @@ import {
   RotateCcw,
   Save,
   Link as LinkIcon,
+  FileText,
+  X,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
-import { FooterConfig } from '../../types';
+import { FooterConfig, Page } from '../../types';
 
 export const AppearanceView: React.FC = () => {
   const [settings, setSettings] = useState(db.getSettings());
@@ -30,9 +32,111 @@ export const AppearanceView: React.FC = () => {
   const [footerConfig, setFooterConfig] = useState<FooterConfig>(() =>
     JSON.parse(JSON.stringify(db.getFooterConfig()))
   );
+  const [pages, setPages] = useState<Page[]>(() => db.getPages());
   const [newColTitle, setNewColTitle] = useState('');
   const [newItemLabels, setNewItemLabels] = useState<Record<string, string>>({});
   const [newItemUrls, setNewItemUrls] = useState<Record<string, string>>({});
+
+  // Footer Link -> Direct Page Content Editor Modal state
+  const [editingFooterPageColId, setEditingFooterPageColId] = useState<string | null>(null);
+  const [editingFooterItemId, setEditingFooterItemId] = useState<string | null>(null);
+  const [footerPageId, setFooterPageId] = useState<string | undefined>(undefined);
+  const [footerPageTitle, setFooterPageTitle] = useState('');
+  const [footerPageSlug, setFooterPageSlug] = useState('');
+  const [footerPageTemplate, setFooterPageTemplate] = useState<Page['template']>('default');
+  const [footerPageContent, setFooterPageContent] = useState('');
+  const [footerPageSeoTitle, setFooterPageSeoTitle] = useState('');
+  const [footerPageSeoDesc, setFooterPageSeoDesc] = useState('');
+  const [footerPageModalOpen, setFooterPageModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    const unsub = db.subscribe(() => {
+      setPages([...db.getPages()]);
+    });
+    return unsub;
+  }, []);
+
+  const openFooterItemPageEditor = (colId: string, item: { id: string; label: string; url: string }) => {
+    const rawUrl = (item.url || '').trim();
+    const derivedSlug = rawUrl
+      .replace(/^\/page\//, '')
+      .replace(/^\//, '')
+      .split('/')[0]
+      .trim() ||
+      item.label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+    const existing = db.getPages().find(
+      (p) => p.slug.toLowerCase() === derivedSlug.toLowerCase()
+    );
+
+    setEditingFooterPageColId(colId);
+    setEditingFooterItemId(item.id);
+    setFooterPageId(existing?.id);
+    setFooterPageTitle(existing?.title || item.label);
+    setFooterPageSlug(existing?.slug || derivedSlug);
+    setFooterPageTemplate(existing?.template || (derivedSlug.includes('contact') ? 'contact' : derivedSlug.includes('privacy') ? 'privacy' : derivedSlug.includes('about') ? 'about' : 'default'));
+    setFooterPageContent(
+      existing?.content ||
+        `## ${item.label}\n\nWrite complete content for "${item.label}" here. Readers clicking this link in the website footer will see this published page.`
+    );
+    setFooterPageSeoTitle(existing?.seoTitle || item.label);
+    setFooterPageSeoDesc(existing?.seoDescription || '');
+    setFooterPageModalOpen(true);
+  };
+
+  const handleSaveFooterPage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!footerPageTitle.trim()) {
+      toast.error('Please enter a page title.');
+      return;
+    }
+    const cleanSlug =
+      footerPageSlug
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/(^-|-$)/g, '') ||
+      footerPageTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+    const savedPage = db.savePage({
+      id: footerPageId,
+      title: footerPageTitle.trim(),
+      slug: cleanSlug,
+      template: footerPageTemplate,
+      content: footerPageContent,
+      status: 'published',
+      showInMenu: false,
+      showInFooter: true,
+      seoTitle: footerPageSeoTitle.trim() || footerPageTitle.trim(),
+      seoDescription: footerPageSeoDesc.trim(),
+    });
+
+    if (editingFooterPageColId && editingFooterItemId) {
+      const targetUrl = `/page/${savedPage.slug}`;
+      const updatedCols = footerConfig.columns.map((c) => {
+        if (c.id !== editingFooterPageColId) return c;
+        return {
+          ...c,
+          items: c.items.map((it) =>
+            it.id === editingFooterItemId ? { ...it, url: targetUrl } : it
+          ),
+        };
+      });
+      const updatedFooter = { ...footerConfig, columns: updatedCols };
+      setFooterConfig(updatedFooter);
+      db.updateFooterConfig(updatedFooter);
+    }
+
+    setPages([...db.getPages()]);
+    setFooterPageModalOpen(false);
+    toast.success(`"${savedPage.title}" published & linked to footer menu!`);
+  };
 
   // Homepage section layout reordering
   const [sections, setSections] = useState([
@@ -558,6 +662,27 @@ export const AppearanceView: React.FC = () => {
                           placeholder="/category/business or /page/about-us"
                           className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded-md font-mono text-[11px] text-slate-600"
                         />
+                        {!item.url.startsWith('/category/') &&
+                          !item.url.startsWith('http') &&
+                          item.url !== '#login' && (
+                            <button
+                              type="button"
+                              onClick={() => openFooterItemPageEditor(col.id, item)}
+                              className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                              title="এই ফুটার মেনুর কনটেন্ট লিখুন বা এডিট করুন"
+                            >
+                              <FileText className="w-3 h-3" />
+                              <span>
+                                {pages.some(
+                                  (p) =>
+                                    p.slug ===
+                                    item.url.replace(/^\/page\//, '').replace(/^\//, '').split('/')[0]
+                                )
+                                  ? 'Edit Content'
+                                  : 'Write Content'}
+                              </span>
+                            </button>
+                          )}
                       </div>
                     </div>
                   ))}
@@ -609,10 +734,151 @@ export const AppearanceView: React.FC = () => {
                     >
                       Add
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const label = (newItemLabels[col.id] || '').trim();
+                        if (!label) {
+                          toast.warning('আগে মেনু লিংকের নাম লিখুন (যেমন: Terms of Service)');
+                          return;
+                        }
+                        const autoSlug = label
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/(^-|-$)/g, '') || `page-${Date.now()}`;
+                        const newItem = {
+                          id: `item-${Date.now()}-${colIdx}`,
+                          label,
+                          url: `/page/${autoSlug}`,
+                        };
+                        const updatedCols = footerConfig.columns.map((c) =>
+                          c.id === col.id ? { ...c, items: [...c.items, newItem] } : c
+                        );
+                        const updated = { ...footerConfig, columns: updatedCols };
+                        setFooterConfig(updated);
+                        db.updateFooterConfig(updated);
+                        setNewItemLabels({ ...newItemLabels, [col.id]: '' });
+                        setNewItemUrls({ ...newItemUrls, [col.id]: '' });
+                        openFooterItemPageEditor(col.id, newItem);
+                      }}
+                      className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg cursor-pointer whitespace-nowrap"
+                      title="লিংক যোগ করে সাথে সাথে কনটেন্ট লিখুন"
+                    >
+                      + Page Content
+                    </button>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Direct Footer Menu Page Content Publisher Modal */}
+      {footerPageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">
+                  Footer Menu Content Editor
+                </h3>
+                <p className="text-xs text-slate-500">
+                  এই ফুটার মেনুতে ক্লিক করলে পাঠকরা যে আর্টিকেল / পেজটি দেখবে তা এখানে লিখুন ও পাবলিশ করুন।
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFooterPageModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveFooterPage} className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Page Headline *</label>
+                  <input
+                    type="text"
+                    required
+                    value={footerPageTitle}
+                    onChange={(e) => setFooterPageTitle(e.target.value)}
+                    placeholder="e.g. About Alif News 24"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">URL Slug</label>
+                  <div className="flex items-center px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 font-mono text-slate-600">
+                    <span className="text-slate-400 mr-1">/page/</span>
+                    <input
+                      type="text"
+                      value={footerPageSlug}
+                      onChange={(e) => setFooterPageSlug(e.target.value)}
+                      className="w-full bg-transparent focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Content (ফুটার পেজের সম্পূর্ণ লেখা — `##` দিয়ে হেডিং দিতে পারবেন) *
+                </label>
+                <textarea
+                  rows={9}
+                  required
+                  value={footerPageContent}
+                  onChange={(e) => setFooterPageContent(e.target.value)}
+                  placeholder="Write full content here..."
+                  className="w-full p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500 leading-relaxed text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Template Style</label>
+                  <select
+                    value={footerPageTemplate}
+                    onChange={(e) => setFooterPageTemplate(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                  >
+                    <option value="default">Standard Editorial Page</option>
+                    <option value="about">About Us</option>
+                    <option value="contact">Contact Form + Bureau Info</option>
+                    <option value="privacy">Privacy & Terms</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Google SEO Description</label>
+                  <input
+                    type="text"
+                    value={footerPageSeoDesc}
+                    onChange={(e) => setFooterPageSeoDesc(e.target.value)}
+                    placeholder="Short summary for Google search..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setFooterPageModalOpen(false)}
+                  className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-xs cursor-pointer"
+                >
+                  Publish & Link to Footer
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

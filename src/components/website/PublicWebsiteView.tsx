@@ -65,9 +65,22 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const [footerConfig, setFooterConfig] = useState(() => db.getFooterConfig());
   const [commentsList, setCommentsList] = useState<Comment[]>(() => db.getComments().filter((c) => c.status === 'approved'));
   const [stickyAdDismissed, setStickyAdDismissed] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    const r = parseCurrentRoute();
+    if (r.type === 'category') {
+      const matched = db.getCategories().find(
+        (c) => c.slug.toLowerCase() === r.slug.toLowerCase() || c.name.toLowerCase() === r.slug.toLowerCase()
+      );
+      return matched ? matched.name : r.slug;
+    }
+    return 'all';
+  });
   const [activeArticle, setActiveArticle] = useState<Post | null>(initialPost || null);
   const [activePage, setActivePage] = useState<Page | null>(initialPage || null);
+  const [routeResolving, setRouteResolving] = useState<boolean>(() => {
+    const r = parseCurrentRoute();
+    return (r.type === 'article' && !initialPost) || (r.type === 'page' && !initialPage);
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSearchQuery, setPageSearchQuery] = useState('');
   const [darkMode, setDarkMode] = useState(false);
@@ -143,17 +156,80 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     }
   }, [activeArticle?.id, activeArticle?.status]);
 
+  // Sync direct-URL route props whenever App.tsx resolves article/page after Firestore loads
+  React.useEffect(() => {
+    if (initialPost) {
+      setActiveArticle(initialPost);
+      setActivePage(null);
+      setRouteResolving(false);
+    } else {
+      const r = parseCurrentRoute();
+      if (r.type !== 'article') {
+        setActiveArticle(null);
+      }
+    }
+  }, [initialPost]);
+
+  React.useEffect(() => {
+    if (initialPage) {
+      setActivePage(initialPage);
+      setActiveArticle(null);
+      setRouteResolving(false);
+    } else {
+      const r = parseCurrentRoute();
+      if (r.type !== 'page') {
+        setActivePage(null);
+      }
+    }
+  }, [initialPage]);
+
+  // Safety timeout so an unknown /news/non-existent URL falls back cleanly after Firestore checks
+  React.useEffect(() => {
+    if (!routeResolving) return;
+    const timer = window.setTimeout(() => setRouteResolving(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [routeResolving]);
+
   // Real-time Firestore DB listener so edits from Admin reflect live on all phones
   React.useEffect(() => {
     const refreshFromDb = () => {
       const latestPosts = db.getPosts().filter((p) => p.status === 'published');
+      const latestCats = [...db.getCategories()];
+      const latestPages = [...db.getPages()];
       setPosts(latestPosts);
-      setCategories([...db.getCategories()]);
-      setPages([...db.getPages()]);
+      setCategories(latestCats);
+      setPages(latestPages);
       setAds([...db.getAds()]);
       setSettings({ ...db.getSettings() });
       setFooterConfig({ ...db.getFooterConfig() });
       setCommentsList(db.getComments().filter((c) => c.status === 'approved'));
+
+      const route = parseCurrentRoute();
+      if (route.type === 'article') {
+        const foundPost = latestPosts.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (foundPost) {
+          setActiveArticle(foundPost);
+          setActivePage(null);
+          setRouteResolving(false);
+        }
+      } else if (route.type === 'page') {
+        const foundPage = latestPages.find((p) => p.slug === route.slug || p.id === route.slug);
+        if (foundPage) {
+          setActivePage(foundPage);
+          setActiveArticle(null);
+          setRouteResolving(false);
+        }
+      } else if (route.type === 'category') {
+        const matchedCat = latestCats.find(
+          (c) => c.slug.toLowerCase() === route.slug.toLowerCase() || c.name.toLowerCase() === route.slug.toLowerCase()
+        );
+        if (matchedCat) {
+          setSelectedCategory(matchedCat.name);
+        }
+        setRouteResolving(false);
+      } else {
+        setRouteResolving(false);
+      }
 
       setActiveArticle((prev) => {
         if (!prev) return prev;
@@ -334,6 +410,16 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
       const matched = pages.find((p) => p.slug === slug || p.id === slug);
       if (matched) {
         handleSelectPage(matched);
+        return;
+      }
+    }
+    const bareSlug = cleanUrl.replace(/^\//, '').split('/')[0];
+    if (bareSlug) {
+      const matchedBySlug = pages.find(
+        (p) => p.slug.toLowerCase() === bareSlug.toLowerCase() || p.id === bareSlug
+      );
+      if (matchedBySlug) {
+        handleSelectPage(matchedBySlug);
         return;
       }
     }
@@ -902,8 +988,19 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
           className="mb-6"
         />
 
-        {/* VIEW 1: STATIC PAGE READER (When clicked from 3-tooth drawer or footer) */}
-        {activePage ? (
+        {/* VIEW 0: DIRECT LINK LOADING SKELETON (While resolving /news/... or /page/... from Firestore) */}
+        {routeResolving && !activePage && !activeArticle ? (
+          <div className="max-w-4xl mx-auto py-12 space-y-6 animate-pulse">
+            <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
+            <div className="h-10 w-3/4 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+            <div className="h-64 w-full bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+            <div className="space-y-3">
+              <div className="h-4 w-full bg-slate-200 dark:bg-slate-800 rounded" />
+              <div className="h-4 w-5/6 bg-slate-200 dark:bg-slate-800 rounded" />
+              <div className="h-4 w-4/6 bg-slate-200 dark:bg-slate-800 rounded" />
+            </div>
+          </div>
+        ) : activePage ? (
           <div className="space-y-6 max-w-4xl mx-auto">
             <button
               onClick={handleSelectHome}
@@ -925,8 +1022,54 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 {activePage.title}
               </h1>
 
-              <div className="prose max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base whitespace-pre-wrap pt-2">
-                {activePage.content}
+              <div className="max-w-[68ch] font-['Source_Serif_4',Georgia,serif] text-slate-700 dark:text-slate-300 leading-[1.82] text-base md:text-[17px] space-y-5 pt-2">
+                {formatArticleForReader([], activePage.content).map((sec) => {
+                  if (sec.type === 'heading') {
+                    const TagName = sec.level === 4 ? 'h4' : sec.level === 3 ? 'h3' : 'h2';
+                    return (
+                      <TagName
+                        key={sec.id}
+                        className="font-['Playfair_Display',Georgia,serif] font-bold text-xl text-slate-900 dark:text-white pt-4 border-t border-slate-100 dark:border-slate-800"
+                      >
+                        {sec.text}
+                      </TagName>
+                    );
+                  }
+                  if (sec.type === 'quote') {
+                    return (
+                      <blockquote
+                        key={sec.id}
+                        className="border-l-4 border-red-600 pl-4 italic text-slate-600 dark:text-slate-300 py-1"
+                      >
+                        {sec.text}
+                      </blockquote>
+                    );
+                  }
+                  if (sec.type === 'callout') {
+                    return (
+                      <div
+                        key={sec.id}
+                        className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm"
+                      >
+                        {sec.text}
+                      </div>
+                    );
+                  }
+                  if (sec.type === 'list') {
+                    const ListEl = sec.ordered ? 'ol' : 'ul';
+                    return (
+                      <ListEl key={sec.id} className={sec.ordered ? 'list-decimal pl-6 space-y-1.5' : 'list-disc pl-6 space-y-1.5'}>
+                        {sec.items.map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ListEl>
+                    );
+                  }
+                  if (sec.type === 'paragraph') {
+                    return <p key={sec.id}>{sec.text}</p>;
+                  }
+                  return null;
+                })}
               </div>
 
               {activePage.template === 'contact' && (
