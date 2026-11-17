@@ -11,6 +11,7 @@ import {
   generateRobotsTxt,
   generateAdsTxt,
 } from './src/services/sitemapGenerator';
+import { injectSeoIntoHtml } from './src/services/ssrSeoRenderer';
 
 dotenv.config();
 
@@ -431,9 +432,42 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+
+    app.get(['/news/:slug', '/page/:slug'], async (req, res, next) => {
+      try {
+        const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+        const baseUrl = `${protocol}://${host}`;
+        const rawHtml = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf8');
+        const transformed = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+        const type = req.path.startsWith('/page/') ? 'page' : 'article';
+        const finalHtml = await injectSeoIntoHtml(transformed, {
+          type,
+          slug: req.params.slug,
+          baseUrl,
+        });
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(finalHtml);
+      } catch (e) {
+        next(e);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
+    app.get(['/news/:slug', '/page/:slug'], async (req, res) => {
+      const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+      const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+      const baseUrl = `${protocol}://${host}`;
+      const distHtml = fs.readFileSync(path.resolve(__dirname, 'dist', 'index.html'), 'utf8');
+      const type = req.path.startsWith('/page/') ? 'page' : 'article';
+      const finalHtml = await injectSeoIntoHtml(distHtml, {
+        type,
+        slug: req.params.slug,
+        baseUrl,
+      });
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(finalHtml);
+    });
     app.get('*', (req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });

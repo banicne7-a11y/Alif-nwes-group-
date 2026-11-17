@@ -17,6 +17,14 @@
       "destination": "/api/ads-txt"
     },
     {
+      "source": "/news/:slug",
+      "destination": "/api/render?type=article&slug=:slug"
+    },
+    {
+      "source": "/page/:slug",
+      "destination": "/api/render?type=page&slug=:slug"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
