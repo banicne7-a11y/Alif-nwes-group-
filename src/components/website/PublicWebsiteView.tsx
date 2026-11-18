@@ -797,6 +797,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                       <span>ALIF</span>
                       <span className="text-red-600 font-sans font-extrabold">NEWS</span>
                       <span className="text-xs px-1.5 py-0.2 bg-red-600 text-white font-sans rounded-sm font-black">24</span>
+                      <span className="self-start -mt-0.5 px-1 py-0.5 bg-slate-900 dark:bg-slate-800 text-white rounded-xs text-[8px] font-sans font-extrabold uppercase tracking-wider leading-none border border-slate-700/60">
+                        {COUNTRY_EDITIONS[activeCountry].label}
+                      </span>
                     </div>
                     <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-bold mt-1">
                       Published Pages Directory
@@ -1023,11 +1026,17 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 <span className="px-1.5 py-0.5 bg-red-600 text-white rounded-md text-sm sm:text-base font-black tracking-tight font-sans shadow-2xs">
                   24
                 </span>
+                <span
+                  className="self-start -mt-0.5 px-1.5 py-0.5 rounded-sm bg-slate-900 dark:bg-slate-800 text-white border border-slate-700/60 text-[9px] sm:text-[10px] font-sans font-extrabold uppercase tracking-wider leading-none whitespace-nowrap shadow-2xs"
+                  title={COUNTRY_EDITIONS[activeCountry].tagline}
+                >
+                  {COUNTRY_EDITIONS[activeCountry].label}
+                </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-wider mt-1 flex items-center gap-1.5">
                 <span>Alif News 24</span>
                 <span className="text-slate-300 dark:text-slate-700">·</span>
-                <span>Truth, Integrity & 24/7 Investigative Journalism</span>
+                <span className="truncate">{COUNTRY_EDITIONS[activeCountry].tagline}</span>
               </p>
             </div>
           </div>
@@ -2088,6 +2097,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 <span>ALIF</span>
                 <span className="text-red-600 font-sans font-extrabold">NEWS</span>
                 <span className="text-sm px-1.5 py-0.5 bg-red-600 text-white font-sans rounded-md font-black">24</span>
+                <span className="self-start mt-0.5 px-1.5 py-0.5 bg-slate-900 dark:bg-slate-800 text-white rounded-sm text-[9px] font-sans font-extrabold uppercase tracking-wider leading-none border border-slate-700/60">
+                  {COUNTRY_EDITIONS[activeCountry].label}
+                </span>
               </div>
             </div>
             <p className="text-xs leading-relaxed text-slate-500">

@@ -1492,10 +1492,32 @@ class DatabaseService {
       const idx = this.state.users.findIndex((u) => u.id === userData.id);
       if (idx !== -1) {
         this.state.users[idx] = { ...this.state.users[idx], ...userData };
+        const updatedUser = this.state.users[idx];
+        if (
+          this.state.currentUser.id === updatedUser.id ||
+          this.state.currentUser.email.toLowerCase() === updatedUser.email.toLowerCase()
+        ) {
+          this.state.currentUser = updatedUser;
+          try {
+            const rawAuth = localStorage.getItem('alif_news_24_admin_auth_v1');
+            if (rawAuth) {
+              const parsed = JSON.parse(rawAuth);
+              localStorage.setItem(
+                'alif_news_24_admin_auth_v1',
+                JSON.stringify({
+                  ...parsed,
+                  name: updatedUser.name,
+                  avatar: updatedUser.avatar,
+                  role: updatedUser.role,
+                })
+              );
+            }
+          } catch {}
+        }
         this.logAction('User Profile Updated', `Updated user "${userData.name}"`, 'security');
         this.save();
-        firestoreSync.writeDoc('users', this.state.users[idx].id, sanitizeUser(this.state.users[idx])).catch(console.error);
-        return this.state.users[idx];
+        firestoreSync.writeDoc('users', updatedUser.id, sanitizeUser(updatedUser)).catch(console.error);
+        return updatedUser;
       }
     }
 
@@ -1516,6 +1538,46 @@ class DatabaseService {
     this.save();
     firestoreSync.writeDoc('users', newUser.id, sanitizeUser(newUser)).catch(console.error);
     return newUser;
+  }
+
+  public renameAuthorAcrossPosts(
+    oldAuthorName: string,
+    newAuthor: { id?: string; name: string; avatar?: string; role?: string }
+  ): number {
+    const cleanOld = oldAuthorName.trim().toLowerCase();
+    const cleanNew = newAuthor.name.trim();
+    if (!cleanNew) return 0;
+
+    let updatedCount = 0;
+    this.state.posts = this.state.posts.map((post) => {
+      const matchesName = cleanOld && post.author?.name?.trim().toLowerCase() === cleanOld;
+      const matchesId = newAuthor.id && post.author?.id === newAuthor.id;
+      if (!matchesName && !matchesId) return post;
+
+      const updatedPost: Post = {
+        ...post,
+        author: {
+          id: newAuthor.id || post.author?.id || this.state.currentUser.id,
+          name: cleanNew,
+          avatar: newAuthor.avatar || post.author?.avatar || this.state.currentUser.avatar,
+          role: (newAuthor.role as any) || post.author?.role || 'Administrator',
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      updatedCount += 1;
+      firestoreSync.writeDoc('posts', updatedPost.id, sanitizePost(updatedPost)).catch(console.error);
+      return updatedPost;
+    });
+
+    if (updatedCount > 0) {
+      this.logAction(
+        'Author Renamed',
+        `Updated author byline to "${cleanNew}" across ${updatedCount} existing posts`,
+        'info'
+      );
+      this.save();
+    }
+    return updatedCount;
   }
 
   public deleteUser(id: string): void {

@@ -44,6 +44,7 @@ export const UsersView: React.FC = () => {
   const [avatar, setAvatar] = useState('');
   const [twoFactor, setTwoFactor] = useState(false);
   const [status, setStatus] = useState<'active' | 'suspended'>('active');
+  const [syncPostsAuthor, setSyncPostsAuthor] = useState(true);
 
   const refreshUsers = () => {
     setUsers([...db.getUsers()]);
@@ -71,6 +72,7 @@ export const UsersView: React.FC = () => {
     setAvatar(user.avatar);
     setTwoFactor(user.twoFactorEnabled);
     setStatus(user.status);
+    setSyncPostsAuthor(true);
     setModalOpen(true);
   };
 
@@ -81,7 +83,8 @@ export const UsersView: React.FC = () => {
       return;
     }
 
-    db.saveUser({
+    const oldName = editingUser?.name || '';
+    const saved = db.saveUser({
       id: editingUser ? editingUser.id : undefined,
       name: name.trim(),
       email: email.trim(),
@@ -92,9 +95,23 @@ export const UsersView: React.FC = () => {
       status,
     });
 
+    let updatedPosts = 0;
+    if (editingUser && syncPostsAuthor && oldName.trim().toLowerCase() !== name.trim().toLowerCase()) {
+      updatedPosts = db.renameAuthorAcrossPosts(oldName, {
+        id: saved.id,
+        name: saved.name,
+        avatar: saved.avatar,
+        role: saved.role,
+      });
+    }
+
     setModalOpen(false);
     refreshUsers();
-    toast.success(`User "${name}" saved successfully!`);
+    if (updatedPosts > 0) {
+      toast.success(`User "${name.trim()}" saved & updated across ${updatedPosts} existing posts!`);
+    } else {
+      toast.success(`User "${name.trim()}" saved successfully!`);
+    }
   };
 
   const handleDelete = (id: string, userName: string) => {
@@ -658,7 +675,7 @@ export const UsersView: React.FC = () => {
                 />
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-2 border-t border-slate-100 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
                   <input
                     type="checkbox"
@@ -668,6 +685,18 @@ export const UsersView: React.FC = () => {
                   />
                   <span>Enforce Two-Factor Authentication (2FA)</span>
                 </label>
+
+                {editingUser && (
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-sky-800 bg-sky-50 px-2.5 py-2 rounded-lg border border-sky-200">
+                    <input
+                      type="checkbox"
+                      checked={syncPostsAuthor}
+                      onChange={(e) => setSyncPostsAuthor(e.target.checked)}
+                      className="rounded-sm border-sky-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <span>আগের সব পোস্টেও নতুন লেখকের নাম আপডেট করুন (Update existing posts byline)</span>
+                  </label>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">

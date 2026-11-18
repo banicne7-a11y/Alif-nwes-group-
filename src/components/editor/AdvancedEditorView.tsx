@@ -56,6 +56,8 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 }) => {
   const categories = db.getCategories();
   const allTags = db.getTags();
+  const currentUser = db.getCurrentUser();
+  const allUsers = db.getUsers();
 
   // Core post state
   const [title, setTitle] = useState(postToEdit?.title || '');
@@ -78,6 +80,10 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   );
   const [status, setStatus] = useState<PostStatus>(postToEdit?.status || 'draft');
   const [targetCountry, setTargetCountry] = useState<TargetCountry>(postToEdit?.targetCountry || 'usa');
+  const [authorId, setAuthorId] = useState<string>(postToEdit?.author?.id || currentUser.id);
+  const [authorName, setAuthorName] = useState<string>(postToEdit?.author?.name || currentUser.name);
+  const [authorRole, setAuthorRole] = useState<string>(postToEdit?.author?.role || currentUser.role || 'Correspondent');
+  const [authorAvatar, setAuthorAvatar] = useState<string>(postToEdit?.author?.avatar || currentUser.avatar);
   const [scheduledAt, setScheduledAt] = useState(postToEdit?.scheduledAt || '');
   const [isBreaking, setIsBreaking] = useState(!!postToEdit?.isBreaking);
   const [isTrending, setIsTrending] = useState(!!postToEdit?.isTrending);
@@ -593,6 +599,12 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         featuredImage,
         status: finalStatus,
         targetCountry,
+        author: {
+          id: authorId || currentUser.id,
+          name: authorName.trim() || 'Alif News 24 Desk',
+          avatar: authorAvatar || currentUser.avatar,
+          role: (authorRole.trim() || currentUser.role || 'Correspondent') as any,
+        },
         scheduledAt: finalStatus === 'scheduled' ? scheduledAt : undefined,
         isBreaking,
         isTrending,
@@ -1072,6 +1084,75 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
               <p className="text-[11px] text-slate-500 mt-1 font-mono truncate">
                 https://www.official1.online{isCountryEditionSlug(targetCountry) ? `/${targetCountry}/` : '/news/'}
                 {slug || 'post-slug'}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              <label className="block text-xs font-semibold text-slate-700">
+                Author Name (পোস্টের উপরে &ldquo;By ...&rdquo; হিসেবে যা দেখাবে)
+              </label>
+              <input
+                type="text"
+                value={authorName}
+                onChange={(e) => setAuthorName(e.target.value)}
+                placeholder="e.g. Alif News 24 Desk"
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-semibold"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {['Alif News 24 Desk', 'Staff Correspondent', 'Alif Sheen', 'International Desk'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setAuthorName(preset);
+                      setAuthorRole(preset.includes('Desk') ? 'Editorial Desk' : 'Senior Correspondent');
+                    }}
+                    className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border transition-colors cursor-pointer ${
+                      authorName === preset
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Designation</label>
+                  <input
+                    type="text"
+                    value={authorRole}
+                    onChange={(e) => setAuthorRole(e.target.value)}
+                    placeholder="Correspondent"
+                    className="w-full px-2.5 py-1.5 text-[11px] border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-0.5">Quick Team Pick</label>
+                  <select
+                    value={authorId}
+                    onChange={(e) => {
+                      const picked = allUsers.find((u) => u.id === e.target.value);
+                      if (picked) {
+                        setAuthorId(picked.id);
+                        setAuthorName(picked.name);
+                        setAuthorRole(picked.role);
+                        setAuthorAvatar(picked.avatar);
+                      }
+                    }}
+                    className="w-full px-2 py-1.5 text-[11px] border border-slate-200 rounded-lg focus:outline-hidden"
+                  >
+                    {allUsers.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Preview: <span className="font-bold text-slate-800">By {authorName.trim() || 'Alif News 24 Desk'}</span> · {authorRole.trim() || 'Correspondent'}
               </p>
             </div>
 

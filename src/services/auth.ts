@@ -67,9 +67,9 @@ export const authService = {
       email.includes('alif');
 
     if (matchedUser) {
-      // Update with latest Google avatar / name if available
-      matchedUser.name = firebaseUser.displayName || matchedUser.name;
-      if (firebaseUser.photoURL) {
+      // Preserve custom editorial profile name; only use Google displayName if empty
+      matchedUser.name = matchedUser.name?.trim() || firebaseUser.displayName || 'Alif News 24 Desk';
+      if (firebaseUser.photoURL && !matchedUser.avatar) {
         matchedUser.avatar = firebaseUser.photoURL;
       }
       if (isOwner) {
