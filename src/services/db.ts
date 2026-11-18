@@ -974,7 +974,7 @@ If you have questions regarding this Disclaimer, email us at alifsheenshopping@g
     template: 'default',
     status: 'published',
     showInMenu: true,
-    showInFooter: true,
+    showInFooter: false,
     seoTitle: 'Business & Finance News | Markets & Economy | Alif News 24',
     seoDescription:
       'Read verified Business & Finance coverage on Alif News 24 by Alif Sheen Group — market trends, inflation data, central bank updates, and corporate news across USA, UK, Canada & Australia.',
@@ -1004,7 +1004,7 @@ For corporate press releases, market corrections, or editorial inquiries, please
     template: 'default',
     status: 'published',
     showInMenu: true,
-    showInFooter: true,
+    showInFooter: false,
     seoTitle: 'Politics & Policy News | Elections & Government Updates | Alif News 24',
     seoDescription:
       'Follow non-partisan Politics & Policy news on Alif News 24 by Alif Sheen Group — covering legislation, elections, diplomacy, and governance across USA, UK, Canada & Australia.',
@@ -1031,7 +1031,7 @@ If you identify a factual error, outdated legislative status, or attribution iss
     template: 'default',
     status: 'published',
     showInMenu: true,
-    showInFooter: true,
+    showInFooter: false,
     seoTitle: 'Technology & AI News | Cybersecurity & Innovation | Alif News 24',
     seoDescription:
       'Stay updated on Technology & AI news at Alif News 24 by Alif Sheen Group — covering artificial intelligence, cybersecurity, consumer tech, and digital policy.',
@@ -1058,7 +1058,7 @@ For software briefings, research updates, or factual corrections, contact our ed
     template: 'default',
     status: 'published',
     showInMenu: true,
-    showInFooter: true,
+    showInFooter: false,
     seoTitle: 'Health & Science News | Medical Research & Discovery | Alif News 24',
     seoDescription:
       'Read evidence-based Health & Science reporting on Alif News 24 by Alif Sheen Group — medical research, biotech, space science, and public health updates.',
@@ -1085,7 +1085,7 @@ To submit verified research updates or request a factual correction, email our d
     template: 'default',
     status: 'published',
     showInMenu: true,
-    showInFooter: true,
+    showInFooter: false,
     seoTitle: 'Sports & World News | Global Events & Major Leagues | Alif News 24',
     seoDescription:
       'Follow Sports & World coverage on Alif News 24 by Alif Sheen Group — major leagues, international tournaments, world affairs, and global trends.',
@@ -1112,7 +1112,7 @@ Have a news tip, schedule correction, or press inquiry? Email us at alifsheensho
     template: 'default',
     status: 'published',
     showInMenu: true,
-    showInFooter: true,
+    showInFooter: false,
     seoTitle: 'Opinion & Editorial | Analysis & Commentary | Alif News 24',
     seoDescription:
       'Read labeled Opinion & Editorial commentary on Alif News 24 by Alif Sheen Group — thoughtful perspectives on economy, policy, technology, and global society.',
@@ -1130,6 +1130,122 @@ The views and opinions expressed in signed Opinion columns belong solely to the 
 
 ## Submit Commentary or Feedback
 Readers and guest contributors wishing to respond to an editorial or propose a column may contact our editors at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-13',
+    title: 'USA Regional Edition — United States News Desk',
+    slug: 'usa-edition',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: false,
+    seoTitle: 'USA Edition | United States News & Trends | Alif News 24',
+    seoDescription:
+      'Dedicated United States coverage at official1.online/usa by Alif Sheen Group — Wall Street markets, Capitol Hill policy, AI innovation, and US trending topics.',
+    content: `## Alif News 24 — United States Edition (/usa)
+The United States Edition of Alif News 24 (https://www.official1.online/usa), published by Alif Sheen Group, focuses exclusively on news, economic developments, technology trends, and public affairs relevant to American readers.
+
+## What Our US Desk Covers
+- US Economy & Wall Street: Federal Reserve monetary policy, inflation indices, job reports, corporate earnings, and consumer finance trends.
+- National Policy & Governance: Congressional legislation, regulatory updates, energy infrastructure, and state-level economic shifts.
+- US Technology & AI: Silicon Valley innovation, semiconductor supply chains, cybersecurity advisories, and enterprise AI breakthroughs.
+- US Trending Topics & Culture: High-interest national events, major American sports leagues, and science milestones.
+
+## Direct Edition Feed
+Readers visiting from the United States are routed to https://www.official1.online/usa, where only US-targeted reports appear without unrelated regional clutter.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-14',
+    title: 'UK Regional Edition — United Kingdom News Desk',
+    slug: 'uk-edition',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: false,
+    seoTitle: 'UK Edition | United Kingdom News & Trends | Alif News 24',
+    seoDescription:
+      'Dedicated United Kingdom coverage at official1.online/uk by Alif Sheen Group — UK economy, Westminster policy, London finance, Premier League, and tech.',
+    content: `## Alif News 24 — United Kingdom Edition (/uk)
+The United Kingdom Edition of Alif News 24 (https://www.official1.online/uk), operated by Alif Sheen Group, delivers focused journalism in British context covering England, Scotland, Wales, and Northern Ireland.
+
+## What Our UK Desk Covers
+- UK Economy & City of London: Bank of England rate decisions, GBP currency shifts, UK inflation, housing updates, and FTSE business news.
+- Westminster & Public Policy: Parliamentary legislation, NHS developments, energy policy, and UK digital regulation.
+- UK Science, Tech & Society: AI safety initiatives, university research breakthroughs, consumer technology, and Premier League updates.
+
+## Direct Edition Feed
+Visitors entering from the United Kingdom are served https://www.official1.online/uk with UK-specific reporting separated cleanly from other country feeds.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-15',
+    title: 'Canada Regional Edition — Canadian National News Desk',
+    slug: 'canada-edition',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: false,
+    seoTitle: 'Canada Edition | Canadian News & Economy | Alif News 24',
+    seoDescription:
+      'Dedicated Canadian coverage at official1.online/canada by Alif Sheen Group — Bank of Canada updates, Toronto & Ottawa policy, tech, and national trends.',
+    content: `## Alif News 24 — Canada Edition (/canada)
+The Canada Edition of Alif News 24 (https://www.official1.online/canada), published by Alif Sheen Group, provides dedicated national and regional coverage tailored for readers across Canada.
+
+## What Our Canada Desk Covers
+- Canadian Economy & Trade: Bank of Canada policy updates, TSX business news, housing affordability, North American trade, and resource sectors.
+- Ottawa & Provincial Affairs: Federal legislation, immigration and workforce updates, climate initiatives, and public infrastructure projects.
+- Canadian Tech, Health & Sports: AI research hubs in Toronto and Montreal, healthcare policy updates, and major Canadian sports coverage.
+
+## Direct Edition Feed
+Readers in Canada are automatically directed to https://www.official1.online/canada so they see stories curated specifically for the Canadian edition.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-16',
+    title: 'Australia Regional Edition — Australian & APAC News Desk',
+    slug: 'australia-edition',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: false,
+    seoTitle: 'Australia Edition | Australian News & Markets | Alif News 24',
+    seoDescription:
+      'Dedicated Australian coverage at official1.online/australia by Alif Sheen Group — RBA interest rates, ASX markets, Canberra policy, tech, and sports.',
+    content: `## Alif News 24 — Australia Edition (/australia)
+The Australia Edition of Alif News 24 (https://www.official1.online/australia), operated by Alif Sheen Group, brings focused reporting across Australian markets, national policy, innovation, and Asia-Pacific developments.
+
+## What Our Australia Desk Covers
+- Australian Economy & ASX: Reserve Bank of Australia policy decisions, cost-of-living updates, mining and clean energy exports, and corporate earnings.
+- Canberra & National Affairs: Federal policy updates, digital regulation, housing initiatives, and regional Pacific partnerships.
+- Science, Health & Australian Sports: Biotech research, consumer technology, cricket, AFL, and international sporting milestones.
+
+## Direct Edition Feed
+Visitors from Australia are directed to https://www.official1.online/australia with articles strictly tailored to the Australian edition.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-17',
+    title: 'Global Regional Edition — International News Desk',
+    slug: 'global-edition',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: false,
+    seoTitle: 'Global Edition | International News & World Reports | Alif News 24',
+    seoDescription:
+      'Global International Edition of Alif News 24 by Alif Sheen Group at official1.online — cross-border business, technology, science, and world affairs.',
+    content: `## Alif News 24 — Global International Edition (/)
+The Global Edition of Alif News 24 (https://www.official1.online/?edition=global), operated by Alif Sheen Group, brings together cross-border reporting from all of our international and regional desks in one unified feed.
+
+## What Our Global Desk Covers
+- International Economy & Trade: Cross-border supply chains, central bank coordination, energy markets, and global growth indicators.
+- World Diplomacy & Geopolitics: Multilateral summits, international agreements, climate accords, and global development initiatives.
+- Global Tech, Science & Culture: Breakthrough AI, space exploration, public health collaboration, and major international sporting events.
+
+## Editorial Contact
+For international inquiries or editorial submissions, reach Alif Sheen Group at alifsheenshopping@gmail.com.`,
     updatedAt: '2026-11-18',
   },
 ];
@@ -1231,12 +1347,13 @@ export const initialFooterConfig: FooterConfig = {
       id: 'col-3',
       title: 'Regional Editions',
       items: [
-        { id: 'item-3-1', label: 'USA Edition', url: '/usa' },
-        { id: 'item-3-2', label: 'UK Edition', url: '/uk' },
-        { id: 'item-3-3', label: 'Canada Edition', url: '/canada' },
-        { id: 'item-3-4', label: 'Australia Edition', url: '/australia' },
-        { id: 'item-3-5', label: 'RSS News Feed', url: '/rss' },
-        { id: 'item-3-6', label: 'Staff & Reader Portal', url: '#login' },
+        { id: 'item-3-1', label: '🇺🇸 USA Edition', url: '/usa' },
+        { id: 'item-3-2', label: '🇬🇧 UK Edition', url: '/uk' },
+        { id: 'item-3-3', label: '🇨🇦 Canada Edition', url: '/canada' },
+        { id: 'item-3-4', label: '🇦🇺 Australia Edition', url: '/australia' },
+        { id: 'item-3-5', label: '🌐 Global Edition', url: '/global' },
+        { id: 'item-3-6', label: 'RSS News Feed', url: '/rss.xml' },
+        { id: 'item-3-7', label: 'Staff & Reader Portal', url: '#login' },
       ],
     },
   ],
@@ -1316,7 +1433,8 @@ class DatabaseService {
       onFooterConfigUpdate: (footer) => {
         const isLegacyFooter =
           (footer.publisherText || '').includes('Alif Media Group') ||
-          !footer.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service'));
+          !footer.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service')) ||
+          !footer.columns?.some((c) => c.items?.some((it) => it.url === '/global'));
         this.state.footerConfig = isLegacyFooter ? JSON.parse(JSON.stringify(initialFooterConfig)) : footer;
         this.save();
         if (isLegacyFooter) {
@@ -1366,7 +1484,12 @@ class DatabaseService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: DatabaseState = JSON.parse(saved);
-        if (!parsed.footerConfig || !Array.isArray(parsed.footerConfig.columns) || (parsed.footerConfig.publisherText || '').includes('Alif Media Group')) {
+        if (
+          !parsed.footerConfig ||
+          !Array.isArray(parsed.footerConfig.columns) ||
+          (parsed.footerConfig.publisherText || '').includes('Alif Media Group') ||
+          !parsed.footerConfig.columns.some((c) => c.items?.some((it) => it.url === '/global'))
+        ) {
           parsed.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
         }
         if (Array.isArray(parsed.pages)) {
@@ -2091,16 +2214,25 @@ class DatabaseService {
     }
   }
 
-  private isLegacyStubPage(existing: Page | undefined): boolean {
+  private isLegacyStubPage(existing: Page | undefined, defPage?: Page): boolean {
     if (!existing) return true;
     const text = (existing.content || '').trim();
-    return text.length < 320 || text.includes('Washington, D.C. headquarters');
+    if (text.length < 320 || text.includes('Washington, D.C. headquarters')) return true;
+    if (
+      defPage &&
+      defPage.showInFooter === false &&
+      existing.showInFooter === true &&
+      /^page-(7|8|9|10|11|12)$/.test(defPage.id)
+    ) {
+      return true;
+    }
+    return false;
   }
 
   private hasStaleOrMissingPolicyPages(pages: Page[]): boolean {
     for (const defPage of initialPages) {
       const match = pages.find((p) => p.id === defPage.id || p.slug === defPage.slug);
-      if (this.isLegacyStubPage(match)) return true;
+      if (this.isLegacyStubPage(match, defPage)) return true;
     }
     return false;
   }
@@ -2111,7 +2243,7 @@ class DatabaseService {
       const idx = merged.findIndex((p) => p.id === defPage.id || p.slug === defPage.slug);
       if (idx === -1) {
         merged.push({ ...defPage });
-      } else if (this.isLegacyStubPage(merged[idx])) {
+      } else if (this.isLegacyStubPage(merged[idx], defPage)) {
         merged[idx] = { ...defPage, id: merged[idx].id || defPage.id };
       }
     }
@@ -2141,7 +2273,7 @@ class DatabaseService {
           nextPages.push(added);
           pagesToWrite.push(added);
           updatedCount++;
-        } else if (forceOverwrite || this.isLegacyStubPage(nextPages[idx])) {
+        } else if (forceOverwrite || this.isLegacyStubPage(nextPages[idx], defPage)) {
           const updated = { ...defPage, id: nextPages[idx].id || defPage.id };
           nextPages[idx] = updated;
           pagesToWrite.push(updated);
@@ -2154,7 +2286,8 @@ class DatabaseService {
       const needsFooterUpdate =
         forceOverwrite ||
         (this.state.footerConfig?.publisherText || '').includes('Alif Media Group') ||
-        !this.state.footerConfig?.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service'));
+        !this.state.footerConfig?.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service')) ||
+        !this.state.footerConfig?.columns?.some((c) => c.items?.some((it) => it.url === '/global'));
 
       if (needsFooterUpdate) {
         this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));

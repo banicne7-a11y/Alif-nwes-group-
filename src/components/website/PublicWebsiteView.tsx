@@ -488,10 +488,22 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         return;
       }
     }
-    const bareSlug = cleanUrl.replace(/^\//, '').split('/')[0];
+    const bareSlug = cleanUrl.replace(/^\//, '').split('/')[0].toLowerCase();
+    if (bareSlug === 'global') {
+      handleSelectCountryEdition('global');
+      return;
+    }
+    if (isCountryEditionSlug(bareSlug)) {
+      handleSelectCountryEdition(bareSlug);
+      return;
+    }
+    if (cleanUrl === '/rss' || cleanUrl === '/rss.xml') {
+      window.open('/rss.xml', '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (bareSlug) {
       const matchedBySlug = pages.find(
-        (p) => p.slug.toLowerCase() === bareSlug.toLowerCase() || p.id === bareSlug
+        (p) => p.slug.toLowerCase() === bareSlug || p.id === bareSlug
       );
       if (matchedBySlug) {
         handleSelectPage(matchedBySlug);

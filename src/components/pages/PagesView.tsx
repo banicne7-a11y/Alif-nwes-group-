@@ -155,13 +155,13 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
             onClick={async () => {
               const count = await db.syncAdSensePolicyPages(true);
               refreshPages();
-              toast.success(`✅ সবগুলো (${count}টি) পলিসি ও নিউজ ডেস্ক পেজ এবং ফুটার লাইভ আপডেট হয়েছে!`);
+              toast.success(`✅ সবগুলো (${count}টি) পলিসি, নিউজ ডেস্ক ও ৫টি Regional Edition পেজ এবং ফুটার লাইভ আপডেট হয়েছে!`);
             }}
             className="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs md:text-sm font-bold transition-all shadow-xs cursor-pointer"
-            title="Publish or refresh all 12 AdSense policy and news desk pages to Firestore"
+            title="Publish or refresh all 17 policy, news desk, and regional edition pages to Firestore"
           >
             <CheckCircle className="w-4 h-4" />
-            <span>Sync All 12 Pages</span>
+            <span>Sync All 17 Pages</span>
           </button>
 
           <button
