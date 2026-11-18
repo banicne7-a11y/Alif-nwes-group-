@@ -65,6 +65,7 @@ async function runFirestoreQuery(structuredQuery: Record<string, any>): Promise<
 
 async function fetchLiveSitemapData(baseUrl: string): Promise<{
   posts: SitemapUrlItem[];
+  countryEditions: SitemapUrlItem[];
   categories: SitemapUrlItem[];
   pages: SitemapUrlItem[];
 }> {
@@ -104,10 +105,18 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<{
     .map<SitemapUrlItem | null>((f) => {
       const slug = readStringField(f, 'slug') || readStringField(f, 'id');
       if (!slug) return null;
+      const targetCountry = readStringField(f, 'targetCountry').toLowerCase().trim();
+      const postPath =
+        targetCountry === 'usa' ||
+        targetCountry === 'uk' ||
+        targetCountry === 'canada' ||
+        targetCountry === 'australia'
+          ? `/${targetCountry}/${encodeURIComponent(slug)}`
+          : `/news/${encodeURIComponent(slug)}`;
       const updated = readStringField(f, 'updatedAt') || readStringField(f, 'publishedAt');
       const published = readStringField(f, 'publishedAt') || readStringField(f, 'createdAt') || updated;
       return {
-        loc: `${cleanBase}/news/${encodeURIComponent(slug)}`,
+        loc: `${cleanBase}${postPath}`,
         lastmod: toIsoDate(updated),
         changefreq: 'hourly',
         priority: '0.9',
@@ -117,6 +126,13 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<{
     })
     .filter((item): item is SitemapUrlItem => item !== null)
     .sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''));
+
+  const countryEditions: SitemapUrlItem[] = ['usa', 'uk', 'canada', 'australia'].map((code) => ({
+    loc: `${cleanBase}/${code}`,
+    lastmod: posts[0]?.lastmod || today,
+    changefreq: 'hourly',
+    priority: '0.9',
+  }));
 
   const categories: SitemapUrlItem[] = (catFields.length > 0
     ? catFields.map((f) => readStringField(f, 'slug')).filter(Boolean)
@@ -138,13 +154,13 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<{
       priority: '0.6',
     }));
 
-  return { posts, categories, pages };
+  return { posts, countryEditions, categories, pages };
 }
 
 export async function generateStandardSitemapXml(baseUrl: string): Promise<string> {
   const cleanBase = baseUrl.replace(/\/+$/, '');
   const today = new Date().toISOString().slice(0, 10);
-  const { posts, categories, pages } = await fetchLiveSitemapData(cleanBase);
+  const { posts, countryEditions, categories, pages } = await fetchLiveSitemapData(cleanBase);
 
   const urls: SitemapUrlItem[] = [
     {
@@ -153,6 +169,7 @@ export async function generateStandardSitemapXml(baseUrl: string): Promise<strin
       changefreq: 'always',
       priority: '1.0',
     },
+    ...countryEditions,
     ...posts,
     ...categories,
     ...pages,

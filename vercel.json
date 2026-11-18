@@ -17,6 +17,42 @@
       "destination": "/api/ads-txt"
     },
     {
+      "source": "/",
+      "destination": "/api/render?type=home"
+    },
+    {
+      "source": "/usa",
+      "destination": "/api/render?type=country&country=usa"
+    },
+    {
+      "source": "/uk",
+      "destination": "/api/render?type=country&country=uk"
+    },
+    {
+      "source": "/canada",
+      "destination": "/api/render?type=country&country=canada"
+    },
+    {
+      "source": "/australia",
+      "destination": "/api/render?type=country&country=australia"
+    },
+    {
+      "source": "/usa/:slug",
+      "destination": "/api/render?type=article&country=usa&slug=:slug"
+    },
+    {
+      "source": "/uk/:slug",
+      "destination": "/api/render?type=article&country=uk&slug=:slug"
+    },
+    {
+      "source": "/canada/:slug",
+      "destination": "/api/render?type=article&country=canada&slug=:slug"
+    },
+    {
+      "source": "/australia/:slug",
+      "destination": "/api/render?type=article&country=australia&slug=:slug"
+    },
+    {
       "source": "/news/:slug",
       "destination": "/api/render?type=article&slug=:slug"
     },
@@ -25,7 +61,7 @@
       "destination": "/api/render?type=page&slug=:slug"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|index\\.html).*)",
       "destination": "/index.html"
     }
   ]

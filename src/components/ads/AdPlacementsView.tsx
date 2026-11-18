@@ -431,14 +431,44 @@ export const AdPlacementsView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Simulated Ad Preview Box */}
-                <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 flex flex-col items-center justify-center text-center space-y-1.5 min-h-[110px]">
-                  <Tv className="w-5 h-5 text-slate-400" />
-                  <p className="text-xs font-bold text-slate-700">{ad.name}</p>
-                  <p className="text-[10px] text-slate-400 font-mono">
-                    Size: {ad.size} • Target: {ad.deviceTarget} • Type: {ad.type}
-                  </p>
-                </div>
+                {/* Ad Preview & Live Status Box */}
+                {(() => {
+                  const stripped = (ad.customCode || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+                  const hasLivePayload =
+                    ad.type === 'Image' ? Boolean(ad.imageUrl?.trim()) : Boolean(stripped);
+                  const isSupportedOnSite = WEBSITE_POSITION_PRESETS.some((p) => p.key === ad.key);
+                  return (
+                    <div
+                      className={`p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center space-y-1.5 min-h-[115px] ${
+                        hasLivePayload && isSupportedOnSite
+                          ? 'border-emerald-200 bg-emerald-50/50'
+                          : 'border-slate-200 bg-slate-50/80'
+                      }`}
+                    >
+                      <Tv className={`w-5 h-5 ${hasLivePayload ? 'text-emerald-600' : 'text-slate-400'}`} />
+                      <p className="text-xs font-bold text-slate-700">{ad.name}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        Size: {ad.size} • Target: {ad.deviceTarget === 'desktop' ? 'Desktop Only (মোবাইলে লুকানো)' : ad.deviceTarget === 'mobile' ? 'Mobile Only' : 'All Devices'} • Type: {ad.type}
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            hasLivePayload
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {hasLivePayload ? '✓ কোড/ছবি যুক্ত আছে' : 'খালি স্লট (কোড বসান)'}
+                        </span>
+                        {!isSupportedOnSite && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
+                            হোম/নিউজ পেজে যুক্ত নয়
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Footer Metrics & Actions */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -612,6 +642,11 @@ export const AdPlacementsView: React.FC = () => {
                     placeholder="e.g. article_in_content"
                     className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
                   />
+                  {key.trim() && !WEBSITE_POSITION_PRESETS.some((p) => p.key === key.trim()) && (
+                    <p className="text-[11px] text-amber-700 font-semibold mt-1">
+                      ⚠️ এই Key-টি ওয়েবসাইটের কোনো জায়গায় বসানো নেই। ওপরে Preset তালিকা থেকে একটি জায়গা বাছাই করুন।
+                    </p>
+                  )}
                 </div>
               </div>
 

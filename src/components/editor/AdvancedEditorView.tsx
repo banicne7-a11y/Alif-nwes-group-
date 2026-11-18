@@ -39,7 +39,8 @@ import {
 import { db } from '../../services/db';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
-import { Post, EditorBlock, PostStatus } from '../../types';
+import { Post, EditorBlock, PostStatus, TargetCountry } from '../../types';
+import { TARGET_COUNTRY_LIST, isCountryEditionSlug } from '../../utils/countryEditions';
 import { formatArticleForReader, parseTextToEditorBlocks } from '../../utils/articleFormatter';
 
 interface AdvancedEditorViewProps {
@@ -76,6 +77,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     postToEdit?.featuredImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80'
   );
   const [status, setStatus] = useState<PostStatus>(postToEdit?.status || 'draft');
+  const [targetCountry, setTargetCountry] = useState<TargetCountry>(postToEdit?.targetCountry || 'usa');
   const [scheduledAt, setScheduledAt] = useState(postToEdit?.scheduledAt || '');
   const [isBreaking, setIsBreaking] = useState(!!postToEdit?.isBreaking);
   const [isTrending, setIsTrending] = useState(!!postToEdit?.isTrending);
@@ -317,7 +319,8 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
       .replace(/(^-|-$)/g, '');
     const finalSlug = generated || `news-${Date.now()}`;
     setSlug(finalSlug);
-    toast.success(`URL Slug জেনারেট হয়েছে: /news/${finalSlug}`);
+    const prefix = isCountryEditionSlug(targetCountry) ? `/${targetCountry}` : '/news';
+    toast.success(`URL Slug জেনারেট হয়েছে: ${prefix}/${finalSlug}`);
   };
 
   const handleAutoGenerateTags = async () => {
@@ -589,6 +592,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         tags: mergedTags,
         featuredImage,
         status: finalStatus,
+        targetCountry,
         scheduledAt: finalStatus === 'scheduled' ? scheduledAt : undefined,
         isBreaking,
         isTrending,
@@ -702,7 +706,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-600" />
               <h3 className="font-extrabold text-sm text-slate-900">
-                Gemini 3.8 Flash Newsroom Copilot
+                Gemini 4 Hydrogen Newsroom Copilot
               </h3>
             </div>
             <span className="text-[10px] bg-purple-600 text-white font-bold px-2 py-0.5 rounded-full">
@@ -811,7 +815,8 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                 <span>{readingTime} min read</span>
                 <span>•</span>
                 <span className="font-mono text-slate-500">
-                  slug: /{slug || (title ? title.toLowerCase().slice(0, 30).replace(/[^a-z0-9]/g, '-') : 'untitled')}
+                  url: {isCountryEditionSlug(targetCountry) ? `/${targetCountry}/` : '/news/'}
+                  {slug || (title ? title.toLowerCase().slice(0, 30).replace(/[^a-z0-9]/g, '-') : 'untitled')}
                 </span>
               </div>
               <button
@@ -1047,6 +1052,27 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                 <option value="scheduled">Scheduled</option>
                 <option value="published">Published</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Target Country Edition (কোন দেশের পেজে দেখাবে)
+              </label>
+              <select
+                value={targetCountry}
+                onChange={(e) => setTargetCountry(e.target.value as TargetCountry)}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-semibold"
+              >
+                {TARGET_COUNTRY_LIST.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.label} — {c.fullName} ({c.code === 'global' ? '/news/...' : `/${c.code}/...`})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1 font-mono truncate">
+                https://www.official1.online{isCountryEditionSlug(targetCountry) ? `/${targetCountry}/` : '/news/'}
+                {slug || 'post-slug'}
+              </p>
             </div>
 
             {status === 'scheduled' && (
@@ -1329,7 +1355,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-sky-500/20 text-sky-300 font-mono text-[10px] rounded-full border border-sky-400/30">
-                Gemini 3.8
+                Gemini 4
               </span>
             </div>
 

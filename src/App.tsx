@@ -29,8 +29,11 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { db } from './services/db';
 import { Post } from './types';
 import { parseCurrentRoute, navigateTo, RouteInfo } from './services/router';
+import { getPostPublicPath, COUNTRY_EDITIONS } from './utils/countryEditions';
 import { updatePageSeo, applyGoogleVerificationTag, applyAdSenseVerificationTags } from './services/seo';
 import { authService } from './services/auth';
+import { auth, onAuthStateChanged } from './services/firebase';
+import { isFirebaseAdminUser } from './services/firestoreSync';
 import { AdminLoginModal } from './components/auth/AdminLoginModal';
 import { toast } from './services/toast';
 
@@ -39,6 +42,8 @@ export default function App() {
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => authService.isAuthenticated());
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [firebaseAuthChecked, setFirebaseAuthChecked] = useState(false);
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(() => isFirebaseAdminUser());
 
   const [currentView, setCurrentView] = useState(() => {
     if (initialRoute.type === 'admin') return initialRoute.view || 'dashboard';
@@ -122,6 +127,12 @@ export default function App() {
             description: found.seoDescription || found.title,
           });
         }
+      } else if (route.type === 'country') {
+        setIsWebsiteMode(true);
+        setPreviewArticle(null);
+        setPreviewPage(null);
+        const meta = COUNTRY_EDITIONS[route.country];
+        updatePageSeo({ title: meta.tagline });
       } else if (route.type === 'category') {
         setIsWebsiteMode(true);
         setPreviewArticle(null);
@@ -156,11 +167,29 @@ export default function App() {
     };
     window.addEventListener('app:auth-changed', handleAuthEvent);
 
+    let lastAuthWarn = 0;
+    const handleFirebaseAuthRequired = () => {
+      const now = Date.now();
+      if (now - lastAuthWarn > 4000) {
+        lastAuthWarn = now;
+        toast.error('লাইভ সাইটে সেভ করতে Google দিয়ে পুনরায় Sign In করুন (Firebase সেশন শেষ হয়ে গেছে)।');
+        setIsLoginModalOpen(true);
+      }
+    };
+    window.addEventListener('app:firebase-auth-required', handleFirebaseAuthRequired);
+
+    const unsubAuth = onAuthStateChanged(auth, () => {
+      setFirebaseAuthChecked(true);
+      setIsFirebaseConnected(isFirebaseAdminUser());
+    });
+
     return () => {
       unsubscribeDb();
+      unsubAuth();
       window.removeEventListener('popstate', handleSync);
       window.removeEventListener('app:route-changed', handleSync);
       window.removeEventListener('app:auth-changed', handleAuthEvent);
+      window.removeEventListener('app:firebase-auth-required', handleFirebaseAuthRequired);
     };
   }, []);
 
@@ -193,7 +222,7 @@ export default function App() {
     setPreviewArticle(post);
     setPreviewPage(null);
     setIsWebsiteMode(true);
-    navigateTo('/news/' + post.slug);
+    navigateTo(getPostPublicPath(post));
     updatePageSeo({
       title: post.title,
       description: post.excerpt,
@@ -283,6 +312,31 @@ export default function App() {
           onLanguageChange={(lang) => setCurrentLanguage(lang)}
           darkMode={darkMode}
           onToggleDarkMode={() => setDarkMode(!darkMode)}
+        />
+
+        {/* Cloud Sync Warning if localStorage session exists without active Firebase Google Auth */}
+        {firebaseAuthChecked && !isFirebaseConnected && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-950">
+            <p className="font-semibold">
+              ⚠️ আপনার Google ক্লাউড সেশন বিচ্ছিন্ন আছে — এখন পোস্ট বা বিজ্ঞাপন সেভ করলে সেটা শুধু ফোনে থাকবে, লাইভ ওয়েবসাইটে (<span className="font-mono">official1.online</span>) যাবে না।
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsLoginModalOpen(true)}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-2xs shrink-0 cursor-pointer"
+            >
+              Sign in with Google
+            </button>
+          </div>
+        )}
+
+        <AdminLoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLoginSuccess={() => {
+            handleLoginSuccess();
+            setIsFirebaseConnected(isFirebaseAdminUser());
+          }}
         />
 
         {/* Content Body */}

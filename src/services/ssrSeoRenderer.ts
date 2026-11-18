@@ -10,6 +10,7 @@ interface SeoEntity {
   publishedAt?: string;
   updatedAt?: string;
   contentHtml?: string;
+  targetCountry?: string;
   kind: 'article' | 'page';
 }
 
@@ -165,17 +166,73 @@ async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promis
     publishedAt: readStr(f, 'publishedAt') || readStr(f, 'createdAt'),
     updatedAt: readStr(f, 'updatedAt'),
     contentHtml,
+    targetCountry: readStr(f, 'targetCountry').toLowerCase().trim(),
   };
+}
+
+const COUNTRY_META: Record<string, { label: string; title: string; desc: string }> = {
+  usa: {
+    label: 'United States Edition',
+    title: 'USA Breaking News, Trends & Analysis',
+    desc: 'Latest trending American news, economy, politics, tech, and verified headlines on Alif News 24 USA Edition.',
+  },
+  uk: {
+    label: 'United Kingdom Edition',
+    title: 'UK Breaking News, Trends & Analysis',
+    desc: 'Latest trending United Kingdom news, business, politics, and verified stories on Alif News 24 UK Edition.',
+  },
+  canada: {
+    label: 'Canada Edition',
+    title: 'Canada Breaking News, Trends & Analysis',
+    desc: 'Latest trending Canadian news, finance, tech, and national updates on Alif News 24 Canada Edition.',
+  },
+  australia: {
+    label: 'Australia Edition',
+    title: 'Australia Breaking News, Trends & Analysis',
+    desc: 'Latest trending Australian news, economy, lifestyle, and national coverage on Alif News 24 Australia Edition.',
+  },
+};
+
+async function fetchCountryPosts(country: string): Promise<Array<{ title: string; slug: string; excerpt: string; targetCountry: string }>> {
+  const docs = await queryFirestore({
+    from: [{ collectionId: 'posts' }],
+    where: {
+      fieldFilter: {
+        field: { fieldPath: 'status' },
+        op: 'EQUAL',
+        value: { stringValue: 'published' },
+      },
+    },
+    limit: 60,
+  }).catch(() => []);
+
+  return docs
+    .map((f) => ({
+      title: readStr(f, 'title'),
+      slug: readStr(f, 'slug') || readStr(f, 'id'),
+      excerpt: readStr(f, 'excerpt') || readStr(f, 'subtitle'),
+      targetCountry: readStr(f, 'targetCountry').toLowerCase().trim(),
+    }))
+    .filter((p) => {
+      if (!p.title || !p.slug) return false;
+      if (country === 'usa') return p.targetCountry === 'usa' || !p.targetCountry;
+      return p.targetCountry === country;
+    })
+    .slice(0, 20);
 }
 
 export async function injectSeoIntoHtml(
   templateHtml: string,
-  options: { type: 'article' | 'page'; slug: string; baseUrl: string }
+  options: { type: 'article' | 'page' | 'country' | 'home'; slug?: string; country?: string; baseUrl: string }
 ): Promise<string> {
   const cleanBase = options.baseUrl.replace(/\/+$/, '');
-  const [entity, siteCfg] = await Promise.all([
-    fetchEntityBySlug(options.type, options.slug),
+  const countryKey = (options.country || '').toLowerCase().trim();
+  const [entity, siteCfg, countryPosts] = await Promise.all([
+    options.type === 'article' || options.type === 'page'
+      ? fetchEntityBySlug(options.type, options.slug || '')
+      : Promise.resolve(null),
     fetchSiteConfig(),
+    options.type === 'country' && countryKey ? fetchCountryPosts(countryKey) : Promise.resolve([]),
   ]);
 
   let html = templateHtml;
@@ -200,13 +257,71 @@ export async function injectSeoIntoHtml(
     }
   }
 
+  if (options.type === 'country' && COUNTRY_META[countryKey]) {
+    const meta = COUNTRY_META[countryKey];
+    const canonicalUrl = `${cleanBase}/${countryKey}`;
+    const fullTitle = `${meta.title} | ${siteCfg.siteName}`;
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(fullTitle)}</title>`);
+    html = html.replace(
+      /<meta\s+name="description"[^>]*>/i,
+      `<meta name="description" content="${escapeHtml(meta.desc)}" />`
+    );
+    html = html.replace(
+      /<meta\s+property="og:title"[^>]*>/i,
+      `<meta property="og:title" content="${escapeHtml(fullTitle)}" />`
+    );
+    html = html.replace(
+      /<meta\s+property="og:description"[^>]*>/i,
+      `<meta property="og:description" content="${escapeHtml(meta.desc)}" />`
+    );
+    html = html.replace(
+      /<\/head>/i,
+      `    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />\n    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />\n  </head>`
+    );
+
+    const listMarkup = countryPosts
+      .map((p) => {
+        const href =
+          p.targetCountry === 'usa' || p.targetCountry === 'uk' || p.targetCountry === 'canada' || p.targetCountry === 'australia'
+            ? `/${p.targetCountry}/${encodeURIComponent(p.slug)}`
+            : `/news/${encodeURIComponent(p.slug)}`;
+        return `<li style="margin-bottom:16px;"><a href="${escapeHtml(href)}" style="font-size:20px;font-weight:700;color:#0f172a;text-decoration:none;">${escapeHtml(p.title)}</a><p style="margin:4px 0 0;color:#475569;font-size:14px;">${escapeHtml(p.excerpt)}</p></li>`;
+      })
+      .join('\n');
+
+    const countryBody = `
+    <div id="root">
+      <main style="max-width:860px;margin:40px auto;padding:0 20px;font-family:Georgia,serif;color:#0f172a;line-height:1.6;">
+        <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#dc2626;font-weight:700;">${escapeHtml(siteCfg.siteName)} · ${escapeHtml(meta.label)}</p>
+        <h1 style="font-size:32px;line-height:1.25;margin:8px 0 12px;">${escapeHtml(meta.title)}</h1>
+        <p style="color:#475569;margin-bottom:24px;">${escapeHtml(meta.desc)}</p>
+        <ul style="list-style:none;padding:0;margin:0;">${listMarkup}</ul>
+      </main>
+    </div>`;
+
+    html = html.replace(/<div\s+id="root"\s*><\/div>/i, countryBody);
+    return html;
+  }
+
   if (!entity) {
     return html;
   }
 
+  const effectiveCountry =
+    entity.targetCountry === 'usa' ||
+    entity.targetCountry === 'uk' ||
+    entity.targetCountry === 'canada' ||
+    entity.targetCountry === 'australia'
+      ? entity.targetCountry
+      : countryKey === 'usa' || countryKey === 'uk' || countryKey === 'canada' || countryKey === 'australia'
+      ? countryKey
+      : '';
+
   const canonicalUrl =
     entity.kind === 'article'
-      ? `${cleanBase}/news/${encodeURIComponent(entity.slug)}`
+      ? effectiveCountry
+        ? `${cleanBase}/${effectiveCountry}/${encodeURIComponent(entity.slug)}`
+        : `${cleanBase}/news/${encodeURIComponent(entity.slug)}`
       : `${cleanBase}/page/${encodeURIComponent(entity.slug)}`;
 
   const fullTitle = `${entity.title} | ${siteCfg.siteName}`;

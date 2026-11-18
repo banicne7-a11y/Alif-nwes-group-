@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { injectSeoIntoHtml } from '../src/services/ssrSeoRenderer.js';
+import { getEditionFromIsoCountry } from '../src/utils/countryEditions.js';
+
+const BOT_UA_REGEX =
+  /(googlebot|adsbot-google|mediapartners-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot|applebot|crawler|spider|bot)/i;
 
 export default async function handler(req: any, res: any) {
   try {
@@ -10,8 +14,47 @@ export default async function handler(req: any, res: any) {
     const proto = Array.isArray(rawProto) ? rawProto[0] : rawProto;
     const baseUrl = `${proto}://${host}`;
 
-    const type = req.query?.type === 'page' ? 'page' : 'article';
+    const rawType = String(req.query?.type || 'article').toLowerCase();
+    const type: 'article' | 'page' | 'country' | 'home' =
+      rawType === 'page'
+        ? 'page'
+        : rawType === 'country'
+        ? 'country'
+        : rawType === 'home'
+        ? 'home'
+        : 'article';
     const slug = String(req.query?.slug || '').trim();
+    const country = String(req.query?.country || '').trim().toLowerCase();
+
+    // Auto Geo-Redirect ONLY on root '/' for human visitors from Tier-1 editions (never redirect bots/crawlers!)
+    if (type === 'home') {
+      const uaHeader = req.headers?.['user-agent'] || '';
+      const ua = Array.isArray(uaHeader) ? uaHeader[0] : String(uaHeader);
+      const isBot = BOT_UA_REGEX.test(ua);
+      const cookieHeader = String(req.headers?.cookie || '');
+      const hasOverride =
+        req.query?.noredirect === '1' ||
+        req.query?.edition === 'global' ||
+        cookieHeader.includes('alif_edition_override=global');
+
+      if (!isBot && !hasOverride) {
+        const rawGeo =
+          req.query?.geo ||
+          req.headers?.['x-vercel-ip-country'] ||
+          req.headers?.['cf-ipcountry'] ||
+          '';
+        const geoCode = (Array.isArray(rawGeo) ? rawGeo[0] : String(rawGeo)).toUpperCase().trim();
+        const edition = getEditionFromIsoCountry(geoCode);
+        if (edition) {
+          res.statusCode = 307;
+          res.setHeader('Location', `/${edition}`);
+          res.setHeader('Vary', 'x-vercel-ip-country, user-agent');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end();
+          return;
+        }
+      }
+    }
 
     let templateHtml = '';
     const distHtmlPath = path.join(process.cwd(), 'dist', 'index.html');
@@ -27,12 +70,20 @@ export default async function handler(req: any, res: any) {
       templateHtml = await originRes.text();
     }
 
-    const rendered = slug
-      ? await injectSeoIntoHtml(templateHtml, { type, slug, baseUrl })
-      : templateHtml;
+    const rendered = await injectSeoIntoHtml(templateHtml, {
+      type,
+      slug,
+      country,
+      baseUrl,
+    });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    if (type === 'home') {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Vary', 'x-vercel-ip-country, user-agent');
+    } else {
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    }
     res.statusCode = 200;
     res.end(rendered);
   } catch (err: any) {

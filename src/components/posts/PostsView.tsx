@@ -20,6 +20,7 @@ import {
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
 import { Post, PostStatus } from '../../types';
+import { COUNTRY_EDITIONS, TARGET_COUNTRY_LIST, getPostPublicPath } from '../../utils/countryEditions';
 
 interface PostsViewProps {
   onNavigate: (view: string, subParam?: any) => void;
@@ -38,6 +39,7 @@ export const PostsView: React.FC<PostsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<PostStatus | 'all'>(initialFilter);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [countryFilter, setCountryFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState('');
   const [revisionsModalPost, setRevisionsModalPost] = useState<Post | null>(null);
@@ -55,6 +57,10 @@ export const PostsView: React.FC<PostsViewProps> = ({
   const filteredPosts = posts.filter((post) => {
     const postCats = post.categories && post.categories.length > 0 ? post.categories : [post.category];
     if (statusFilter !== 'all' && post.status !== statusFilter) return false;
+    if (countryFilter !== 'all') {
+      const effective = post.targetCountry || 'usa';
+      if (effective !== countryFilter) return false;
+    }
     if (
       categoryFilter !== 'all' &&
       !postCats.some((c) => c.toLowerCase().trim() === categoryFilter.toLowerCase().trim())
@@ -224,8 +230,23 @@ export const PostsView: React.FC<PostsViewProps> = ({
           </button>
         </div>
 
-        {/* Search & Category Filter */}
+        {/* Search, Country & Category Filter */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Target Country Filter */}
+          <select
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+            aria-label="Filter by country"
+            className="px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 rounded-lg focus:outline-hidden"
+          >
+            <option value="all">All Countries</option>
+            {TARGET_COUNTRY_LIST.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.label}
+              </option>
+            ))}
+          </select>
+
           {/* Category Dropdown */}
           <select
             value={categoryFilter}
@@ -327,6 +348,14 @@ export const PostsView: React.FC<PostsViewProps> = ({
                                 Editor's Pick
                               </span>
                             )}
+                            {(() => {
+                              const cMeta = COUNTRY_EDITIONS[post.targetCountry || 'usa'];
+                              return (
+                                <span className="px-1.5 py-0.2 rounded-xs bg-slate-100 text-slate-700 font-bold text-[9px] border border-slate-200">
+                                  {cMeta.flag} {cMeta.label}
+                                </span>
+                              );
+                            })()}
                           </div>
                           <h3
                             onClick={() => onEditPost(post)}
@@ -335,7 +364,7 @@ export const PostsView: React.FC<PostsViewProps> = ({
                             {post.title}
                           </h3>
                           <span className="text-[11px] text-slate-400 font-mono">
-                            /{post.slug}
+                            {getPostPublicPath(post)}
                           </span>
                         </div>
                       </div>

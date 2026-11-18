@@ -1,6 +1,9 @@
+import { CountryRouteSlug, isCountryEditionSlug } from '../utils/countryEditions';
+
 export type RouteInfo =
   | { type: 'home' }
-  | { type: 'article'; slug: string }
+  | { type: 'country'; country: CountryRouteSlug }
+  | { type: 'article'; slug: string; country?: CountryRouteSlug }
   | { type: 'page'; slug: string }
   | { type: 'category'; slug: string }
   | { type: 'admin'; view: string; subParam?: any };
@@ -8,7 +11,9 @@ export type RouteInfo =
 /**
  * Parses the current window.location.pathname into a structured RouteInfo.
  */
-export function parseCurrentRoute(pathname = typeof window !== 'undefined' ? window.location.pathname : '/'): RouteInfo {
+export function parseCurrentRoute(
+  pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+): RouteInfo {
   // Normalize path
   const cleanPath = pathname.replace(/\/+$/, '') || '/';
 
@@ -19,7 +24,22 @@ export function parseCurrentRoute(pathname = typeof window !== 'undefined' ? win
     return { type: 'admin', view };
   }
 
-  // Article routing: /news/:slug or /article/:slug
+  // Country edition & country article routing:
+  // /usa, /uk, /canada, /australia OR /usa/:slug, /uk/:slug, ...
+  const segments = cleanPath.split('/').filter(Boolean);
+  if (segments.length >= 1 && isCountryEditionSlug(segments[0])) {
+    const country = segments[0].toLowerCase() as CountryRouteSlug;
+    if (segments.length === 1) {
+      return { type: 'country', country };
+    }
+    return {
+      type: 'article',
+      country,
+      slug: decodeURIComponent(segments[1]),
+    };
+  }
+
+  // Legacy Article routing: /news/:slug or /article/:slug
   if (cleanPath.startsWith('/news/') || cleanPath.startsWith('/article/')) {
     const slug = cleanPath.replace(/^\/(news|article)\//, '').split('/')[0];
     if (slug) {

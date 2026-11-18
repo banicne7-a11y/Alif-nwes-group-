@@ -48,6 +48,7 @@ service cloud.firestore {
           'id', 'title', 'subtitle', 'slug', 'content', 'blocks', 'excerpt',
           'category', 'categories', 'tags', 'authorId', 'authorName', 'authorAvatar',
           'status', 'scheduledAt', 'featuredImage', 'imageCaption', 'seo',
+          'targetCountry',
           'isBreaking', 'isTrending', 'isHomepageSlider', 'isEditorPick',
           'isAiGenerated', 'aiApprovalStatus', 'editorialNotes',
           'views', 'commentsCount', 'readTimeMinutes',
@@ -58,6 +59,7 @@ service cloud.firestore {
         && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 300
         && data.category is string && data.category.size() >= 1 && data.category.size() <= 100
         && data.status in ['published', 'draft', 'scheduled', 'pending_review', 'trash']
+        && (!('targetCountry' in data) || data.targetCountry in ['usa', 'uk', 'canada', 'australia', 'global'])
         && (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 500))
         && (!('content' in data) || (data.content is string && data.content.size() <= 200000))
         && (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000))

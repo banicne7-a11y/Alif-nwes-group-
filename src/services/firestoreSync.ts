@@ -110,6 +110,9 @@ export function sanitizePost(p: Post): Record<string, any> {
     featuredImage: trunc(p.featuredImage || '', 2000),
     imageCaption: trunc((p as any).imageCaption || '', 500),
     seo: p.seo ? cleanUndefined(p.seo) : { title: trunc(p.title, 200), description: '', focusKeyword: '', score: 0 },
+    targetCountry: ['usa', 'uk', 'canada', 'australia', 'global'].includes(String(p.targetCountry || ''))
+      ? (p.targetCountry as any)
+      : 'usa',
     isBreaking: !!p.isBreaking,
     isTrending: !!p.isTrending,
     isHomepageSlider: !!p.isHomepageSlider,
@@ -520,6 +523,7 @@ class FirestoreSyncService {
               isFeatured: !!raw.isFeatured,
               sharesCount: Number(raw.sharesCount) || 0,
               aiApprovalStatus: raw.aiApprovalStatus || 'approved',
+              targetCountry: raw.targetCountry || undefined,
               publishedAt: raw.publishedAt || raw.createdAt || raw.updatedAt || '',
             } as Post;
           });
@@ -708,6 +712,9 @@ class FirestoreSyncService {
   // -------------------------------------------------------------
   public async writeDoc(collectionName: string, id: string, payload: Record<string, any>): Promise<void> {
     if (!isFirebaseAdminUser() && collectionName !== 'comments' && collectionName !== 'subscribers') {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app:firebase-auth-required', { detail: { collectionName, id } }));
+      }
       return;
     }
     const cleanId = safeId(id);
@@ -720,7 +727,12 @@ class FirestoreSyncService {
   }
 
   public async deleteRemoteDoc(collectionName: string, id: string): Promise<void> {
-    if (!isFirebaseAdminUser()) return;
+    if (!isFirebaseAdminUser()) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app:firebase-auth-required', { detail: { collectionName, id } }));
+      }
+      return;
+    }
     const cleanId = safeId(id);
     const path = `${collectionName}/${cleanId}`;
     try {

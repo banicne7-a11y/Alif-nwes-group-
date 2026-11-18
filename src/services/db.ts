@@ -1192,6 +1192,7 @@ class DatabaseService {
         isAiGenerated: !!postData.isAiGenerated,
         aiApprovalStatus: postData.aiApprovalStatus || (postData.isAiGenerated ? 'pending' : 'approved'),
         editorialNotes: postData.editorialNotes,
+        targetCountry: postData.targetCountry || 'usa',
         seo: postData.seo || {
           title: postData.title,
           description: postData.excerpt || postData.title,
@@ -1234,6 +1235,7 @@ class DatabaseService {
       post = {
         ...existing,
         ...postData,
+        targetCountry: postData.targetCountry || existing.targetCountry || 'usa',
         category: cats[0],
         categories: cats,
         updatedAt: now,

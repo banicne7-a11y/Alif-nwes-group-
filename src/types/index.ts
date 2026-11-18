@@ -1,5 +1,6 @@
 export type PostStatus = 'published' | 'draft' | 'pending_review' | 'scheduled' | 'trash';
 export type UserRole = 'Administrator' | 'Editor' | 'Author' | 'Contributor' | 'Subscriber';
+export type TargetCountry = 'usa' | 'uk' | 'canada' | 'australia' | 'global';
 
 export interface EditorBlock {
   id: string;
@@ -68,6 +69,7 @@ export interface Post {
   };
   customFields?: Record<string, string>;
   readTime?: string;
+  targetCountry?: TargetCountry;
   isMemberExclusive?: boolean;
   revisions?: PostRevision[];
 }

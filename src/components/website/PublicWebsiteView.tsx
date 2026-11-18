@@ -26,8 +26,15 @@ import {
   Lock,
 } from 'lucide-react';
 import { db } from '../../services/db';
-import { Post, Comment, Page, AdPlacement } from '../../types';
-import { navigateTo, parseCurrentRoute } from '../../services/router';
+import { api } from '../../services/api';
+import { Post, Comment, Page, AdPlacement, TargetCountry } from '../../types';
+import { navigateTo, replaceRoute, parseCurrentRoute } from '../../services/router';
+import {
+  COUNTRY_EDITIONS,
+  doesPostBelongToEdition,
+  getPostPublicPath,
+  isCountryEditionSlug,
+} from '../../utils/countryEditions';
 import { updatePageSeo } from '../../services/seo';
 import {
   AdSlotRenderer,
@@ -75,6 +82,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     }
     return 'all';
   });
+  const [activeCountry, setActiveCountry] = useState<TargetCountry>(() => {
+    const r = parseCurrentRoute();
+    if (r.type === 'country') return r.country;
+    if (r.type === 'article' && r.country) return r.country;
+    return 'global';
+  });
   const [activeArticle, setActiveArticle] = useState<Post | null>(initialPost || null);
   const [activePage, setActivePage] = useState<Page | null>(initialPage || null);
   const [routeResolving, setRouteResolving] = useState<boolean>(() => {
@@ -108,7 +121,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const handleOpenArticle = (post: Post) => {
     setActiveArticle(post);
     setActivePage(null);
-    navigateTo('/news/' + post.slug);
+    if (post.targetCountry && isCountryEditionSlug(post.targetCountry)) {
+      setActiveCountry(post.targetCountry);
+    }
+    navigateTo(getPostPublicPath(post));
     updatePageSeo({
       title: post.title,
       description: post.excerpt,
@@ -190,6 +206,32 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     return () => window.clearTimeout(timer);
   }, [routeResolving]);
 
+  // Client-side geo auto-edition check ONLY when entering root '/' cleanly (bots are skipped)
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const r = parseCurrentRoute();
+    if (r.type !== 'home') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('edition') === 'global' || params.get('noredirect') === '1') {
+      document.cookie = 'alif_edition_override=global; path=/; max-age=86400';
+      return;
+    }
+    if (document.cookie.includes('alif_edition_override=global')) return;
+
+    let cancelled = false;
+    api.fetchGeoCountry().then((geo) => {
+      if (cancelled || geo.isBot) return;
+      if (geo.edition && isCountryEditionSlug(geo.edition)) {
+        setActiveCountry(geo.edition);
+        replaceRoute('/' + geo.edition);
+        updatePageSeo({ title: COUNTRY_EDITIONS[geo.edition].tagline });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Real-time Firestore DB listener so edits from Admin reflect live on all phones
   React.useEffect(() => {
     const refreshFromDb = () => {
@@ -210,8 +252,17 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         if (foundPost) {
           setActiveArticle(foundPost);
           setActivePage(null);
+          if (route.country) setActiveCountry(route.country);
+          else if (foundPost.targetCountry && isCountryEditionSlug(foundPost.targetCountry)) {
+            setActiveCountry(foundPost.targetCountry);
+          }
           setRouteResolving(false);
         }
+      } else if (route.type === 'country') {
+        setActiveCountry(route.country);
+        setActiveArticle(null);
+        setActivePage(null);
+        setRouteResolving(false);
       } else if (route.type === 'page') {
         const foundPage = latestPages.find((p) => p.slug === route.slug || p.id === route.slug);
         if (foundPage) {
@@ -272,7 +323,9 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     });
   };
 
-  const filteredPosts = posts.filter((p) => {
+  const editionPosts = posts.filter((p) => doesPostBelongToEdition(p, activeCountry));
+
+  const filteredPosts = editionPosts.filter((p) => {
     if (selectedCategory !== 'all' && !postHasCategory(p, selectedCategory)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -286,20 +339,20 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     return true;
   });
 
-  const featuredPost = posts.find((p) => p.isBreaking) || posts[0];
-  const secondaryLeads = posts.filter((p) => p.id !== featuredPost?.id).slice(0, 2);
-  const mostReadPosts = [...posts].sort((a, b) => b.views - a.views).slice(0, 5);
-  const businessPosts = posts
+  const featuredPost = editionPosts.find((p) => p.isBreaking) || editionPosts[0];
+  const secondaryLeads = editionPosts.filter((p) => p.id !== featuredPost?.id).slice(0, 2);
+  const mostReadPosts = [...editionPosts].sort((a, b) => b.views - a.views).slice(0, 5);
+  const businessPosts = editionPosts
     .filter((p) =>
       getPostCategoryList(p).some((c) => c.toLowerCase().includes('business') || c.toLowerCase().includes('finance'))
     )
     .slice(0, 4);
-  const techPosts = posts
+  const techPosts = editionPosts
     .filter((p) =>
       getPostCategoryList(p).some((c) => c.toLowerCase().includes('tech') || c.toLowerCase().includes('science'))
     )
     .slice(0, 4);
-  const opinionPost = posts.find((p) => p.isEditorPick) || posts[1] || posts[0];
+  const opinionPost = editionPosts.find((p) => p.isEditorPick) || editionPosts[1] || editionPosts[0];
 
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,12 +403,35 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     }
   };
 
+  const handleSelectCountryEdition = (country: TargetCountry) => {
+    setSelectedCategory('all');
+    setActiveArticle(null);
+    setActivePage(null);
+    setActiveCountry(country);
+    if (country === 'global') {
+      if (typeof document !== 'undefined') {
+        document.cookie = 'alif_edition_override=global; path=/; max-age=86400';
+      }
+      navigateTo('/?edition=global');
+      updatePageSeo({ title: COUNTRY_EDITIONS.global.tagline });
+    } else {
+      navigateTo('/' + country);
+      updatePageSeo({ title: COUNTRY_EDITIONS[country].tagline });
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSelectHome = () => {
     setSelectedCategory('all');
     setActiveArticle(null);
     setActivePage(null);
-    navigateTo('/');
-    updatePageSeo({ title: "America's 24/7 Live News Portal" });
+    if (isCountryEditionSlug(activeCountry)) {
+      navigateTo('/' + activeCountry);
+      updatePageSeo({ title: COUNTRY_EDITIONS[activeCountry].tagline });
+    } else {
+      navigateTo('/');
+      updatePageSeo({ title: "America's 24/7 Live News Portal" });
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -363,9 +439,8 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     setActiveArticle(null);
     setActivePage(null);
     if (catName.toLowerCase() === 'all') {
-      setSelectedCategory('all');
-      navigateTo('/');
-      updatePageSeo({ title: "America's 24/7 Live News Portal" });
+      handleSelectHome();
+      return;
     } else {
       setSelectedCategory(catName);
       const catObj = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
@@ -480,6 +555,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             description: found.seoDescription || found.title,
           });
         }
+      } else if (route.type === 'country') {
+        setActiveCountry(route.country);
+        setSelectedCategory('all');
+        setActiveArticle(null);
+        setActivePage(null);
+        updatePageSeo({ title: COUNTRY_EDITIONS[route.country].tagline });
       } else if (route.type === 'category') {
         setSelectedCategory(route.slug);
         setActiveArticle(null);
@@ -499,6 +580,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         if (found) {
           setActiveArticle(found);
           setActivePage(null);
+          if (route.country) setActiveCountry(route.country);
           updatePageSeo({
             title: found.title,
             description: found.excerpt,
@@ -506,6 +588,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             ogType: 'article',
           });
         }
+      } else if (route.type === 'country') {
+        setActiveCountry(route.country);
+        setSelectedCategory('all');
+        setActiveArticle(null);
+        setActivePage(null);
+        updatePageSeo({ title: COUNTRY_EDITIONS[route.country].tagline });
       } else if (route.type === 'page') {
         const found = latestPages.find((p) => p.slug === route.slug || p.id === route.slug);
         if (found) {
@@ -522,6 +610,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         setActivePage(null);
         updatePageSeo({ title: `${route.slug.toUpperCase()} News` });
       } else if (route.type === 'home') {
+        setActiveCountry('global');
         setActiveArticle(null);
         setActivePage(null);
         setSelectedCategory('all');
@@ -557,8 +646,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   const relatedArticles = activeArticle
     ? (() => {
         const activeCats = getPostCategoryList(activeArticle).map((c) => c.toLowerCase());
-        return posts
-          .filter((p) => p.id !== activeArticle.id)
+        const storyPool = posts.filter((p) =>
+          p.id !== activeArticle.id && doesPostBelongToEdition(p, activeCountry)
+        );
+        return storyPool
           .sort((a, b) => {
             const aShared = getPostCategoryList(a).filter((c) => activeCats.includes(c.toLowerCase())).length;
             const bShared = getPostCategoryList(b).filter((c) => activeCats.includes(c.toLowerCase())).length;
@@ -599,14 +690,33 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             </span>
             <span className="hidden md:inline text-slate-500">|</span>
             <span className="hidden md:inline text-slate-400">
-              Edition: <strong className="text-white">United States · International Desk</strong>
+              Edition:{' '}
+              <strong className="text-white">
+                {COUNTRY_EDITIONS[activeCountry].flag} {COUNTRY_EDITIONS[activeCountry].fullName}
+              </strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-slate-300 font-semibold text-[11px]">
-              24/7 News Desk
-            </span>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Admin-only quick country edition preview switcher */}
+            {isAdminAuthenticated && (
+              <div className="hidden lg:flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-md px-1.5 py-0.5 text-[10px]">
+                {(['usa', 'uk', 'canada', 'australia', 'global'] as TargetCountry[]).map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => handleSelectCountryEdition(code)}
+                    className={`px-1.5 py-0.5 rounded font-bold transition-colors cursor-pointer ${
+                      activeCountry === code
+                        ? 'bg-sky-500 text-slate-950'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    {COUNTRY_EDITIONS[code].flag} {COUNTRY_EDITIONS[code].label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {isAdminAuthenticated ? (
               <div className="flex items-center gap-2">
@@ -630,10 +740,12 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               <button
                 onClick={onOpenAdminLogin}
                 className="flex items-center gap-1.5 px-2.5 py-1 text-slate-300 hover:text-white hover:bg-white/10 rounded-md font-medium text-[11px] transition-colors cursor-pointer"
-                title="US Edition"
+                title={COUNTRY_EDITIONS[activeCountry].tagline}
               >
                 <Globe className="w-3.5 h-3.5 text-slate-400" />
-                <span>US Edition</span>
+                <span>
+                  {COUNTRY_EDITIONS[activeCountry].flag} {COUNTRY_EDITIONS[activeCountry].label} Edition
+                </span>
               </button>
             )}
           </div>
@@ -1869,41 +1981,52 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    onClick={() => handleOpenArticle(post)}
-                    className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 hover:shadow-md transition-all flex flex-col sm:flex-row"
-                  >
-                    <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
-                      <img
-                        src={post.featuredImage}
-                        alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 gap-2">
-                          <span className="text-red-600 uppercase truncate">
-                            {getPostCategoryList(post).join(' · ')}
-                          </span>
-                          <span className="shrink-0">{post.publishedAt}</span>
+              {filteredPosts.length === 0 ? (
+                <div className="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-2">
+                  <p className="font-serif font-bold text-lg text-slate-800 dark:text-white">
+                    No {COUNTRY_EDITIONS[activeCountry].label} stories published yet
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Articles targeted to {COUNTRY_EDITIONS[activeCountry].fullName} will appear exclusively in this edition.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredPosts.map((post) => (
+                    <div
+                      key={post.id}
+                      onClick={() => handleOpenArticle(post)}
+                      className="group cursor-pointer rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 hover:shadow-md transition-all flex flex-col sm:flex-row"
+                    >
+                      <div className="sm:w-2/5 aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
+                        <img
+                          src={post.featuredImage}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                      <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 gap-2">
+                            <span className="text-red-600 uppercase truncate">
+                              {getPostCategoryList(post).join(' · ')}
+                            </span>
+                            <span className="shrink-0">{post.publishedAt}</span>
+                          </div>
+                          <h4 className="font-serif font-bold text-sm sm:text-base leading-snug group-hover:text-red-600 transition-colors line-clamp-2 mt-1">
+                            {post.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mt-1.5">{post.excerpt}</p>
                         </div>
-                        <h4 className="font-serif font-bold text-sm sm:text-base leading-snug group-hover:text-red-600 transition-colors line-clamp-2 mt-1">
-                          {post.title}
-                        </h4>
-                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mt-1.5">{post.excerpt}</p>
-                      </div>
-                      <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 tabular-nums">
-                        <span>By {post.author.name}</span>
-                        <span>{(post.views || 0).toLocaleString()} {(post.views || 0) === 1 ? 'view' : 'views'}</span>
+                        <div className="pt-2 text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 tabular-nums">
+                          <span>By {post.author.name}</span>
+                          <span>{(post.views || 0).toLocaleString()} {(post.views || 0) === 1 ? 'view' : 'views'}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* 3.5 NEWSLETTER SUBSCRIPTION BANNER */}
