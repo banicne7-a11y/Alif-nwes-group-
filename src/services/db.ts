@@ -967,6 +967,171 @@ References or outbound links to official reports, research studies, or external 
 If you have questions regarding this Disclaimer, email us at alifsheenshopping@gmail.com.`,
     updatedAt: '2026-11-18',
   },
+  {
+    id: 'page-7',
+    title: 'Business & Finance — Markets, Economy & Corporate Coverage',
+    slug: 'business-finance',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Business & Finance News | Markets & Economy | Alif News 24',
+    seoDescription:
+      'Read verified Business & Finance coverage on Alif News 24 by Alif Sheen Group — market trends, inflation data, central bank updates, and corporate news across USA, UK, Canada & Australia.',
+    content: `## Business & Finance Coverage at Alif News 24
+Welcome to the Business & Finance Desk of Alif News 24, operated by Alif Sheen Group (https://www.official1.online). Our business desk delivers clear, fact-checked reporting on global financial markets, macroeconomic policy, corporate strategy, banking, consumer finance, and emerging industries.
+
+## Key Topics We Cover
+- Global & Regional Stock Markets: Daily analysis of major equity indices, corporate earnings reports, and sector performance across the United States, United Kingdom, Canada, and Australia.
+- Central Banks & Monetary Policy: Interest rate decisions, inflation trends, bond yields, and economic policy updates from the Federal Reserve, Bank of England, Bank of Canada, and Reserve Bank of Australia.
+- Corporate & Startup Economy: Mergers, acquisitions, technology investments, artificial intelligence commercialization, supply-chain developments, and regulatory shifts.
+- Personal Finance & Cost of Living: Practical explainers on housing affordability, employment data, taxation changes, energy prices, and household financial trends.
+
+## Editorial Standards & Market Reporting
+Accuracy and clarity come first in financial reporting. Every business article published on Alif News 24 relies on primary financial disclosures, official statistical releases, and verified institutional reports. We avoid hype, clickbait stock tips, and unverified market rumors.
+
+## Important Financial Disclaimer
+Articles and market summaries published by the Business & Finance Desk are strictly for informational and journalistic purposes. Nothing on Alif News 24 constitutes personalized investment, tax, or financial advice. Readers should consult a licensed financial advisor before making investment or business decisions.
+
+## Contact the Business Desk
+For corporate press releases, market corrections, or editorial inquiries, please reach out to our newsroom at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-8',
+    title: 'Politics & Policy — Governance, Elections & Public Affairs',
+    slug: 'politics-policy',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Politics & Policy News | Elections & Government Updates | Alif News 24',
+    seoDescription:
+      'Follow non-partisan Politics & Policy news on Alif News 24 by Alif Sheen Group — covering legislation, elections, diplomacy, and governance across USA, UK, Canada & Australia.',
+    content: `## Politics & Policy Coverage at Alif News 24
+Welcome to the Politics & Policy Desk of Alif News 24, operated by Alif Sheen Group (https://www.official1.online). Our politics desk provides balanced, non-partisan, and fact-checked reporting on legislation, public policy, elections, international diplomacy, and regulatory affairs.
+
+## Core Areas We Cover
+- National Governance & Legislation: Clear coverage of parliamentary debates, congressional bills, executive orders, federal budgets, and high-court rulings across the United States, United Kingdom, Canada, and Australia.
+- Elections & Public Opinion: Verified updates on election schedules, policy platforms, voter initiatives, and official electoral commission announcements without partisan bias.
+- Foreign Affairs & Diplomacy: Trade agreements, international summits, defense alliances, immigration policy, and cross-border diplomatic developments.
+- Regulation & Public Services: Policy decisions affecting healthcare, taxation, clean energy transitions, artificial intelligence governance, and digital privacy laws.
+
+## Non-Partisan Editorial Commitment
+Alif News 24 is committed to fair, independent journalism. Our political reporting separates verified facts and official public records from opinion or commentary. We attribute all statements to named officials, legislative documents, or recognized public institutions and strive to present multiple viewpoints on contested policy debates.
+
+## Corrections & Reader Feedback
+If you identify a factual error, outdated legislative status, or attribution issue in any political report, please notify our editorial team at alifsheenshopping@gmail.com with the article link so we can review and update it promptly.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-9',
+    title: 'Technology & AI — Innovation, Software & Digital Trends',
+    slug: 'technology-ai',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Technology & AI News | Cybersecurity & Innovation | Alif News 24',
+    seoDescription:
+      'Stay updated on Technology & AI news at Alif News 24 by Alif Sheen Group — covering artificial intelligence, cybersecurity, consumer tech, and digital policy.',
+    content: `## Technology & AI Coverage at Alif News 24
+Welcome to the Technology & AI Desk of Alif News 24, operated by Alif Sheen Group (https://www.official1.online). Our technology desk covers how artificial intelligence, software platforms, semiconductors, cybersecurity, and consumer electronics are reshaping business and everyday life.
+
+## Key Topics We Cover
+- Artificial Intelligence & Machine Learning: Major model releases, enterprise AI adoption, automation trends, productivity tools, and AI safety regulations across the USA, UK, Canada, and Australia.
+- Cybersecurity & Digital Privacy: Verified reports on software vulnerabilities, data protection laws, cloud infrastructure resilience, and practical digital security guidance for readers.
+- Big Tech, Startups & Hardware: Product launches, semiconductor breakthroughs, telecom and 5G rollouts, electric mobility, and technology sector earnings.
+- Consumer Tech & Platforms: Clear explainers on operating system updates, developer tools, social platforms, and emerging digital media ecosystems.
+
+## Verification & Accuracy Standards
+Technology moves quickly, and speculation is common. At Alif News 24, we verify technical claims against official engineering blogs, peer-reviewed benchmarks, regulatory notices, and primary company announcements before publishing.
+
+## Contact the Technology Desk
+For software briefings, research updates, or factual corrections, contact our editorial team at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-10',
+    title: 'Health & Science — Medical Research, Wellness & Discovery',
+    slug: 'health-science',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Health & Science News | Medical Research & Discovery | Alif News 24',
+    seoDescription:
+      'Read evidence-based Health & Science reporting on Alif News 24 by Alif Sheen Group — medical research, biotech, space science, and public health updates.',
+    content: `## Health & Science Coverage at Alif News 24
+Welcome to the Health & Science Desk of Alif News 24, published by Alif Sheen Group (https://www.official1.online). We report on public health updates, clinical breakthroughs, medical technology, climate science, space exploration, and evidence-based wellness research.
+
+## What We Cover
+- Public Health & Healthcare Policy: Verified updates from health agencies, hospital systems, vaccination programs, and healthcare affordability initiatives across the US, UK, Canada, and Australia.
+- Medical Research & Biotech: Clear, accessible summaries of peer-reviewed clinical studies, diagnostic technologies, pharmaceutical approvals, and preventive care findings.
+- Space, Climate & Physical Sciences: Mission updates from space agencies, clean energy science, quantum computing research, and environmental monitoring reports.
+- Everyday Health Literacy: Fact-checked explainers on nutrition science, mental health awareness, sleep research, and preventive health habits.
+
+## Evidence-First Reporting & Medical Disclaimer
+Our health and science coverage prioritizes peer-reviewed journals, university research institutions, and official public health bodies. All Health & Science articles on Alif News 24 are strictly for general informational and educational purposes and must never be treated as professional medical advice, diagnosis, or treatment. Always consult a qualified physician or healthcare provider regarding any medical condition.
+
+## Contact & Corrections
+To submit verified research updates or request a factual correction, email our desk at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-11',
+    title: 'Sports & World — Global Affairs & International Athletics',
+    slug: 'sports-world',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Sports & World News | Global Events & Major Leagues | Alif News 24',
+    seoDescription:
+      'Follow Sports & World coverage on Alif News 24 by Alif Sheen Group — major leagues, international tournaments, world affairs, and global trends.',
+    content: `## Sports & World Coverage at Alif News 24
+Welcome to the Sports & World Desk of Alif News 24, operated by Alif Sheen Group (https://www.official1.online). Here we bring together fast-moving international developments alongside major global and regional sporting events.
+
+## Core Coverage Areas
+- Major Sports Leagues & Tournaments: Match previews, tournament standings, player milestones, and official updates across NFL, NBA, Premier League football, cricket, tennis, Formula 1, and international championships.
+- Sports Business & Governance: Broadcasting rights, league policies, athlete safety rules, and stadium or host-city developments across the USA, UK, Canada, and Australia.
+- World Affairs & Global Events: Diplomatic summits, humanitarian updates, infrastructure projects, aviation, and cross-border economic trends shaping international headlines.
+- Culture, Society & Trending Topics: High-interest public events, major cultural milestones, and global trends explained with clear factual context.
+
+## Journalistic Standards
+All scores, statistics, schedules, and international dispatches are checked against official league records, federation announcements, and verified international reporting before publication.
+
+## Contact the Sports & World Desk
+Have a news tip, schedule correction, or press inquiry? Email us at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-12',
+    title: 'Opinion & Editorial — Analysis, Commentary & Viewpoints',
+    slug: 'opinion-editorial',
+    template: 'default',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Opinion & Editorial | Analysis & Commentary | Alif News 24',
+    seoDescription:
+      'Read labeled Opinion & Editorial commentary on Alif News 24 by Alif Sheen Group — thoughtful perspectives on economy, policy, technology, and global society.',
+    content: `## Opinion & Editorial Standards at Alif News 24
+Welcome to the Opinion & Editorial Desk of Alif News 24, published by Alif Sheen Group (https://www.official1.online). Our opinion section provides thoughtful commentary, policy analysis, economic perspectives, and essays on major issues shaping the United States, United Kingdom, Canada, Australia, and the wider world.
+
+## Separation of News and Opinion
+At Alif News 24, we maintain a strict, transparent boundary between straight news reporting and opinion journalism:
+- Clearly Labeled Commentary: Every column, op-ed, or editorial analysis published in this section is clearly labeled as Opinion or Editorial so readers always know they are reading perspective and interpretation rather than straight news.
+- Factual Grounding: While opinion pieces present arguments and viewpoints, authors are still expected to ground factual claims in accurate, verifiable public records and honest attribution.
+- Diverse & Constructive Debate: We value reasoned discussion on technology, economic policy, public institutions, and social change while rejecting hate speech, harassment, and misinformation.
+
+## Author Responsibility Disclaimer
+The views and opinions expressed in signed Opinion columns belong solely to the respective authors and contributors, and do not necessarily represent the official position of Alif Sheen Group or all editorial staff.
+
+## Submit Commentary or Feedback
+Readers and guest contributors wishing to respond to an editorial or propose a column may contact our editors at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
 ];
 
 const initialMedia: MediaItem[] = [
@@ -1080,6 +1245,7 @@ export const initialFooterConfig: FooterConfig = {
 class DatabaseService {
   private state: DatabaseState;
   private listeners = new Set<() => void>();
+  private isSyncingPolicyPages = false;
 
   constructor() {
     this.state = this.loadFromStorage();
@@ -1953,77 +2119,83 @@ class DatabaseService {
   }
 
   public async syncAdSensePolicyPages(forceOverwrite = false, onlyIfAdmin = false): Promise<number> {
-    if (onlyIfAdmin) {
-      const { auth } = await import('./firebase');
-      const email = auth.currentUser?.email?.toLowerCase() || '';
-      if (!email || !['alifsheenshopping@gmail.com', 'banicne7@gmail.com'].includes(email)) {
-        return 0;
+    if (this.isSyncingPolicyPages && !forceOverwrite) return 0;
+    this.isSyncingPolicyPages = true;
+    try {
+      if (onlyIfAdmin) {
+        const { auth } = await import('./firebase');
+        const email = auth.currentUser?.email?.toLowerCase() || '';
+        if (!email || !['alifsheenshopping@gmail.com', 'banicne7@gmail.com'].includes(email)) {
+          return 0;
+        }
       }
-    }
 
-    let updatedCount = 0;
-    const nextPages = [...this.state.pages];
-    const pagesToWrite: Page[] = [];
+      let updatedCount = 0;
+      const nextPages = [...this.state.pages];
+      const pagesToWrite: Page[] = [];
 
-    for (const defPage of initialPages) {
-      const idx = nextPages.findIndex((p) => p.id === defPage.id || p.slug === defPage.slug);
-      if (idx === -1) {
-        const added = { ...defPage };
-        nextPages.push(added);
-        pagesToWrite.push(added);
-        updatedCount++;
-      } else if (forceOverwrite || this.isLegacyStubPage(nextPages[idx])) {
-        const updated = { ...defPage, id: nextPages[idx].id || defPage.id };
-        nextPages[idx] = updated;
-        pagesToWrite.push(updated);
-        updatedCount++;
+      for (const defPage of initialPages) {
+        const idx = nextPages.findIndex((p) => p.id === defPage.id || p.slug === defPage.slug);
+        if (idx === -1) {
+          const added = { ...defPage };
+          nextPages.push(added);
+          pagesToWrite.push(added);
+          updatedCount++;
+        } else if (forceOverwrite || this.isLegacyStubPage(nextPages[idx])) {
+          const updated = { ...defPage, id: nextPages[idx].id || defPage.id };
+          nextPages[idx] = updated;
+          pagesToWrite.push(updated);
+          updatedCount++;
+        }
       }
-    }
 
-    this.state.pages = nextPages;
+      this.state.pages = nextPages;
 
-    const needsFooterUpdate =
-      forceOverwrite ||
-      (this.state.footerConfig?.publisherText || '').includes('Alif Media Group') ||
-      !this.state.footerConfig?.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service'));
+      const needsFooterUpdate =
+        forceOverwrite ||
+        (this.state.footerConfig?.publisherText || '').includes('Alif Media Group') ||
+        !this.state.footerConfig?.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service'));
 
-    if (needsFooterUpdate) {
-      this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
-    }
+      if (needsFooterUpdate) {
+        this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
+      }
 
-    const needsSiteUrlUpdate = forceOverwrite || this.state.settings?.siteUrl === 'https://alifnews24.com';
-    if (needsSiteUrlUpdate) {
-      this.state.settings = {
-        ...this.state.settings,
-        siteUrl: 'https://www.official1.online',
-        robotsTxt: initialSettings.robotsTxt,
-      };
-    }
+      const needsSiteUrlUpdate = forceOverwrite || this.state.settings?.siteUrl === 'https://alifnews24.com';
+      if (needsSiteUrlUpdate) {
+        this.state.settings = {
+          ...this.state.settings,
+          siteUrl: 'https://www.official1.online',
+          robotsTxt: initialSettings.robotsTxt,
+        };
+      }
 
-    this.save();
+      this.save();
 
-    for (const pg of pagesToWrite) {
-      await firestoreSync.writeDoc('pages', pg.id, sanitizePage(pg)).catch(console.error);
-    }
-    if (needsFooterUpdate) {
-      await firestoreSync
-        .writeDoc('config', 'footer_config', sanitizeFooterConfig(this.state.footerConfig))
-        .catch(console.error);
-    }
-    if (needsSiteUrlUpdate) {
-      await firestoreSync
-        .writeDoc('config', 'site_settings', sanitizePublicSettings(this.state.settings))
-        .catch(console.error);
-    }
+      for (const pg of pagesToWrite) {
+        await firestoreSync.writeDoc('pages', pg.id, sanitizePage(pg)).catch(console.error);
+      }
+      if (needsFooterUpdate) {
+        await firestoreSync
+          .writeDoc('config', 'footer_config', sanitizeFooterConfig(this.state.footerConfig))
+          .catch(console.error);
+      }
+      if (needsSiteUrlUpdate) {
+        await firestoreSync
+          .writeDoc('config', 'site_settings', sanitizePublicSettings(this.state.settings))
+          .catch(console.error);
+      }
 
-    if (updatedCount > 0 || needsFooterUpdate) {
-      this.logAction(
-        'AdSense Policy Pages Synced',
-        `Published/updated ${pagesToWrite.length} compliance pages & Alif Sheen Group footer`,
-        'success'
-      );
+      if (updatedCount > 0 || needsFooterUpdate) {
+        this.logAction(
+          'AdSense Policy Pages Synced',
+          `Published/updated ${pagesToWrite.length} compliance & desk pages with Alif Sheen Group footer`,
+          'success'
+        );
+      }
+      return pagesToWrite.length;
+    } finally {
+      this.isSyncingPolicyPages = false;
     }
-    return pagesToWrite.length;
   }
 
   // -------------------------
