@@ -149,13 +149,29 @@ export const PagesView: React.FC<PagesViewProps> = ({ onOpenPublicPage }) => {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#00C5FF] hover:bg-cyan-500 text-white rounded-xl text-xs md:text-sm font-bold transition-all shadow-md shadow-cyan-500/20 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Add New Page</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={async () => {
+              const count = await db.syncAdSensePolicyPages(true);
+              refreshPages();
+              toast.success(`✅ ${count}টি AdSense পলিসি পেজ (About, Contact, Privacy, Editorial, Terms, Disclaimer) ও ফুটার লাইভ আপডেট হয়েছে!`);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs md:text-sm font-bold transition-all shadow-xs cursor-pointer"
+            title="Publish or refresh all 6 AdSense-ready compliance pages to Firestore"
+          >
+            <CheckCircle className="w-4 h-4" />
+            <span>Sync AdSense Pages</span>
+          </button>
+
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#00C5FF] hover:bg-cyan-500 text-white rounded-xl text-xs md:text-sm font-bold transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add New Page</span>
+          </button>
+        </div>
       </div>
 
       {/* Info Notice Box for User Guidance */}

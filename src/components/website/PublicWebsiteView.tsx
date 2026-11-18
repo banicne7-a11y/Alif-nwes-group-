@@ -1196,7 +1196,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
               {activePage.template === 'contact' && (
                 <div className="pt-6 border-t border-slate-200 dark:border-slate-800 mt-8 space-y-4">
                   <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                    Contact the Editorial Desk (Washington, D.C. Bureau)
+                    Contact Alif News 24 Editorial Desk (Alif Sheen Group)
                   </h3>
 
                   {contactSent ? (

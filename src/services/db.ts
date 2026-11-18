@@ -785,10 +785,188 @@ const initialComments: Comment[] = [
 ];
 
 const initialPages: Page[] = [
-  { id: 'page-1', title: 'About Alif News 24', slug: 'about-us', template: 'about', status: 'published', showInMenu: true, showInFooter: true, content: 'Alif News 24 is an independent American news organization dedicated to rigorous, fair, and uncompromising investigative reporting. Headquartered with newsrooms in Washington, D.C. and New York, our correspondents deliver real-time coverage across national politics, Wall Street markets, global diplomacy, technological innovation, and societal affairs around the clock.', updatedAt: '2026-11-01' },
-  { id: 'page-2', title: 'Editorial Guidelines & Ethics Policy', slug: 'editorial-policy', template: 'default', status: 'published', showInMenu: false, showInFooter: true, content: 'Our commitment to journalistic integrity, rigorous fact-checking, editorial independence, attribution standards, and transparent correction policies.', updatedAt: '2026-11-02' },
-  { id: 'page-3', title: 'Contact Newsroom (US Bureau)', slug: 'contact', template: 'contact', status: 'published', showInMenu: true, showInFooter: true, content: 'Reach our editorial desk, investigative tips team, or press office at our Washington, D.C. headquarters.', updatedAt: '2026-11-03' },
-  { id: 'page-4', title: 'Privacy & Data Protection Policy', slug: 'privacy-policy', template: 'privacy', status: 'published', showInMenu: false, showInFooter: true, content: 'How Alif News 24 protects subscriber privacy, complies with US federal privacy standards, and ensures transparent data practices.', updatedAt: '2026-11-04' },
+  {
+    id: 'page-1',
+    title: 'About Alif News 24',
+    slug: 'about-us',
+    template: 'about',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'About Us | Alif News 24 · Alif Sheen Group',
+    seoDescription:
+      'Learn about Alif News 24, operated by Alif Sheen Group at official1.online — independent 24/7 digital journalism covering USA, UK, Canada, Australia, and global affairs.',
+    content: `## Who We Are
+Alif News 24 (available at https://www.official1.online) is an independent, 24/7 multi-edition digital news publication operated by Alif Sheen Group. We deliver timely reporting, in-depth analysis, and clear explainers across Business & Finance, Politics, Technology & AI, Health & Science, World Affairs, and Sports.
+
+## Regional Editions We Serve
+To give readers relevant, clutter-free coverage tailored to their region, Alif News 24 publishes dedicated country editions:
+- United States Edition (/usa) — US markets, federal policy, technology, and national developments
+- United Kingdom Edition (/uk) — UK economy, Westminster policy, technology, and public affairs
+- Canada Edition (/canada) — Canadian business, national policy, energy, and innovation
+- Australia Edition (/australia) — Australian markets, Asia-Pacific developments, and tech trends
+- Global International Desk (/) — Cross-border breaking stories and global perspective
+
+## Our Mission & Editorial Values
+Our newsroom is built around clarity, reader utility, and factual integrity. We strive to summarize complex developments in accessible English without sensationalism, clickbait, or misleading claims. Every article published on Alif News 24 undergoes editorial review prior to going live.
+
+## Publisher & Contact Information
+- Publication: Alif News 24
+- Parent Organization: Alif Sheen Group
+- Official Website: https://www.official1.online
+- Editorial & Business Email: alifsheenshopping@gmail.com`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-2',
+    title: 'Editorial Guidelines & Fact-Checking Policy',
+    slug: 'editorial-policy',
+    template: 'default',
+    status: 'published',
+    showInMenu: false,
+    showInFooter: true,
+    seoTitle: 'Editorial Policy & Fact-Checking Standards | Alif News 24',
+    seoDescription:
+      'Read Alif News 24 editorial independence guidelines, fact-checking workflow, AI-assisted drafting transparency, and corrections policy.',
+    content: `## Journalistic Independence
+Alif News 24, published by Alif Sheen Group, maintains strict separation between editorial decisions and advertising or commercial partnerships. Sponsored notices, advertisements, or affiliate placements never influence our news coverage or editorial conclusions.
+
+## Verification & Fact-Checking Process
+Before any story is published on https://www.official1.online, our editorial team follows a structured verification standard:
+- Primary Source Confirmation: Claims, statistics, and market figures are cross-checked against official government releases, regulatory filings, company disclosures, or established wire reports.
+- Clear Attribution: Quotes, projections, and third-party findings are explicitly attributed to their originating organization or spokesperson.
+- Context & Balance: Developing stories clearly distinguish verified facts from ongoing investigations or analyst commentary.
+
+## Use of AI-Assisted Editorial Tools
+Alif News 24 may use automated research and drafting tools to monitor public trend signals and structure initial outlines. However, no automated output is published without human editorial review, fact-checking, rewriting for clarity, and explicit approval by a human editor.
+
+## Corrections & Updates Policy
+Accuracy is an ongoing commitment. If an error of fact, spelling, or attribution is identified after publication, we correct the article promptly and clearly reflect the update date. Readers can report corrections directly to our editorial desk at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-3',
+    title: 'Contact Us — Alif News 24',
+    slug: 'contact',
+    template: 'contact',
+    status: 'published',
+    showInMenu: true,
+    showInFooter: true,
+    seoTitle: 'Contact Us | Alif News 24 · Alif Sheen Group',
+    seoDescription:
+      'Contact the Alif News 24 editorial desk and Alif Sheen Group for news tips, article corrections, privacy inquiries, and advertising partnerships.',
+    content: `## Reach Our Editorial & Management Team
+We welcome reader feedback, verified news tips, correction requests, and advertising or partnership inquiries at Alif News 24 (Alif Sheen Group).
+
+## Official Contact Channels
+- General Inquiries & Newsroom Desk: alifsheenshopping@gmail.com
+- Corrections & Fact-Check Requests: alifsheenshopping@gmail.com (Please include the article URL and specific details)
+- Advertising, AdSense & Commercial Partnerships: alifsheenshopping@gmail.com
+- Privacy & Data Removal Requests: alifsheenshopping@gmail.com
+- Official Website: https://www.official1.online
+
+## Response Timeline
+Our editorial team reviews incoming messages daily and typically responds within 24 to 48 business hours. You may also use the direct contact form below to send a message to our desk.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-4',
+    title: 'Privacy Policy & Advertising Disclosure',
+    slug: 'privacy-policy',
+    template: 'privacy',
+    status: 'published',
+    showInMenu: false,
+    showInFooter: true,
+    seoTitle: 'Privacy Policy & Cookies Disclosure | Alif News 24',
+    seoDescription:
+      'Privacy Policy for Alif News 24 (official1.online) by Alif Sheen Group covering data collection, cookies, Google AdSense advertising, GDPR, and CCPA rights.',
+    content: `## Introduction
+At Alif News 24, accessible from https://www.official1.online and operated by Alif Sheen Group, protecting the privacy of our visitors is a top priority. This Privacy Policy explains what information is collected when you visit our website and how it is used.
+
+## Information We Collect
+- Log Files & Technical Data: Like most standard web servers and news portals, we may log non-identifying technical metadata such as IP-derived country region (used solely to route readers to the relevant country edition), browser type, device category, referring pages, and timestamps.
+- Information You Voluntarily Provide: When you subscribe to our newsletter, submit a reader comment, or use our contact form, we collect the name, email address, and message content you choose to provide.
+
+## Cookies and Web Beacons
+Alif News 24 uses essential browser cookies and local storage to remember reader preferences (such as dark/light display mode, edition selection, and comment moderation notices). You can disable or clear cookies anytime through your browser settings.
+
+## Google AdSense & Third-Party Advertising Partners
+Third-party vendors, including Google, use cookies to serve advertisements based on a user's prior visits to https://www.official1.online or other websites on the Internet.
+- Google's use of advertising cookies enables Google and its partners to serve relevant ads to readers based on their visit to our site and/or other sites across the web.
+- Users may opt out of personalized advertising by visiting Google Ads Settings at https://adssettings.google.com.
+- Alternatively, users can opt out of third-party vendor use of cookies for personalized advertising by visiting https://www.aboutads.info/choices/.
+
+## Google Analytics
+We may use Google Analytics to measure aggregated site traffic, page performance, and readership trends. Analytics data helps us improve editorial quality and site speed without selling personal data to third parties.
+
+## Regional Privacy Rights (GDPR, CCPA, PIPEDA & Australia Privacy Act)
+- UK & EEA Visitors (GDPR): You have the right to request access to, correction of, or deletion of personal data you provided directly (such as newsletter subscriptions or comments).
+- California Residents (CCPA/CPRA): Alif News 24 does not sell your personal information. You may request disclosure or deletion of any voluntarily submitted personal data.
+- Canadian & Australian Visitors: We adhere to applicable consent, transparency, and data minimization principles under PIPEDA and Australian Privacy Principles.
+
+## Children's Privacy
+Alif News 24 does not knowingly collect personally identifiable information from children under the age of 13. If you believe a child has submitted personal data on our site, please contact us immediately so we can remove it.
+
+## Contact Us Regarding Privacy
+If you have questions about this Privacy Policy or wish to exercise your data rights, contact Alif Sheen Group at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-5',
+    title: 'Terms of Service',
+    slug: 'terms-of-service',
+    template: 'terms',
+    status: 'published',
+    showInMenu: false,
+    showInFooter: true,
+    seoTitle: 'Terms of Service | Alif News 24 · Alif Sheen Group',
+    seoDescription:
+      'Terms and Conditions governing the use of Alif News 24 (official1.online), operated by Alif Sheen Group.',
+    content: `## Acceptance of Terms
+By accessing or reading Alif News 24 at https://www.official1.online, operated by Alif Sheen Group, you agree to comply with these Terms of Service and all applicable laws and regulations. If you do not agree with any part of these terms, please discontinue use of the website.
+
+## Intellectual Property Rights
+Unless otherwise stated, Alif Sheen Group and Alif News 24 own or license the editorial articles, layout, logos, graphics, and compilations published on this website. You may view, read, and share links to our articles for personal, non-commercial use. Republishing full articles, scraping content automatically, or redistributing materials commercially without prior written permission is prohibited.
+
+## Reader Comments & User Conduct
+Readers who post comments or submit contact messages agree not to publish unlawful, defamatory, abusive, hateful, spam, or copyright-infringing material. Alif News 24 reserves the right to moderate, edit, or remove any user-submitted content at our sole discretion.
+
+## Third-Party Links & Advertisements
+Our website may display third-party advertisements (including Google AdSense) and links to external reference websites. Alif News 24 is not responsible for the content, privacy policies, or practices of external third-party websites.
+
+## Limitation of Liability
+All content on Alif News 24 is provided on an "as is" and "as available" basis without warranties of any kind. Alif Sheen Group shall not be liable for any direct, indirect, or incidental damages arising from your access to or reliance on information published on this site.
+
+## Changes to These Terms
+We may revise these Terms of Service from time to time without prior notice. Continued use of https://www.official1.online constitutes acceptance of the current version of these terms. For inquiries, contact alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
+  {
+    id: 'page-6',
+    title: 'Disclaimer',
+    slug: 'disclaimer',
+    template: 'default',
+    status: 'published',
+    showInMenu: false,
+    showInFooter: true,
+    seoTitle: 'Editorial & Legal Disclaimer | Alif News 24',
+    seoDescription:
+      'Important editorial, financial, medical, and external link disclaimers for readers of Alif News 24 (official1.online).',
+    content: `## General Information Purpose
+The articles, reports, summaries, and commentary published on Alif News 24 (https://www.official1.online) by Alif Sheen Group are provided strictly for general informational and journalistic purposes. While we work diligently to verify accuracy at the time of publication, news, statistics, and market figures change rapidly.
+
+## No Professional, Financial, Legal, or Medical Advice
+- Business & Financial News: Market coverage, inflation updates, stock commentary, and economic articles are never personalized financial, tax, or investment advice. Always consult a licensed financial advisor before making investment decisions.
+- Health & Science News: Health articles report on public research and medical developments and are not a substitute for professional medical diagnosis, advice, or treatment.
+- Legal & Policy Coverage: Legislative or regulatory summaries do not constitute formal legal advice.
+
+## External Links & Third-Party Views
+References or outbound links to official reports, research studies, or external sites are included for reader convenience. Inclusion of a link does not imply endorsement of every view or product hosted on external websites. Opinions expressed in labeled Opinion columns belong solely to their respective authors.
+
+## Contact
+If you have questions regarding this Disclaimer, email us at alifsheenshopping@gmail.com.`,
+    updatedAt: '2026-11-18',
+  },
 ];
 
 const initialMedia: MediaItem[] = [
@@ -801,8 +979,8 @@ const initialMedia: MediaItem[] = [
 
 const initialSettings: SystemSettings = {
   siteName: 'Alif News 24',
-  tagline: "America's Trusted 24/7 Independent News & Investigative Journalism",
-  siteUrl: 'https://alifnews24.com',
+  tagline: "Alif Sheen Group · 24/7 Independent News & Multi-Country Coverage",
+  siteUrl: 'https://www.official1.online',
   language: 'English',
   timezone: 'America/New_York (UTC-5)',
   permalinkStructure: '/%year%/%month%/%postname%/',
@@ -814,11 +992,11 @@ const initialSettings: SystemSettings = {
   searchConsoleCode: 'google-site-verification=alif-news-24-enterprise-auth-key-88',
   adsenseClientId: 'ca-pub-9386736849071234',
   autoAds: true,
-  smtpHost: 'smtp.alifnews24.com',
+  smtpHost: 'smtp.official1.online',
   smtpPort: '587',
-  smtpUser: 'newsroom-alerts@alifnews24.com',
+  smtpUser: 'alifsheenshopping@gmail.com',
   smtpSecure: true,
-  robotsTxt: 'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://alifnews24.com/sitemap.xml\nSitemap: https://alifnews24.com/google-news-sitemap.xml',
+  robotsTxt: 'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://www.official1.online/sitemap.xml\nSitemap: https://www.official1.online/google-news-sitemap.xml',
   sitemapAutoPing: true,
   backupDaily: true,
   backupTime: '02:00 UTC',
@@ -856,19 +1034,19 @@ const initialCampaigns: NewsletterCampaign[] = [
 
 export const initialFooterConfig: FooterConfig = {
   aboutText:
-    'Alif News 24 is an independent American news organization committed to rigorous, non-partisan, around-the-clock investigative journalism covering Capitol Hill, Wall Street, Silicon Valley, and global affairs.',
-  publisherText: 'Editor-in-Chief & Publisher: Alif Media Group, LLC.',
-  copyrightText: '© 2026 Alif News 24 Media Enterprise, LLC. All rights reserved.',
+    'Alif News 24 is an independent multi-edition digital news publication operated by Alif Sheen Group (official1.online), delivering verified coverage across the USA, UK, Canada, Australia, and global affairs.',
+  publisherText: 'Published by Alif Sheen Group · official1.online',
+  copyrightText: '© 2026 Alif Sheen Group · Alif News 24. All rights reserved.',
   columns: [
     {
       id: 'col-1',
       title: 'News Desks',
       items: [
         { id: 'item-1-1', label: 'Business & Finance', url: '/category/business' },
-        { id: 'item-1-2', label: 'Politics & White House', url: '/category/politics' },
+        { id: 'item-1-2', label: 'Politics & Policy', url: '/category/politics' },
         { id: 'item-1-3', label: 'Technology & AI', url: '/category/technology' },
         { id: 'item-1-4', label: 'Health & Science', url: '/category/health' },
-        { id: 'item-1-5', label: 'Sports & Olympics', url: '/category/sports' },
+        { id: 'item-1-5', label: 'Sports & World', url: '/category/sports' },
         { id: 'item-1-6', label: 'Opinion & Editorial', url: '/category/opinion' },
       ],
     },
@@ -877,19 +1055,23 @@ export const initialFooterConfig: FooterConfig = {
       title: 'Company & Legal',
       items: [
         { id: 'item-2-1', label: 'About Alif News 24', url: '/page/about-us' },
-        { id: 'item-2-2', label: 'Editorial Guidelines & Ethics', url: '/page/editorial-policy' },
-        { id: 'item-2-3', label: 'Contact Newsroom (US Bureau)', url: '/page/contact' },
-        { id: 'item-2-4', label: 'Privacy & Data Protection', url: '/page/privacy-policy' },
+        { id: 'item-2-2', label: 'Editorial & Fact-Check Policy', url: '/page/editorial-policy' },
+        { id: 'item-2-3', label: 'Contact Us', url: '/page/contact' },
+        { id: 'item-2-4', label: 'Privacy Policy', url: '/page/privacy-policy' },
+        { id: 'item-2-5', label: 'Terms of Service', url: '/page/terms-of-service' },
+        { id: 'item-2-6', label: 'Disclaimer', url: '/page/disclaimer' },
       ],
     },
     {
       id: 'col-3',
-      title: 'Services & Subscriptions',
+      title: 'Regional Editions',
       items: [
-        { id: 'item-3-1', label: 'Morning Wire Dispatch', url: '/newsletter' },
-        { id: 'item-3-2', label: 'RSS News Feed', url: '/rss' },
-        { id: 'item-3-3', label: 'Digital E-Paper Archive', url: '/archive' },
-        { id: 'item-3-4', label: 'Staff & Reader Portal', url: '#login' },
+        { id: 'item-3-1', label: 'USA Edition', url: '/usa' },
+        { id: 'item-3-2', label: 'UK Edition', url: '/uk' },
+        { id: 'item-3-3', label: 'Canada Edition', url: '/canada' },
+        { id: 'item-3-4', label: 'Australia Edition', url: '/australia' },
+        { id: 'item-3-5', label: 'RSS News Feed', url: '/rss' },
+        { id: 'item-3-6', label: 'Staff & Reader Portal', url: '#login' },
       ],
     },
   ],
@@ -939,8 +1121,11 @@ class DatabaseService {
         this.save();
       },
       onPagesUpdate: (pages) => {
-        this.state.pages = pages;
+        this.state.pages = this.mergeUpgradedPolicyPages(pages);
         this.save();
+        if (this.hasStaleOrMissingPolicyPages(pages)) {
+          this.syncAdSensePolicyPages(false, true).catch(() => {});
+        }
       },
       onAdsUpdate: (ads) => {
         this.state.ads = ads;
@@ -956,11 +1141,21 @@ class DatabaseService {
       },
       onPublicSettingsUpdate: (updates) => {
         this.state.settings = { ...this.state.settings, ...updates };
+        if (this.state.settings.siteUrl === 'https://alifnews24.com') {
+          this.state.settings.siteUrl = 'https://www.official1.online';
+          this.state.settings.robotsTxt = initialSettings.robotsTxt;
+        }
         this.save();
       },
       onFooterConfigUpdate: (footer) => {
-        this.state.footerConfig = footer;
+        const isLegacyFooter =
+          (footer.publisherText || '').includes('Alif Media Group') ||
+          !footer.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service'));
+        this.state.footerConfig = isLegacyFooter ? JSON.parse(JSON.stringify(initialFooterConfig)) : footer;
         this.save();
+        if (isLegacyFooter) {
+          this.syncAdSensePolicyPages(false, true).catch(() => {});
+        }
       },
       onAdminSettingsUpdate: (updates) => {
         this.state.settings = { ...this.state.settings, ...updates };
@@ -1005,8 +1200,17 @@ class DatabaseService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: DatabaseState = JSON.parse(saved);
-        if (!parsed.footerConfig || !Array.isArray(parsed.footerConfig.columns)) {
-          parsed.footerConfig = initialFooterConfig;
+        if (!parsed.footerConfig || !Array.isArray(parsed.footerConfig.columns) || (parsed.footerConfig.publisherText || '').includes('Alif Media Group')) {
+          parsed.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
+        }
+        if (Array.isArray(parsed.pages)) {
+          parsed.pages = this.mergeUpgradedPolicyPages(parsed.pages);
+        } else {
+          parsed.pages = initialPages;
+        }
+        if (parsed.settings?.siteUrl === 'https://alifnews24.com') {
+          parsed.settings.siteUrl = 'https://www.official1.online';
+          parsed.settings.robotsTxt = initialSettings.robotsTxt;
         }
         return parsed;
       }
@@ -1719,6 +1923,107 @@ class DatabaseService {
       this.save();
       firestoreSync.deleteRemoteDoc('pages', id).catch(console.error);
     }
+  }
+
+  private isLegacyStubPage(existing: Page | undefined): boolean {
+    if (!existing) return true;
+    const text = (existing.content || '').trim();
+    return text.length < 320 || text.includes('Washington, D.C. headquarters');
+  }
+
+  private hasStaleOrMissingPolicyPages(pages: Page[]): boolean {
+    for (const defPage of initialPages) {
+      const match = pages.find((p) => p.id === defPage.id || p.slug === defPage.slug);
+      if (this.isLegacyStubPage(match)) return true;
+    }
+    return false;
+  }
+
+  private mergeUpgradedPolicyPages(existingPages: Page[]): Page[] {
+    const merged = [...existingPages];
+    for (const defPage of initialPages) {
+      const idx = merged.findIndex((p) => p.id === defPage.id || p.slug === defPage.slug);
+      if (idx === -1) {
+        merged.push({ ...defPage });
+      } else if (this.isLegacyStubPage(merged[idx])) {
+        merged[idx] = { ...defPage, id: merged[idx].id || defPage.id };
+      }
+    }
+    return merged;
+  }
+
+  public async syncAdSensePolicyPages(forceOverwrite = false, onlyIfAdmin = false): Promise<number> {
+    if (onlyIfAdmin) {
+      const { auth } = await import('./firebase');
+      const email = auth.currentUser?.email?.toLowerCase() || '';
+      if (!email || !['alifsheenshopping@gmail.com', 'banicne7@gmail.com'].includes(email)) {
+        return 0;
+      }
+    }
+
+    let updatedCount = 0;
+    const nextPages = [...this.state.pages];
+    const pagesToWrite: Page[] = [];
+
+    for (const defPage of initialPages) {
+      const idx = nextPages.findIndex((p) => p.id === defPage.id || p.slug === defPage.slug);
+      if (idx === -1) {
+        const added = { ...defPage };
+        nextPages.push(added);
+        pagesToWrite.push(added);
+        updatedCount++;
+      } else if (forceOverwrite || this.isLegacyStubPage(nextPages[idx])) {
+        const updated = { ...defPage, id: nextPages[idx].id || defPage.id };
+        nextPages[idx] = updated;
+        pagesToWrite.push(updated);
+        updatedCount++;
+      }
+    }
+
+    this.state.pages = nextPages;
+
+    const needsFooterUpdate =
+      forceOverwrite ||
+      (this.state.footerConfig?.publisherText || '').includes('Alif Media Group') ||
+      !this.state.footerConfig?.columns?.some((c) => c.items?.some((it) => it.url === '/page/terms-of-service'));
+
+    if (needsFooterUpdate) {
+      this.state.footerConfig = JSON.parse(JSON.stringify(initialFooterConfig));
+    }
+
+    const needsSiteUrlUpdate = forceOverwrite || this.state.settings?.siteUrl === 'https://alifnews24.com';
+    if (needsSiteUrlUpdate) {
+      this.state.settings = {
+        ...this.state.settings,
+        siteUrl: 'https://www.official1.online',
+        robotsTxt: initialSettings.robotsTxt,
+      };
+    }
+
+    this.save();
+
+    for (const pg of pagesToWrite) {
+      await firestoreSync.writeDoc('pages', pg.id, sanitizePage(pg)).catch(console.error);
+    }
+    if (needsFooterUpdate) {
+      await firestoreSync
+        .writeDoc('config', 'footer_config', sanitizeFooterConfig(this.state.footerConfig))
+        .catch(console.error);
+    }
+    if (needsSiteUrlUpdate) {
+      await firestoreSync
+        .writeDoc('config', 'site_settings', sanitizePublicSettings(this.state.settings))
+        .catch(console.error);
+    }
+
+    if (updatedCount > 0 || needsFooterUpdate) {
+      this.logAction(
+        'AdSense Policy Pages Synced',
+        `Published/updated ${pagesToWrite.length} compliance pages & Alif Sheen Group footer`,
+        'success'
+      );
+    }
+    return pagesToWrite.length;
   }
 
   // -------------------------
