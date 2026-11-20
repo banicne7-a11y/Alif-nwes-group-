@@ -160,6 +160,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Mobile-First Quick Post Bar */}
+      <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div>
+          <h2 className="text-sm sm:text-base font-extrabold tracking-tight">
+            দ্রুত নিউজ পাবলিশ করুন (Phone-Friendly Desk)
+          </h2>
+          <p className="text-xs text-slate-300 mt-0.5">
+            এক স্ক্রিনে ঝামেলা ছাড়াই লিখুন অথবা Google Trends থেকে ১ ক্লিকেই নিউজ তৈরি করুন।
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => onNavigate('editor', { isNew: true })}
+            className="min-h-[44px] px-4 py-2 bg-[#00C5FF] hover:bg-cyan-400 text-slate-950 rounded-xl text-xs font-black transition-colors cursor-pointer"
+          >
+            📱 Quick Phone Post
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('ai-assistant')}
+            className="min-h-[44px] px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/15 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          >
+            🔥 Google Trends AI
+          </button>
+        </div>
+      </div>
+
       {/* ------------------------------------------------------------- */}
       {/* ROW 1: Real Readers & Real Users Card + 4 Metric Cards        */}
       {/* ------------------------------------------------------------- */}

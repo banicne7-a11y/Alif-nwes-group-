@@ -10,7 +10,12 @@ import {
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
-import { cleanAdSensePublisherId, applyAdSenseVerificationTags } from '../../services/seo';
+import {
+  cleanAdSensePublisherId,
+  applyAdSenseVerificationTags,
+  cleanGoogleAnalyticsId,
+  applyGoogleAnalyticsTag,
+} from '../../services/seo';
 
 export const SettingsView: React.FC = () => {
   const currentSettings = db.getSettings();
@@ -39,6 +44,10 @@ export const SettingsView: React.FC = () => {
     if (normalizedAdSense !== adsenseId) {
       setAdsenseId(normalizedAdSense);
     }
+    const normalizedGa = cleanGoogleAnalyticsId(gaId) || gaId.trim();
+    if (normalizedGa !== gaId) {
+      setGaId(normalizedGa);
+    }
     db.updateSettings({
       siteName,
       tagline,
@@ -51,8 +60,11 @@ export const SettingsView: React.FC = () => {
       smtpUser,
       adsenseClientId: normalizedAdSense,
       autoAds,
-      googleAnalyticsId: gaId,
+      googleAnalyticsId: normalizedGa,
     });
+    if (normalizedGa) {
+      applyGoogleAnalyticsTag(normalizedGa);
+    }
     if (normalizedAdSense) {
       applyAdSenseVerificationTags(normalizedAdSense);
       try {

@@ -1269,7 +1269,7 @@ const initialSettings: SystemSettings = {
   faviconUrl: '',
   primaryColor: '#E11D48',
   darkMode: false,
-  googleAnalyticsId: 'G-AN24820921',
+  googleAnalyticsId: 'G-VDEL10JT6W',
   searchConsoleCode: 'google-site-verification=alif-news-24-enterprise-auth-key-88',
   adsenseClientId: 'ca-pub-9386736849071234',
   autoAds: true,
@@ -1428,6 +1428,9 @@ class DatabaseService {
           this.state.settings.siteUrl = 'https://www.official1.online';
           this.state.settings.robotsTxt = initialSettings.robotsTxt;
         }
+        if (!this.state.settings.googleAnalyticsId || this.state.settings.googleAnalyticsId === 'G-AN24820921') {
+          this.state.settings.googleAnalyticsId = 'G-VDEL10JT6W';
+        }
         this.save();
       },
       onFooterConfigUpdate: (footer) => {
@@ -1500,6 +1503,9 @@ class DatabaseService {
         if (parsed.settings?.siteUrl === 'https://alifnews24.com') {
           parsed.settings.siteUrl = 'https://www.official1.online';
           parsed.settings.robotsTxt = initialSettings.robotsTxt;
+        }
+        if (parsed.settings && (!parsed.settings.googleAnalyticsId || parsed.settings.googleAnalyticsId === 'G-AN24820921')) {
+          parsed.settings.googleAnalyticsId = 'G-VDEL10JT6W';
         }
         return parsed;
       }

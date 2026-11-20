@@ -10,6 +10,8 @@ import {
   ExternalLink,
   PenTool,
   Flame,
+  Send,
+  X,
 } from 'lucide-react';
 import { api, LiveTrendItem, AnalyzedTrendTopic } from '../../services/api';
 import { db } from '../../services/db';
@@ -52,6 +54,11 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
   const [analyzedMap, setAnalyzedMap] = useState<Record<string, AnalyzedTrendTopic>>({});
   const [wordCountTarget, setWordCountTarget] = useState<'medium' | 'long'>('medium');
   const [writingTopicId, setWritingTopicId] = useState<string | null>(null);
+  const [quickPublishDraft, setQuickPublishDraft] = useState<Post | null>(null);
+  const [quickDraftTitle, setQuickDraftTitle] = useState('');
+  const [quickDraftImage, setQuickDraftImage] = useState('');
+  const [quickDraftCategory, setQuickDraftCategory] = useState('Business');
+  const [quickDraftBreaking, setQuickDraftBreaking] = useState(true);
 
   // Classic AI workspace state
   const [prompt, setPrompt] = useState('');
@@ -117,7 +124,7 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
     }
   };
 
-  const handleWriteArticleFromTrend = async (trend: LiveTrendItem) => {
+  const handleWriteArticleFromTrend = async (trend: LiveTrendItem, mode: 'quick' | 'editor' = 'quick') => {
     const analysis = analyzedMap[trend.title.toLowerCase().trim()];
     setWritingTopicId(trend.id);
 
@@ -146,6 +153,12 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
       const d = res.data;
       const cleanBody = String(d.content || d.summary || '');
       const blocks = parseTextToEditorBlocks(cleanBody);
+      const cleanExcerpt = String(d.summary || d.metaDescription || cleanBody)
+        .replace(/^#+\s*/gm, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 160);
       const validThumb =
         trend.picture && trend.picture.startsWith('http')
           ? trend.picture
@@ -153,23 +166,23 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
 
       const newPost = db.savePost({
         title: d.title || analysis?.suggestedTitle || trend.title,
-        subtitle: d.subtitle || d.summary || '',
+        subtitle: d.subtitle || cleanExcerpt || '',
         slug: d.slug || undefined,
         category: d.category || analysis?.category || 'Business',
         tags: Array.isArray(d.tags) && d.tags.length > 0 ? d.tags : [trend.title, selectedTrendCountry.toUpperCase()],
         content: cleanBody,
         blocks: blocks.length > 0 ? blocks : undefined,
-        excerpt: d.summary || d.metaDescription || '',
+        excerpt: cleanExcerpt,
         featuredImage: validThumb,
         targetCountry: selectedTrendCountry as TargetCountry,
         isAiGenerated: true,
         isTrending: true,
         aiApprovalStatus: 'pending',
         status: 'pending_review',
-        editorialNotes: `Google Trends (${selectedTrendCountry.toUpperCase()}) topic "${trend.title}" drafted via Gemini 4 Hydrogen. Review facts & image before publishing.`,
+        editorialNotes: `Google Trends (${selectedTrendCountry.toUpperCase()}) topic "${trend.title}" drafted via Gemini 4 Hydrogen.`,
         seo: {
           title: d.seoTitle || d.title || trend.title,
-          description: d.metaDescription || d.summary || '',
+          description: d.metaDescription || cleanExcerpt || '',
           focusKeyword: d.seoKeyword || analysis?.targetKeyword || trend.title,
           secondaryKeywords: Array.isArray(d.tags) ? d.tags : [],
           score: 88,
@@ -177,15 +190,43 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
       });
 
       setPosts([...db.getPosts()]);
-      toast.success(
-        `✅ "${newPost.title}" খসড়া তৈরি হয়েছে (${COUNTRY_EDITIONS[selectedTrendCountry].flag} /${selectedTrendCountry}/)!`
-      );
-      onNavigateToEditor(newPost);
+      if (mode === 'quick') {
+        setQuickPublishDraft(newPost);
+        setQuickDraftTitle(newPost.title);
+        setQuickDraftImage(newPost.featuredImage || validThumb);
+        setQuickDraftCategory(newPost.category || 'Business');
+        setQuickDraftBreaking(true);
+        toast.success(`✅ খসড়া রেডি! রিভিউ করে ১ ক্লিকেই Publish করুন।`);
+      } else {
+        toast.success(
+          `✅ "${newPost.title}" খসড়া তৈরি হয়েছে (${COUNTRY_EDITIONS[selectedTrendCountry].flag} /${selectedTrendCountry}/)!`
+        );
+        onNavigateToEditor(newPost);
+      }
     } catch (err: any) {
       toast.error(err?.message || 'আর্টিকেল তৈরি করতে সমস্যা হয়েছে।');
     } finally {
       setWritingTopicId(null);
     }
+  };
+
+  const handleConfirmQuickPublish = () => {
+    if (!quickPublishDraft) return;
+    db.savePost({
+      ...quickPublishDraft,
+      title: quickDraftTitle.trim() || quickPublishDraft.title,
+      featuredImage: quickDraftImage.trim() || quickPublishDraft.featuredImage,
+      category: quickDraftCategory || quickPublishDraft.category,
+      categories: [quickDraftCategory || quickPublishDraft.category],
+      isBreaking: quickDraftBreaking,
+      isTrending: true,
+      aiApprovalStatus: 'approved',
+      status: 'published',
+      editorialNotes: `Quick-verified & published from Google Trends AI (${new Date().toLocaleString()})`,
+    });
+    setPosts([...db.getPosts()]);
+    toast.success(`🚀 পোস্ট লাইভ হয়ে গেছে! (${COUNTRY_EDITIONS[quickPublishDraft.targetCountry || selectedTrendCountry].flag})`);
+    setQuickPublishDraft(null);
   };
 
   const handleCopy = (text: string) => {
@@ -569,30 +610,42 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
                     </div>
 
                     {/* Action footer */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
                         <Globe className="w-3.5 h-3.5 text-slate-400" />
-                        Saves to /{selectedTrendCountry}/...
+                        /{selectedTrendCountry}/
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => handleWriteArticleFromTrend(trend)}
-                        disabled={isWriting || writingTopicId !== null}
-                        className="px-4 py-2 bg-[#00C5FF] hover:bg-cyan-500 text-slate-950 rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                      >
-                        {isWriting ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Writing Draft...</span>
-                          </>
-                        ) : (
-                          <>
-                            <PenTool className="w-3.5 h-3.5" />
-                            <span>Write Article & Open Editor</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleWriteArticleFromTrend(trend, 'editor')}
+                          disabled={isWriting || writingTopicId !== null}
+                          className="min-h-[40px] px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                        >
+                          <PenTool className="w-3.5 h-3.5" />
+                          <span>Editor</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleWriteArticleFromTrend(trend, 'quick')}
+                          disabled={isWriting || writingTopicId !== null}
+                          className="min-h-[40px] px-4 py-2 bg-[#00C5FF] hover:bg-cyan-400 text-slate-950 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                        >
+                          {isWriting ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Writing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3.5 h-3.5" />
+                              <span>⚡ Write & Publish</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -959,6 +1012,116 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Quick Review & 1-Tap Publish Sheet */}
+      {quickPublishDraft && (
+        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[11px] font-black uppercase">
+                  {COUNTRY_EDITIONS[quickPublishDraft.targetCountry || selectedTrendCountry].flag}{' '}
+                  {COUNTRY_EDITIONS[quickPublishDraft.targetCountry || selectedTrendCountry].label}
+                </span>
+                <span className="text-sm font-extrabold text-slate-900">Quick Review &amp; Publish</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickPublishDraft(null)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-600 mb-1">শিরোনাম (Headline)</label>
+                <input
+                  type="text"
+                  value={quickDraftTitle}
+                  onChange={(e) => setQuickDraftTitle(e.target.value)}
+                  className="w-full min-h-[44px] px-3 py-2 text-sm font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-600 mb-1">ক্যাটাগরি</label>
+                  <select
+                    value={quickDraftCategory}
+                    onChange={(e) => setQuickDraftCategory(e.target.value)}
+                    className="w-full min-h-[42px] px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    {db.getCategories().map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <label className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={quickDraftBreaking}
+                      onChange={(e) => setQuickDraftBreaking(e.target.checked)}
+                      className="w-4 h-4 text-red-600 rounded-sm"
+                    />
+                    <span className="text-xs font-bold text-slate-800">Breaking News</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-600 mb-1">ছবির লিংক (Image URL)</label>
+                <input
+                  type="url"
+                  value={quickDraftImage}
+                  onChange={(e) => setQuickDraftImage(e.target.value)}
+                  className="w-full min-h-[42px] px-3 py-2 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+                {quickDraftImage && (
+                  <img
+                    src={quickDraftImage}
+                    alt="Draft visual"
+                    className="mt-2 w-full h-32 object-cover rounded-xl border border-slate-200"
+                  />
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase">Article Preview</p>
+                <p className="text-xs text-slate-700 leading-relaxed line-clamp-6 whitespace-pre-line">
+                  {quickPublishDraft.content}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 border-t border-slate-200 bg-white flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = quickPublishDraft;
+                  setQuickPublishDraft(null);
+                  onNavigateToEditor(target);
+                }}
+                className="min-h-[46px] px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold cursor-pointer"
+              >
+                Open Editor
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmQuickPublish}
+                className="flex-1 min-h-[46px] px-5 py-2 bg-[#00C5FF] hover:bg-cyan-400 text-slate-950 rounded-xl text-sm font-black flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+                <span>Publish Live Now</span>
+              </button>
             </div>
           </div>
         </div>

@@ -128,6 +128,76 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
+  // Mobile-friendly Express / Quick Phone Mode (auto-enabled on mobile screens < 1024px)
+  const [expressMode, setExpressMode] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
+  const blocksToPlainText = (blkList: EditorBlock[]): string =>
+    blkList
+      .map((b) => {
+        if (b.type === 'heading') return `## ${b.content || ''}`;
+        if (b.type === 'quote') return `> ${b.content || ''}`;
+        if (b.type === 'paragraph' || b.type === 'callout') return String(b.content || '');
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+  const [expressBodyText, setExpressBodyText] = useState<string>(() => {
+    if (postToEdit?.blocks && postToEdit.blocks.length > 0) {
+      const txt = blocksToPlainText(postToEdit.blocks);
+      if (txt && !txt.startsWith('Write the introductory lead paragraph here')) return txt;
+    }
+    return postToEdit?.content || '';
+  });
+
+  const handleToggleExpressMode = (nextExpress: boolean) => {
+    if (nextExpress) {
+      const txt = blocksToPlainText(blocks);
+      if (txt && !txt.startsWith('Write the introductory lead paragraph here')) {
+        setExpressBodyText(txt);
+      }
+    } else if (expressBodyText.trim()) {
+      const parsed = parseTextToEditorBlocks(expressBodyText);
+      if (parsed.length > 0) setBlocks(parsed);
+    }
+    setExpressMode(nextExpress);
+  };
+
+  const handleExpressBodyChange = (val: string) => {
+    setExpressBodyText(val);
+    if (val.trim()) {
+      const parsed = parseTextToEditorBlocks(val);
+      if (parsed.length > 0) setBlocks(parsed);
+    }
+  };
+
+  const handlePasteClipboard = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const clip = await navigator.clipboard.readText();
+        if (!clip.trim()) {
+          toast.warning('ক্লিপবোর্ডে কোনো লেখা পাওয়া যায়নি।');
+          return;
+        }
+        const nextVal = expressBodyText.trim() ? `${expressBodyText.trim()}\n\n${clip.trim()}` : clip.trim();
+        handleExpressBodyChange(nextVal);
+        toast.success('ক্লিপবোর্ড থেকে লেখা পেস্ট করা হয়েছে!');
+      } else {
+        toast.info('বক্সে চাপ দিয়ে ধরে "Paste" করুন।');
+      }
+    } catch {
+      toast.info('ব্রাউজার পারমিশন দেয়নি—বক্সে ট্যাপ করে ধরে "Paste" করুন।');
+    }
+  };
+
+  const quickImagePresets = [
+    { label: 'Newsroom', url: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&auto=format&fit=crop&q=80' },
+    { label: 'Business', url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&auto=format&fit=crop&q=80' },
+    { label: 'Tech / AI', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop&q=80' },
+    { label: 'World / City', url: 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=1200&auto=format&fit=crop&q=80' },
+  ];
+
   // Calculate word count & SEO Score
   const fullText = [title, subtitle, ...blocks.map((b) => (typeof b.content === 'string' ? b.content : ''))].join(' ');
   const wordCount = fullText.trim() ? fullText.trim().split(/\s+/).length : 0;
@@ -585,14 +655,25 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
       const mergedTags = Array.from(new Set([...selectedTags, ...pendingTags]));
       pendingTags.forEach((t) => db.saveTag(t));
 
+      const parsedExpressBlocks =
+        expressMode && expressBodyText.trim() ? parseTextToEditorBlocks(expressBodyText) : blocks;
+      const finalBlocks = parsedExpressBlocks.length > 0 ? parsedExpressBlocks : blocks;
+      const rawLead = String(finalBlocks.find((b) => b.type === 'paragraph')?.content || finalBlocks[0]?.content || title);
+      const cleanExcerpt = (subtitle || rawLead)
+        .replace(/^#+\s*/gm, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 160);
+
       const saved = db.savePost({
         id: postToEdit?.id,
         title,
         subtitle,
         slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-        blocks,
-        content: blocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join('\n\n'),
-        excerpt: subtitle || (blocks[0]?.content ? String(blocks[0].content).slice(0, 160) : title),
+        blocks: finalBlocks,
+        content: finalBlocks.map((b) => (typeof b.content === 'string' ? b.content : '')).join('\n\n'),
+        excerpt: cleanExcerpt || title,
         category: selectedCategories[0] || 'Business',
         categories: selectedCategories,
         tags: mergedTags,
@@ -615,7 +696,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         editorialNotes,
         seo: {
           title: seoTitle || title,
-          description: seoDescription || subtitle || title,
+          description: seoDescription || cleanExcerpt || title,
           focusKeyword: seoFocusKeyword || category,
           secondaryKeywords,
           canonicalUrl: canonicalUrl.trim() || undefined,
@@ -645,71 +726,339 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   return (
     <div className="space-y-6 pb-20 font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Top action bar */}
-      <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md py-3 px-4 -mx-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md py-3 px-4 -mx-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 shadow-xs">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={onBack}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+            className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             title="Back to Posts"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <span className="text-xs font-semibold text-slate-400">
+            <span className="text-[11px] font-semibold text-slate-400 block leading-none">
               {postToEdit ? 'Editing Article' : 'New Article'}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 mt-1">
               <span
                 className={`w-2 h-2 rounded-full ${
                   status === 'published' ? 'bg-emerald-500' : status === 'pending_review' ? 'bg-purple-500' : 'bg-amber-500'
                 }`}
               />
               <span className="text-xs font-bold capitalize text-slate-700">
-                {status === 'pending_review' ? 'Pending Editorial Review' : status}
+                {status === 'pending_review' ? 'Pending Review' : status}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          {/* AI Assistant button */}
-          <button
-            onClick={() => setAiDrawerOpen(!aiDrawerOpen)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>AI Copilot</span>
-          </button>
+        {/* Mode Switcher + Action buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => handleToggleExpressMode(true)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                expressMode ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Quick Phone</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleExpressMode(false)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                !expressMode ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span>Full Studio</span>
+            </button>
+          </div>
 
           {/* Preview button */}
           <button
             onClick={() => setShowPreviewModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5" />
             <span>Preview</span>
           </button>
 
-          {/* Save Draft */}
-          <button
-            onClick={() => handleSave('draft')}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>Save Draft</span>
-          </button>
-
-          {/* Publish or Submit */}
-          <button
-            onClick={() => handleSave('published')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#00C5FF] hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-cyan-500/20"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Publish Article</span>
-          </button>
+          {!expressMode && (
+            <>
+              <button
+                onClick={() => setAiDrawerOpen(!aiDrawerOpen)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                <span>AI Copilot</span>
+              </button>
+              <button
+                onClick={() => handleSave('draft')}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Draft</span>
+              </button>
+              <button
+                onClick={() => handleSave('published')}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#00C5FF] hover:bg-cyan-500 text-slate-950 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Publish</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* MOBILE EXPRESS QUICK POST MODE */}
+      {expressMode ? (
+        <div className="max-w-2xl mx-auto space-y-4 pb-24">
+          {/* AI 1-Tap Helper Banner */}
+          <div className="bg-slate-900 text-white p-4 rounded-2xl space-y-2.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+                <span className="text-xs font-extrabold">AI দিয়ে ১০ সেকেন্ডে পোস্ট লিখুন</span>
+              </div>
+              <span className="text-[10px] text-sky-300 font-semibold">Quick Mobile Mode</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="টপিক লিখুন (যেমন: Apple new AI update 2026)..."
+                className="flex-1 min-h-[44px] px-3.5 py-2 text-sm bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-sky-400"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  const topicText = aiPrompt.trim() || title.trim();
+                  if (!topicText) {
+                    toast.warning('আগে উপরের বক্সে একটি টপিক বা শিরোনাম লিখুন।');
+                    return;
+                  }
+                  setAiLoading(true);
+                  try {
+                    const res = await api.generateTrendArticle({
+                      topic: topicText,
+                      country: targetCountry === 'global' ? 'usa' : targetCountry,
+                      wordCountTarget: 'medium',
+                    });
+                    if (res.success && res.data) {
+                      const d = res.data;
+                      if (d.title) setTitle(d.title);
+                      if (d.subtitle) setSubtitle(d.subtitle);
+                      if (d.slug) setSlug(d.slug);
+                      if (d.category) setSelectedCategories([d.category]);
+                      if (Array.isArray(d.tags) && d.tags.length > 0) setSelectedTags(d.tags);
+                      if (d.seoTitle) setSeoTitle(d.seoTitle);
+                      if (d.metaDescription) setSeoDescription(d.metaDescription);
+                      if (d.seoKeyword) setSeoFocusKeyword(d.seoKeyword);
+                      const body = String(d.content || d.summary || '');
+                      handleExpressBodyChange(body);
+                      setIsAiGenerated(true);
+                      toast.success('⚡ পুরো খবর + SEO তৈরি হয়ে গেছে! নিচে দেখে Publish চাপুন।');
+                    } else {
+                      toast.error(res.error || 'AI লিখতে পারেনি, আবার চেষ্টা করুন।');
+                    }
+                  } catch (e: any) {
+                    toast.error(e?.message || 'AI error');
+                  } finally {
+                    setAiLoading(false);
+                  }
+                }}
+                disabled={aiLoading}
+                className="min-h-[44px] px-4 py-2 bg-[#00C5FF] hover:bg-cyan-400 text-slate-950 font-extrabold text-xs rounded-xl transition-colors disabled:opacity-60 shrink-0 cursor-pointer"
+              >
+                {aiLoading ? 'AI লিখছে...' : '⚡ AI দিয়ে লিখুন'}
+              </button>
+            </div>
+          </div>
+
+          {/* 1. Country Edition */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+            <label className="block text-xs font-extrabold text-slate-700">
+              ১. কোন দেশের সাইটে দেখাবে? (Country Edition)
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {TARGET_COUNTRY_LIST.map((c) => {
+                const active = targetCountry === c.code;
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => setTargetCountry(c.code)}
+                    className={`min-h-[44px] px-2 py-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      active
+                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>{c.flag}</span>
+                    <span>{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Headline & Article Body */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
+                ২. খবরের শিরোনাম (Headline) *
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="এখানে খবরের শিরোনাম লিখুন বা পেস্ট করুন..."
+                className="w-full min-h-[46px] px-3.5 py-2.5 text-base font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label className="text-xs font-extrabold text-slate-700">
+                  ৩. মূল খবর (লিখুন বা পেস্ট করুন)
+                </label>
+                <button
+                  type="button"
+                  onClick={handlePasteClipboard}
+                  className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-[11px] font-extrabold cursor-pointer"
+                >
+                  📋 Paste Text
+                </button>
+              </div>
+              <textarea
+                rows={9}
+                value={expressBodyText}
+                onChange={(e) => handleExpressBodyChange(e.target.value)}
+                placeholder="পুরো আর্টিকেল এখানে লিখুন বা Paste করুন (নিজেই সুন্দর প্যারাগ্রাফ ও হেডিং হয়ে যাবে)..."
+                className="w-full p-3.5 text-sm leading-relaxed text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500 resize-y"
+              />
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                <span>{wordCount} words · {readingTime} min read</span>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateFullSeo}
+                  disabled={isGeneratingSeo}
+                  className="text-sky-600 font-bold hover:underline cursor-pointer"
+                >
+                  {isGeneratingSeo ? 'Generating SEO...' : '⚡ Auto-Fill SEO & Tags'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Category & Featured Image */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
+                ৪. ক্যাটাগরি (Category)
+              </label>
+              <select
+                value={selectedCategories[0] || 'Business'}
+                onChange={(e) => setSelectedCategories([e.target.value])}
+                className="w-full min-h-[44px] px-3 py-2 text-sm font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
+                ৫. ছবির লিংক (Featured Image URL)
+              </label>
+              <input
+                type="url"
+                value={featuredImage}
+                onChange={(e) => setFeaturedImage(e.target.value)}
+                placeholder="https://..."
+                className="w-full min-h-[44px] px-3 py-2 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+              />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {quickImagePresets.map((img) => (
+                  <button
+                    key={img.label}
+                    type="button"
+                    onClick={() => setFeaturedImage(img.url)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                      featuredImage === img.url
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    🖼️ {img.label}
+                  </button>
+                ))}
+              </div>
+              {featuredImage && (
+                <img
+                  src={featuredImage}
+                  alt="Cover preview"
+                  className="mt-2.5 w-full h-36 object-cover rounded-xl border border-slate-200"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2 flex-wrap">
+              <label className="flex items-center gap-2 min-h-[40px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isBreaking}
+                  onChange={(e) => setIsBreaking(e.target.checked)}
+                  className="w-4 h-4 rounded-sm border-slate-300 text-red-600"
+                />
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 text-red-500" /> Breaking News
+                </span>
+              </label>
+              <span className="text-[11px] text-slate-500">
+                By <strong>{authorName.trim() || 'Alif News 24 Desk'}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Sticky Mobile Thumb Action Bar */}
+          <div className="sticky bottom-3 z-30 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-slate-200 shadow-xl flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleSave('draft')}
+              className="min-h-[48px] px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Draft</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPreviewModal(true)}
+              className="min-h-[48px] px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center cursor-pointer"
+              title="Preview"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSave('published')}
+              className="flex-1 min-h-[48px] px-5 py-2.5 bg-[#00C5FF] hover:bg-cyan-400 text-slate-950 rounded-xl text-sm font-black flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20 cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+              <span>Publish Live Now</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
 
       {/* AI Copilot Drawer (Embedded) */}
       {aiDrawerOpen && (
@@ -1888,6 +2237,8 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Interactive Live Article Preview Modal */}
       {showPreviewModal && (

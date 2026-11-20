@@ -74,9 +74,47 @@ export function applyGoogleVerificationTag(code?: string): string {
     }
     metaTag.content = cleanCode;
     applyDynamicFavicon();
+    applyGoogleAnalyticsTag();
   }
 
   return cleanCode;
+}
+
+const PLACEHOLDER_GA_ID = 'G-AN24820921';
+
+export function cleanGoogleAnalyticsId(input: string): string {
+  if (!input) return '';
+  const match = input.trim().match(/\b(G-[A-Z0-9]{6,})\b/i);
+  return match ? match[1].toUpperCase() : '';
+}
+
+export function applyGoogleAnalyticsTag(gaId?: string): string {
+  const settings = db.getSettings();
+  const cleanId = cleanGoogleAnalyticsId(gaId !== undefined ? gaId : settings.googleAnalyticsId || '');
+  const isRealGa = Boolean(cleanId && cleanId !== PLACEHOLDER_GA_ID);
+
+  if (typeof document !== 'undefined' && isRealGa) {
+    let script = document.querySelector<HTMLScriptElement>('script[data-alif-ga="true"]');
+    const desiredSrc = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(cleanId)}`;
+    if (!script) {
+      script = document.createElement('script');
+      script.async = true;
+      script.src = desiredSrc;
+      script.setAttribute('data-alif-ga', 'true');
+      document.head.appendChild(script);
+
+      const inline = document.createElement('script');
+      inline.setAttribute('data-alif-ga-init', 'true');
+      inline.text = `window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} window.gtag = window.gtag || gtag; gtag('js', new Date()); gtag('config', '${cleanId}');`;
+      document.head.appendChild(inline);
+    } else if (script.src !== desiredSrc) {
+      script.src = desiredSrc;
+      if (typeof (window as any).gtag === 'function') {
+        (window as any).gtag('config', cleanId);
+      }
+    }
+  }
+  return isRealGa ? cleanId : '';
 }
 
 const PLACEHOLDER_ADSENSE_ID = 'ca-pub-9386736849071234';
@@ -185,9 +223,23 @@ export function updatePageSeo(options: {
     setMeta('twitter:image', options.ogImage);
   }
 
-  // Always ensure Google Site Verification, AdSense Verification, and Favicon are synced
+  // Always ensure Google Site Verification, AdSense Verification, GA4, and Favicon are synced
   applyGoogleVerificationTag();
   applyAdSenseVerificationTags();
+
+  const activeGaId = applyGoogleAnalyticsTag();
+  if (
+    activeGaId &&
+    typeof window !== 'undefined' &&
+    !window.location.pathname.startsWith('/admin') &&
+    typeof (window as any).gtag === 'function'
+  ) {
+    (window as any).gtag('event', 'page_view', {
+      page_title: fullTitle,
+      page_location: window.location.href,
+      page_path: window.location.pathname,
+    });
+  }
 }
 
 function setMeta(name: string, content: string) {

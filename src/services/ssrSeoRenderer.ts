@@ -17,6 +17,7 @@ interface SeoEntity {
 interface SiteSeoConfig {
   adsenseClientId: string;
   searchConsoleCode: string;
+  googleAnalyticsId: string;
   siteName: string;
 }
 
@@ -99,16 +100,17 @@ async function fetchSiteConfig(): Promise<SiteSeoConfig> {
 
   try {
     const res = await fetch(endpoint);
-    if (!res.ok) return { adsenseClientId: '', searchConsoleCode: '', siteName: 'Alif News 24' };
+    if (!res.ok) return { adsenseClientId: '', searchConsoleCode: '', googleAnalyticsId: '', siteName: 'Alif News 24' };
     const docData: any = await res.json();
     const fields = docData?.fields;
     return {
       adsenseClientId: readStr(fields, 'adsenseClientId').trim(),
       searchConsoleCode: readStr(fields, 'searchConsoleCode').trim(),
+      googleAnalyticsId: readStr(fields, 'googleAnalyticsId').trim(),
       siteName: readStr(fields, 'siteName').trim() || 'Alif News 24',
     };
   } catch {
-    return { adsenseClientId: '', searchConsoleCode: '', siteName: 'Alif News 24' };
+    return { adsenseClientId: '', searchConsoleCode: '', googleAnalyticsId: '', siteName: 'Alif News 24' };
   }
 }
 
@@ -212,12 +214,15 @@ async function fetchCountryPosts(country: string): Promise<Array<{ title: string
       slug: readStr(f, 'slug') || readStr(f, 'id'),
       excerpt: readStr(f, 'excerpt') || readStr(f, 'subtitle'),
       targetCountry: readStr(f, 'targetCountry').toLowerCase().trim(),
+      publishedAt: readStr(f, 'publishedAt') || readStr(f, 'createdAt'),
     }))
     .filter((p) => {
       if (!p.title || !p.slug) return false;
+      if (country === 'global') return true;
       if (country === 'usa') return p.targetCountry === 'usa' || !p.targetCountry;
       return p.targetCountry === country;
     })
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .slice(0, 20);
 }
 
@@ -232,7 +237,11 @@ export async function injectSeoIntoHtml(
       ? fetchEntityBySlug(options.type, options.slug || '')
       : Promise.resolve(null),
     fetchSiteConfig(),
-    options.type === 'country' && countryKey ? fetchCountryPosts(countryKey) : Promise.resolve([]),
+    options.type === 'country' && countryKey
+      ? fetchCountryPosts(countryKey)
+      : options.type === 'home'
+      ? fetchCountryPosts('global')
+      : Promise.resolve([]),
   ]);
 
   let html = templateHtml;
@@ -255,6 +264,55 @@ export async function injectSeoIntoHtml(
     if (!html.includes('name="google-adsense-account"')) {
       html = html.replace(/<\/head>/i, `    ${metaAdSense}\n    ${scriptAdSense}\n  </head>`);
     }
+  }
+
+  const gaMatch = siteCfg.googleAnalyticsId.match(/\b(G-[A-Z0-9]{6,})\b/i);
+  const gaId = gaMatch ? gaMatch[1].toUpperCase() : '';
+  const isRealGa = Boolean(gaId && gaId !== 'G-AN24820921');
+  if (isRealGa) {
+    if (html.includes('data-alif-ga="true"')) {
+      html = html.replace(
+        /<script async src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=[^"]+" data-alif-ga="true"><\/script>/i,
+        `<script async src="https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}" data-alif-ga="true"></script>`
+      );
+      html = html.replace(
+        /<script data-alif-ga-init="true">[\s\S]*?<\/script>/i,
+        `<script data-alif-ga-init="true">window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=window.gtag||gtag;gtag('js',new Date());gtag('config','${escapeHtml(gaId)}');</script>`
+      );
+    } else {
+      const gaTag = `<script async src="https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}" data-alif-ga="true"></script>\n    <script data-alif-ga-init="true">window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=window.gtag||gtag;gtag('js',new Date());gtag('config','${escapeHtml(gaId)}');</script>`;
+      html = html.replace(/<\/head>/i, `    ${gaTag}\n  </head>`);
+    }
+  }
+
+  if (options.type === 'home') {
+    const listMarkup = countryPosts
+      .map((p) => {
+        const href =
+          p.targetCountry === 'usa' || p.targetCountry === 'uk' || p.targetCountry === 'canada' || p.targetCountry === 'australia'
+            ? `/${p.targetCountry}/${encodeURIComponent(p.slug)}`
+            : `/news/${encodeURIComponent(p.slug)}`;
+        return `<li style="margin-bottom:16px;"><a href="${escapeHtml(href)}" style="font-size:20px;font-weight:700;color:#0f172a;text-decoration:none;">${escapeHtml(p.title)}</a><p style="margin:4px 0 0;color:#475569;font-size:14px;">${escapeHtml(p.excerpt)}</p></li>`;
+      })
+      .join('\n');
+
+    const homeBody = `
+    <div id="root">
+      <main style="max-width:860px;margin:40px auto;padding:0 20px;font-family:Georgia,serif;color:#0f172a;line-height:1.6;">
+        <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#dc2626;font-weight:700;">${escapeHtml(siteCfg.siteName)} · Alif Sheen Group</p>
+        <h1 style="font-size:32px;line-height:1.25;margin:8px 0 12px;">${escapeHtml(siteCfg.siteName)} — 24/7 International News</h1>
+        <nav style="margin-bottom:24px;display:flex;gap:12px;flex-wrap:wrap;font-size:14px;">
+          <a href="/usa">USA Edition</a>
+          <a href="/uk">UK Edition</a>
+          <a href="/canada">Canada Edition</a>
+          <a href="/australia">Australia Edition</a>
+        </nav>
+        <ul style="list-style:none;padding:0;margin:0;">${listMarkup}</ul>
+      </main>
+    </div>`;
+
+    html = html.replace(/<div\s+id="root"\s*><\/div>/i, homeBody);
+    return html;
   }
 
   if (options.type === 'country' && COUNTRY_META[countryKey]) {
