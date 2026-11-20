@@ -332,6 +332,8 @@ export async function injectSeoIntoHtml(
       /<meta\s+property="og:description"[^>]*>/i,
       `<meta property="og:description" content="${escapeHtml(meta.desc)}" />`
     );
+    html = html.replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '');
+    html = html.replace(/<meta\s+property=["']og:url["'][^>]*>\s*/gi, '');
     html = html.replace(
       /<\/head>/i,
       `    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />\n    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />\n  </head>`
@@ -415,6 +417,8 @@ export async function injectSeoIntoHtml(
     `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />`,
   ].join('\n    ');
 
+  html = html.replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '');
+  html = html.replace(/<meta\s+property=["']og:url["'][^>]*>\s*/gi, '');
   html = html.replace(/<\/head>/i, `    ${extraHeadTags}\n  </head>`);
 
   // Replace JSON-LD Schema.org block with rich NewsArticle / WebPage schema
