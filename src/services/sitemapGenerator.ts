@@ -220,6 +220,7 @@ export function generateRobotsTxt(baseUrl: string): string {
   const cleanBase = baseUrl.replace(/\/+$/, '');
   return `User-agent: *
 Allow: /
+Allow: /api/media
 Disallow: /admin/
 Disallow: /api/
 
