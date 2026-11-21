@@ -198,7 +198,7 @@ export function sanitizeMedia(m: MediaItem): Record<string, any> {
   const allowed: Record<string, any> = {
     id: safeId(m.id),
     name: trunc(m.name || 'media', 200),
-    url: trunc(m.url || '', 2000),
+    url: trunc(m.url || '', 450000),
     type: m.type === 'video' ? 'video' : 'image',
     size: trunc(m.size || '0 KB', 64),
     dimensions: trunc(m.dimensions || '', 64),
@@ -710,19 +710,21 @@ class FirestoreSyncService {
   // -------------------------------------------------------------
   // Write Helpers (Admin Mutations -> Firestore Cloud)
   // -------------------------------------------------------------
-  public async writeDoc(collectionName: string, id: string, payload: Record<string, any>): Promise<void> {
+  public async writeDoc(collectionName: string, id: string, payload: Record<string, any>): Promise<boolean> {
     if (!isFirebaseAdminUser() && collectionName !== 'comments' && collectionName !== 'subscribers') {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('app:firebase-auth-required', { detail: { collectionName, id } }));
       }
-      return;
+      return false;
     }
     const cleanId = safeId(id);
     const path = `${collectionName}/${cleanId}`;
     try {
       await setDoc(doc(firestoreDb, collectionName, cleanId), payload);
+      return true;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
+      return false;
     }
   }
 

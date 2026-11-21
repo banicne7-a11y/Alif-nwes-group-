@@ -114,7 +114,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "name": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "url": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "url": { "type": "string", "minLength": 1, "maxLength": 450000 },
         "type": { "type": "string", "enum": ["image", "video"] },
         "size": { "type": "string", "maxLength": 64 },
         "dimensions": { "type": "string", "maxLength": 64 },

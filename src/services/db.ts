@@ -1898,6 +1898,21 @@ class DatabaseService {
     return newItem;
   }
 
+  public async addMediaItemAsync(
+    item: Omit<MediaItem, 'id' | 'uploadedAt'>
+  ): Promise<{ item: MediaItem; synced: boolean }> {
+    const newItem: MediaItem = {
+      ...item,
+      id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      uploadedAt: new Date().toISOString().slice(0, 10),
+    };
+    this.state.media = [newItem, ...this.state.media];
+    this.logAction('Media Uploaded', `Uploaded asset "${newItem.name}" (${newItem.size})`);
+    this.save();
+    const synced = await firestoreSync.writeDoc('media', newItem.id, sanitizeMedia(newItem));
+    return { item: newItem, synced };
+  }
+
   public updateMediaItem(id: string, updates: Partial<MediaItem>): void {
     const idx = this.state.media.findIndex((m) => m.id === id);
     if (idx !== -1) {

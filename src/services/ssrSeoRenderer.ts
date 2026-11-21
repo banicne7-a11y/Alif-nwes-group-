@@ -385,7 +385,12 @@ export async function injectSeoIntoHtml(
       : `${cleanBase}/page/${encodeURIComponent(entity.slug)}`;
 
   const fullTitle = `${entity.title} | ${siteCfg.siteName}`;
-  const ogImage = entity.image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80';
+  const rawImg = String(entity.image || '').trim();
+  const resolvedEntityImage = rawImg.startsWith('/') ? `${cleanBase}${rawImg}` : rawImg;
+  const ogImage =
+    resolvedEntityImage && !resolvedEntityImage.startsWith('data:')
+      ? resolvedEntityImage
+      : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80';
 
   // Replace title & description
   html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(fullTitle)}</title>`);

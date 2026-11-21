@@ -35,13 +35,18 @@ import {
   Lightbulb,
   FileText,
   Link as LinkIcon,
+  Upload,
+  ChevronDown,
+  ChevronUp,
+  X,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import { api } from '../../services/api';
 import { toast } from '../../services/toast';
-import { Post, EditorBlock, PostStatus, TargetCountry } from '../../types';
+import { Post, EditorBlock, PostStatus, TargetCountry, MediaItem } from '../../types';
 import { TARGET_COUNTRY_LIST, isCountryEditionSlug } from '../../utils/countryEditions';
 import { formatArticleForReader, parseTextToEditorBlocks } from '../../utils/articleFormatter';
+import { compressAndUploadGalleryImage } from '../../utils/imageUpload';
 
 interface AdvancedEditorViewProps {
   postToEdit?: Post | null;
@@ -104,6 +109,14 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   const [seoActiveTab, setSeoActiveTab] = useState<'meta' | 'serp' | 'checklist' | 'advanced'>('meta');
   const [serpPreviewDevice, setSerpPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [expressSeoOpen, setExpressSeoOpen] = useState(true);
+
+  // Gallery Image Upload & Library Picker state
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imagePreviewFallback, setImagePreviewFallback] = useState('');
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>(() => db.getMedia());
 
   // Gutenberg Blocks state
   const [blocks, setBlocks] = useState<EditorBlock[]>(
@@ -189,6 +202,62 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     } catch {
       toast.info('ব্রাউজার পারমিশন দেয়নি—বক্সে ট্যাপ করে ধরে "Paste" করুন।');
     }
+  };
+
+  const handleGalleryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    try {
+      const result = await compressAndUploadGalleryImage(file, { preferWebp: true });
+      setMediaItems([...db.getMedia()]);
+      setImagePreviewFallback(result.previewDataUrl);
+      setFeaturedImage(result.url);
+      if (result.synced) {
+        toast.success(`✅ গ্যালারি থেকে ছবি আপলোড হয়েছে! (${result.sizeLabel})`);
+      } else {
+        toast.warning('⚠️ Google Admin লগইন না থাকায় ছবিটি শুধু ডিভাইসে আছে—পাবলিক সাইটে দেখাতে উপরে Admin লগইন করুন।');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'গ্যালারি থেকে ছবি আপলোড করা যায়নি।');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleBlockGalleryImageUpload = async (
+    blockId: string,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadingBlockId(blockId);
+    try {
+      const result = await compressAndUploadGalleryImage(file, { preferWebp: true });
+      setMediaItems([...db.getMedia()]);
+      handleUpdateBlock(blockId, { content: result.url });
+      toast.success(`✅ ব্লকে ছবি যুক্ত হয়েছে (${result.sizeLabel})`);
+    } catch (err: any) {
+      toast.error(err?.message || 'ছবি আপলোড করা যায়নি।');
+    } finally {
+      setUploadingBlockId(null);
+    }
+  };
+
+  const handlePickExistingMedia = (item: MediaItem) => {
+    if (item.url.startsWith('data:image/')) {
+      setImagePreviewFallback(item.url);
+      setFeaturedImage(`/api/media?id=${encodeURIComponent(item.id)}`);
+    } else {
+      setImagePreviewFallback('');
+      setFeaturedImage(item.url);
+    }
+    setShowMediaPicker(false);
+    toast.success(`ছবি সিলেক্ট করা হয়েছে: ${item.name}`);
   };
 
   const quickImagePresets = [
@@ -725,6 +794,14 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
   return (
     <div className="space-y-6 pb-20 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Hidden shared gallery input for both Quick Phone & Full Studio */}
+      <input
+        id="gallery-image-upload-input"
+        type="file"
+        accept="image/*"
+        onChange={handleGalleryImageUpload}
+        className="sr-only"
+      />
       {/* Top action bar */}
       <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md py-3 px-4 -mx-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 shadow-xs">
         <div className="flex items-center gap-2.5">
@@ -976,14 +1053,93 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                ৫. ছবির লিংক (Featured Image URL)
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label className="text-xs font-extrabold text-slate-700">
+                  ৫. ছবি (গ্যালারি আপলোড বা লিংক)
+                </label>
+                {featuredImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFeaturedImage('');
+                      setImagePreviewFallback('');
+                    }}
+                    className="text-[11px] font-bold text-rose-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" /> মুছুন
+                  </button>
+                )}
+              </div>
+
+              {/* Primary Phone Gallery Upload & Media Picker */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2.5">
+                <label
+                  htmlFor="gallery-image-upload-input"
+                  className={`min-h-[46px] px-3.5 py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
+                    isUploadingImage
+                      ? 'bg-slate-200 text-slate-500 pointer-events-none'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {isUploadingImage ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  <span>{isUploadingImage ? 'আপলোড হচ্ছে...' : '📷 গ্যালারি থেকে ছবি আপলোড'}</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMediaItems([...db.getMedia()]);
+                    setShowMediaPicker(!showMediaPicker);
+                  }}
+                  className="min-h-[46px] px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ImageIcon className="w-4 h-4 text-sky-600" />
+                  <span>{showMediaPicker ? 'লাইব্রেরি বন্ধ করুন' : '🗂️ সেভ করা ছবি বাছুন'}</span>
+                </button>
+              </div>
+
+              {showMediaPicker && (
+                <div className="mb-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
+                    <span>Media Library ({mediaItems.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMediaPicker(false)}
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 max-h-44 overflow-y-auto">
+                    {mediaItems
+                      .filter((m) => m.type === 'image')
+                      .slice(0, 18)
+                      .map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => handlePickExistingMedia(m)}
+                          className="group relative aspect-4/3 rounded-lg overflow-hidden border border-slate-200 hover:border-sky-500 cursor-pointer bg-white"
+                        >
+                          <img src={m.url} alt={m.altText || m.name} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <input
-                type="url"
+                type="text"
                 value={featuredImage}
-                onChange={(e) => setFeaturedImage(e.target.value)}
-                placeholder="https://..."
+                onChange={(e) => {
+                  setImagePreviewFallback('');
+                  setFeaturedImage(e.target.value);
+                }}
+                placeholder="অথবা ছবির লিংক পেস্ট করুন (https://...)"
                 className="w-full min-h-[44px] px-3 py-2 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
               />
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -991,7 +1147,10 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                   <button
                     key={img.label}
                     type="button"
-                    onClick={() => setFeaturedImage(img.url)}
+                    onClick={() => {
+                      setImagePreviewFallback('');
+                      setFeaturedImage(img.url);
+                    }}
                     className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
                       featuredImage === img.url
                         ? 'bg-slate-900 text-white border-slate-900'
@@ -1005,8 +1164,13 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
               {featuredImage && (
                 <img
                   src={featuredImage}
+                  onError={(e) => {
+                    if (imagePreviewFallback && e.currentTarget.src !== imagePreviewFallback) {
+                      e.currentTarget.src = imagePreviewFallback;
+                    }
+                  }}
                   alt="Cover preview"
-                  className="mt-2.5 w-full h-36 object-cover rounded-xl border border-slate-200"
+                  className="mt-2.5 w-full h-40 object-cover rounded-xl border border-slate-200"
                 />
               )}
             </div>
@@ -1027,6 +1191,286 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                 By <strong>{authorName.trim() || 'Alif News 24 Desk'}</strong>
               </span>
             </div>
+          </div>
+
+          {/* 4. MOBILE SEO & TAGS OPTIMIZATION PANEL */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setExpressSeoOpen(!expressSeoOpen)}
+                className="flex items-center gap-2 text-left cursor-pointer"
+              >
+                <Search className="w-4 h-4 text-sky-600 shrink-0" />
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-900">
+                    ৬. SEO ও ট্যাগ সেটিংস (Google Search)
+                  </h3>
+                  <p className="text-[10px] text-slate-500">
+                    Focus Keyword, Meta Description, URL Slug ও Tags
+                  </p>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                    seoScore >= 80
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : seoScore >= 60
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-rose-100 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  SEO {seoScore}/100
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setExpressSeoOpen(!expressSeoOpen)}
+                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 cursor-pointer"
+                  aria-label="Toggle SEO panel"
+                >
+                  {expressSeoOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {expressSeoOpen && (
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                {/* 1-Click Auto SEO & Tags */}
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateFullSeo}
+                  disabled={isGeneratingSeo}
+                  className="w-full min-h-[44px] px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {isGeneratingSeo ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-sky-400" />
+                  )}
+                  <span>
+                    {isGeneratingSeo ? 'SEO তৈরি হচ্ছে...' : '⚡ ১ ক্লিকে অটো SEO, Slug ও Tags তৈরি করুন'}
+                  </span>
+                </button>
+
+                {/* Focus Keyword */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <label className="font-bold text-slate-700">Focus Keyword (মূল সার্চ কিওয়ার্ড) *</label>
+                    {seoFocusKeyword && (
+                      <span
+                        className={
+                          title.toLowerCase().includes(seoFocusKeyword.toLowerCase())
+                            ? 'text-emerald-600 font-bold'
+                            : 'text-amber-600 font-semibold'
+                        }
+                      >
+                        {title.toLowerCase().includes(seoFocusKeyword.toLowerCase())
+                          ? '✓ শিরোনামে আছে'
+                          : '⚠️ শিরোনামে নেই'}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={seoFocusKeyword}
+                    onChange={(e) => setSeoFocusKeyword(e.target.value)}
+                    placeholder="যেমন: Federal Reserve rate cut 2026"
+                    className="w-full min-h-[42px] px-3 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+
+                {/* SEO Title */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <label className="font-bold text-slate-700">SEO Title (গুগলে যে শিরোনাম দেখাবে)</label>
+                    <span
+                      className={`font-mono text-[10px] ${
+                        (seoTitle || title).length > 60 ? 'text-amber-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      {(seoTitle || title).length} / 60
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    placeholder={title || 'ফাঁকা রাখলে মূল শিরোনাম ব্যবহার হবে...'}
+                    className="w-full min-h-[42px] px-3 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+
+                {/* Meta Description */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <label className="font-bold text-slate-700">Meta Description (গুগল সার্চ বিবরণ) *</label>
+                    <span
+                      className={`font-mono text-[10px] ${
+                        seoDescription.length > 160 ? 'text-amber-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      {seoDescription.length} / 160
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    placeholder="১২০–১৬০ অক্ষরের মধ্যে সংক্ষিপ্ত সারসংক্ষেপ লিখুন..."
+                    className="w-full px-3 py-2 text-xs leading-relaxed bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                  />
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div
+                      className={`h-full transition-all ${
+                        seoDescription.length >= 100 && seoDescription.length <= 160
+                          ? 'bg-emerald-500'
+                          : seoDescription.length > 160
+                          ? 'bg-amber-500'
+                          : 'bg-sky-400'
+                      }`}
+                      style={{ width: `${Math.min(100, (seoDescription.length / 160) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* URL Slug */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <label className="font-bold text-slate-700">URL Slug (আর্টিকেল লিংক)</label>
+                    <button
+                      type="button"
+                      onClick={handleAutoGenerateSlug}
+                      className="text-sky-600 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Generate
+                    </button>
+                  </div>
+                  <div className="flex items-center px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 text-xs">
+                    <span className="text-slate-400 shrink-0 font-mono">
+                      {isCountryEditionSlug(targetCountry) ? `/${targetCountry}/` : '/news/'}
+                    </span>
+                    <input
+                      type="text"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder={
+                        title
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/(^-|-$)/g, '') || 'article-slug'
+                      }
+                      className="w-full bg-transparent border-none focus:outline-hidden font-mono text-slate-800 pl-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Subheadline */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Subheadline / Summary (উপ-শিরোনাম)
+                  </label>
+                  <input
+                    type="text"
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    placeholder="ছোট ১ লাইনের উপ-শিরোনাম (ঐচ্ছিক)..."
+                    className="w-full min-h-[40px] px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+
+                {/* News Tags */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <label className="font-bold text-slate-700">News Tags ({selectedTags.length})</label>
+                    <button
+                      type="button"
+                      onClick={handleAutoGenerateTags}
+                      disabled={isGeneratingSeo}
+                      className="text-sky-600 font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <Sparkles className="w-3 h-3" /> AI Tags
+                    </button>
+                  </div>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                      placeholder="tag1, tag2 লিখে Add চাপুন..."
+                      className="flex-1 min-h-[40px] px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddTag}
+                      className="px-3.5 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer"
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  {selectedTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {selectedTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-50 border border-sky-200 text-sky-800 text-xs font-semibold rounded-lg"
+                        >
+                          <span>#{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTags(selectedTags.filter((t) => t !== tag))}
+                            className="text-sky-400 hover:text-rose-500 font-bold cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-1">
+                    {popularSuggestedTags.slice(0, 6).map((pt) => {
+                      const isAdded = selectedTags.includes(pt);
+                      return (
+                        <button
+                          key={pt}
+                          type="button"
+                          onClick={() => handleQuickAddTag(pt)}
+                          disabled={isAdded}
+                          className={`text-[10px] px-2 py-1 rounded-md font-semibold border cursor-pointer ${
+                            isAdded
+                              ? 'bg-slate-100 text-slate-400 border-slate-200'
+                              : 'bg-slate-50 hover:bg-slate-200 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {isAdded ? `✓ ${pt}` : `+ ${pt}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Live Mobile Google SERP Preview */}
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Google Search Preview
+                  </p>
+                  <p className="text-[11px] font-mono text-emerald-700 truncate">
+                    official1.online{isCountryEditionSlug(targetCountry) ? `/${targetCountry}/` : '/news/'}
+                    {slug || 'article-slug'}
+                  </p>
+                  <p className="text-xs font-bold text-[#1a0dab] line-clamp-1">
+                    {seoTitle || title || 'খবরের শিরোনাম এখানে দেখাবে'} | Alif News 24
+                  </p>
+                  <p className="text-[11px] text-slate-600 line-clamp-2">
+                    {seoDescription || subtitle || 'Meta description গুগল সার্চে এখানে দেখাবে...'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sticky Mobile Thumb Action Bar */}
@@ -1289,13 +1733,31 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
                 {block.type === 'image' && (
                   <div className="space-y-3">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <label
+                        htmlFor={`block-img-${block.id}`}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {uploadingBlockId === block.id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5" />
+                        )}
+                        <span>{uploadingBlockId === block.id ? 'Uploading...' : 'গ্যালারি আপলোড'}</span>
+                      </label>
                       <input
-                        type="url"
+                        id={`block-img-${block.id}`}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleBlockGalleryImageUpload(block.id, e)}
+                        className="sr-only"
+                      />
+                      <input
+                        type="text"
                         value={block.content}
                         onChange={(e) => handleUpdateBlock(block.id, { content: e.target.value })}
                         placeholder="Image URL..."
-                        className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
+                        className="flex-1 min-w-[180px] px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
                       />
                     </div>
                     {block.content && (
@@ -1745,15 +2207,92 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
           {/* Featured Image */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-1.5">
-              <ImageIcon className="w-4 h-4 text-emerald-600" />
-              <span>Featured Cover Visual</span>
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-emerald-600" />
+                <span>Featured Cover Visual</span>
+              </h3>
+              {featuredImage && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeaturedImage('');
+                    setImagePreviewFallback('');
+                  }}
+                  className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label
+                htmlFor="gallery-image-upload-input"
+                className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                  isUploadingImage
+                    ? 'bg-slate-200 text-slate-500 pointer-events-none'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                }`}
+              >
+                {isUploadingImage ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span>{isUploadingImage ? 'Uploading...' : 'গ্যালারি আপলোড'}</span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMediaItems([...db.getMedia()]);
+                  setShowMediaPicker(!showMediaPicker);
+                }}
+                className="py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-sky-600" />
+                <span>Media Library</span>
+              </button>
+            </div>
+
+            {showMediaPicker && (
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
+                  <span>Saved Images ({mediaItems.filter((m) => m.type === 'image').length})</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMediaPicker(false)}
+                    className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
+                  {mediaItems
+                    .filter((m) => m.type === 'image')
+                    .slice(0, 18)
+                    .map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handlePickExistingMedia(m)}
+                        className="aspect-4/3 rounded-lg overflow-hidden border border-slate-200 hover:border-sky-500 cursor-pointer bg-white"
+                      >
+                        <img src={m.url} alt={m.altText || m.name} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
 
             <input
-              type="url"
+              type="text"
               value={featuredImage}
-              onChange={(e) => setFeaturedImage(e.target.value)}
+              onChange={(e) => {
+                setImagePreviewFallback('');
+                setFeaturedImage(e.target.value);
+              }}
               placeholder="Featured Image URL..."
               className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-500"
             />
@@ -1762,6 +2301,11 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
               <div className="rounded-xl overflow-hidden border border-slate-200 relative group">
                 <img
                   src={featuredImage}
+                  onError={(e) => {
+                    if (imagePreviewFallback && e.currentTarget.src !== imagePreviewFallback) {
+                      e.currentTarget.src = imagePreviewFallback;
+                    }
+                  }}
                   alt="Featured Preview"
                   className="w-full h-36 object-cover"
                 />

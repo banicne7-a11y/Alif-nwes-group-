@@ -11,6 +11,7 @@ import {
   generateAdsTxt,
 } from './src/services/sitemapGenerator';
 import { injectSeoIntoHtml } from './src/services/ssrSeoRenderer';
+import { resolveMediaAsset } from './src/services/mediaServer';
 import { fetchGoogleTrendsFeed, runGeminiEditorialAction } from './src/services/trendsAndAiServer';
 import { getEditionFromIsoCountry } from './src/utils/countryEditions';
 
@@ -88,6 +89,23 @@ app.get('/api/geo', (req, res) => {
   const countryCode = String(rawCountry).toUpperCase().trim();
   const edition = getEditionFromIsoCountry(countryCode);
   res.json({ countryCode, edition, isBot });
+});
+
+// -------------------------------------------------------------
+// Media Asset Endpoint (serves uploaded gallery images stored in Firestore)
+// -------------------------------------------------------------
+app.get('/api/media', async (req, res) => {
+  const resolved = await resolveMediaAsset(String(req.query?.id || ''));
+  if (resolved.kind === 'binary') {
+    res.setHeader('Content-Type', resolved.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.status(200).send(resolved.buffer);
+  }
+  if (resolved.kind === 'redirect') {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.redirect(302, resolved.location);
+  }
+  return res.status(404).send('Media asset not found');
 });
 
 // -------------------------------------------------------------

@@ -16,6 +16,7 @@ import {
 import { db } from '../../services/db';
 import { toast } from '../../services/toast';
 import { MediaItem } from '../../types';
+import { compressAndUploadGalleryImage } from '../../utils/imageUpload';
 
 export const MediaLibraryView: React.FC = () => {
   const [media, setMedia] = useState<MediaItem[]>(db.getMedia());
@@ -43,34 +44,37 @@ export const MediaLibraryView: React.FC = () => {
   });
 
   const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
+    const shareUrl =
+      url.startsWith('data:image/') && selectedItem
+        ? `${window.location.origin}/api/media?id=${encodeURIComponent(selectedItem.id)}`
+        : url;
+    navigator.clipboard.writeText(shareUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const sizeKb = Math.round(file.size / 1024);
-      const optimizedSize = webpOptimized ? `${Math.round(sizeKb * 0.35)} KB (WebP)` : `${sizeKb} KB`;
+    if (file.type.startsWith('video')) {
+      toast.warning('ভিডিও ফাইল খুব বড় হলে সরাসরি YouTube/MP4 লিংক ব্যবহার করুন।');
+      return;
+    }
 
-      const newItem = db.addMediaItem({
-        name: file.name,
-        url: result,
-        type: file.type.startsWith('video') ? 'video' : 'image',
-        size: optimizedSize,
-        dimensions: '1920x1080',
-        format: webpOptimized ? 'image/webp' : file.type,
-        altText: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-      });
+    try {
+      const result = await compressAndUploadGalleryImage(file, { preferWebp: webpOptimized });
       refreshMedia();
-      setSelectedItem(newItem);
-    };
-    reader.readAsDataURL(file);
+      setSelectedItem(result.mediaItem);
+      if (result.synced) {
+        toast.success(`ছবি আপলোড সম্পন্ন! (${result.sizeLabel})`);
+      } else {
+        toast.warning('ছবি লোকালভাবে সেভ হয়েছে—ক্লাউড সিঙ্কের জন্য Google Admin লগইন নিশ্চিত করুন।');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'ছবি আপলোড করতে সমস্যা হয়েছে।');
+    }
   };
 
   const handleDirectAddUrl = (e: React.FormEvent) => {
