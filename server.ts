@@ -24,7 +24,7 @@ const app = express();
 const PORT = 3000;
 
 const BOT_UA_REGEX =
-  /(googlebot|adsbot-google|mediapartners-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot|applebot|crawler|spider|bot)/i;
+  /(googlebot|adsbot-google|mediapartners-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|facebot|meta-externalagent|twitterbot|linkedinbot|whatsapp|telegram|discord|slack|pinterest|skypeuripreview|viber|snapchat|embedly|applebot|crawler|spider|bot)/i;
 
 // Body parser with support for large media / backup payloads
 app.use(express.json({ limit: '50mb' }));

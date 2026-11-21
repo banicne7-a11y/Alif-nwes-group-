@@ -56,13 +56,9 @@ function encodeCanvasImage(
   ctx.fillRect(0, 0, targetW, targetH);
   ctx.drawImage(img, 0, 0, targetW, targetH);
 
-  // Try WebP first; fallback cleanly if Safari/WebView returns PNG instead of WebP
-  let mimeType = 'image/webp';
-  let dataUrl = canvas.toDataURL('image/webp', quality);
-  if (!dataUrl.startsWith('data:image/webp')) {
-    mimeType = 'image/jpeg';
-    dataUrl = canvas.toDataURL('image/jpeg', quality);
-  }
+  // Use JPEG by default for 100% compatibility across WhatsApp, Facebook Groups, Twitter/X, and Telegram link previews
+  const mimeType = 'image/jpeg';
+  const dataUrl = canvas.toDataURL(mimeType, quality);
   return { dataUrl, width: targetW, height: targetH, mimeType };
 }
 

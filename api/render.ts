@@ -4,7 +4,7 @@ import { injectSeoIntoHtml } from '../src/services/ssrSeoRenderer.js';
 import { getEditionFromIsoCountry } from '../src/utils/countryEditions.js';
 
 const BOT_UA_REGEX =
-  /(googlebot|adsbot-google|mediapartners-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot|applebot|crawler|spider|bot)/i;
+  /(googlebot|adsbot-google|mediapartners-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|facebot|meta-externalagent|twitterbot|linkedinbot|whatsapp|telegram|discord|slack|pinterest|skypeuripreview|viber|snapchat|embedly|applebot|crawler|spider|bot)/i;
 
 export default async function handler(req: any, res: any) {
   try {

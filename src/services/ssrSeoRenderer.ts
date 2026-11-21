@@ -207,7 +207,55 @@ const COUNTRY_META: Record<string, { label: string; title: string; desc: string 
   },
 };
 
-async function fetchCountryPosts(country: string): Promise<Array<{ title: string; slug: string; excerpt: string; targetCountry: string }>> {
+const DEFAULT_SOCIAL_IMAGE =
+  'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&h=630&fit=crop&q=85&fm=jpg';
+
+function resolveAbsoluteSocialImage(rawImg: string, cleanBase: string): string {
+  const trimmed = String(rawImg || '').trim();
+  const abs = trimmed.startsWith('/') ? `${cleanBase}${trimmed}` : trimmed;
+  if (abs && !abs.startsWith('data:')) {
+    return abs;
+  }
+  return DEFAULT_SOCIAL_IMAGE;
+}
+
+function injectSocialMetaTags(
+  inputHtml: string,
+  params: {
+    title: string;
+    description: string;
+    canonicalUrl: string;
+    ogImage: string;
+    ogType: 'website' | 'article';
+  }
+): string {
+  let out = inputHtml;
+  out = out.replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '');
+  out = out.replace(/<meta\s+property=["']og:(?:url|title|description|type|image|image:width|image:height|image:alt)["'][^>]*>\s*/gi, '');
+  out = out.replace(/<meta\s+name=["']twitter:(?:card|title|description|image)["'][^>]*>\s*/gi, '');
+
+  const tags = [
+    `<link rel="canonical" href="${escapeHtml(params.canonicalUrl)}" />`,
+    `<meta property="og:url" content="${escapeHtml(params.canonicalUrl)}" />`,
+    `<meta property="og:title" content="${escapeHtml(params.title)}" />`,
+    `<meta property="og:description" content="${escapeHtml(params.description)}" />`,
+    `<meta property="og:type" content="${params.ogType}" />`,
+    `<meta property="og:image" content="${escapeHtml(params.ogImage)}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:image:alt" content="${escapeHtml(params.title)}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${escapeHtml(params.title)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(params.description)}" />`,
+    `<meta name="twitter:image" content="${escapeHtml(params.ogImage)}" />`,
+  ].join('\n    ');
+
+  return out.replace(/<\/head>/i, `    ${tags}\n  </head>`);
+}
+
+async function fetchCountryPosts(
+  country: string
+): Promise<Array<{ title: string; slug: string; excerpt: string; targetCountry: string; featuredImage: string }>> {
   const docs = await queryFirestore({
     from: [{ collectionId: 'posts' }],
     where: {
@@ -226,6 +274,7 @@ async function fetchCountryPosts(country: string): Promise<Array<{ title: string
       slug: readStr(f, 'slug') || readStr(f, 'id'),
       excerpt: readStr(f, 'excerpt') || readStr(f, 'subtitle'),
       targetCountry: readStr(f, 'targetCountry').toLowerCase().trim(),
+      featuredImage: readStr(f, 'featuredImage'),
       publishedAt: readStr(f, 'publishedAt') || readStr(f, 'createdAt'),
     }))
     .filter((p) => {
@@ -308,6 +357,17 @@ export async function injectSeoIntoHtml(
   }
 
   if (options.type === 'home') {
+    const homeTitle = `${siteCfg.siteName} - America's 24/7 Live News Portal`;
+    const homeDesc =
+      'Around-the-clock independent investigative journalism, US politics, business, tech, sports, and world news.';
+    html = injectSocialMetaTags(html, {
+      title: homeTitle,
+      description: homeDesc,
+      canonicalUrl: `${cleanBase}/`,
+      ogImage: DEFAULT_SOCIAL_IMAGE,
+      ogType: 'website',
+    });
+
     const listMarkup = countryPosts
       .map((p) => {
         const href =
@@ -341,25 +401,21 @@ export async function injectSeoIntoHtml(
     const meta = COUNTRY_META[countryKey];
     const canonicalUrl = `${cleanBase}/${countryKey}`;
     const fullTitle = `${meta.title} | ${siteCfg.siteName}`;
+    const leadPostImage = countryPosts.find((p) => p.featuredImage && !p.featuredImage.startsWith('data:'))?.featuredImage || '';
+    const countryOgImage = resolveAbsoluteSocialImage(leadPostImage, cleanBase);
+
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(fullTitle)}</title>`);
     html = html.replace(
       /<meta\s+name="description"[^>]*>/i,
       `<meta name="description" content="${escapeHtml(meta.desc)}" />`
     );
-    html = html.replace(
-      /<meta\s+property="og:title"[^>]*>/i,
-      `<meta property="og:title" content="${escapeHtml(fullTitle)}" />`
-    );
-    html = html.replace(
-      /<meta\s+property="og:description"[^>]*>/i,
-      `<meta property="og:description" content="${escapeHtml(meta.desc)}" />`
-    );
-    html = html.replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '');
-    html = html.replace(/<meta\s+property=["']og:url["'][^>]*>\s*/gi, '');
-    html = html.replace(
-      /<\/head>/i,
-      `    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />\n    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />\n  </head>`
-    );
+    html = injectSocialMetaTags(html, {
+      title: fullTitle,
+      description: meta.desc,
+      canonicalUrl,
+      ogImage: countryOgImage,
+      ogType: 'website',
+    });
 
     const listMarkup = countryPosts
       .map((p) => {
@@ -407,12 +463,7 @@ export async function injectSeoIntoHtml(
       : `${cleanBase}/page/${encodeURIComponent(entity.slug)}`;
 
   const fullTitle = `${entity.title} | ${siteCfg.siteName}`;
-  const rawImg = String(entity.image || '').trim();
-  const resolvedEntityImage = rawImg.startsWith('/') ? `${cleanBase}${rawImg}` : rawImg;
-  const ogImage =
-    resolvedEntityImage && !resolvedEntityImage.startsWith('data:')
-      ? resolvedEntityImage
-      : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80';
+  const ogImage = resolveAbsoluteSocialImage(entity.image || '', cleanBase);
 
   // Replace title & description
   html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(fullTitle)}</title>`);
@@ -421,32 +472,13 @@ export async function injectSeoIntoHtml(
     `<meta name="description" content="${escapeHtml(entity.description)}" />`
   );
 
-  // Replace OpenGraph & Twitter tags
-  html = html.replace(
-    /<meta\s+property="og:title"[^>]*>/i,
-    `<meta property="og:title" content="${escapeHtml(entity.title)}" />`
-  );
-  html = html.replace(
-    /<meta\s+property="og:description"[^>]*>/i,
-    `<meta property="og:description" content="${escapeHtml(entity.description)}" />`
-  );
-  html = html.replace(
-    /<meta\s+property="og:type"[^>]*>/i,
-    `<meta property="og:type" content="${entity.kind === 'article' ? 'article' : 'website'}" />`
-  );
-
-  const extraHeadTags = [
-    `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />`,
-    `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />`,
-    `<meta property="og:image" content="${escapeHtml(ogImage)}" />`,
-    `<meta name="twitter:title" content="${escapeHtml(entity.title)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(entity.description)}" />`,
-    `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />`,
-  ].join('\n    ');
-
-  html = html.replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '');
-  html = html.replace(/<meta\s+property=["']og:url["'][^>]*>\s*/gi, '');
-  html = html.replace(/<\/head>/i, `    ${extraHeadTags}\n  </head>`);
+  html = injectSocialMetaTags(html, {
+    title: entity.title,
+    description: entity.description,
+    canonicalUrl,
+    ogImage,
+    ogType: entity.kind === 'article' ? 'article' : 'website',
+  });
 
   // Replace JSON-LD Schema.org block with rich NewsArticle / WebPage schema
   const jsonLd =
