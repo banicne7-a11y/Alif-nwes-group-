@@ -65,6 +65,7 @@ export default function App() {
 
   // Cross-view state (editing a post or previewing)
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editorExpressDefault, setEditorExpressDefault] = useState(false);
   const [previewArticle, setPreviewArticle] = useState<Post | null>(() => {
     if (initialRoute.type === 'article') {
       const found = db.getPosts().find((p) => p.slug === initialRoute.slug || p.id === initialRoute.slug);
@@ -195,6 +196,7 @@ export default function App() {
 
   const handleNavigate = (view: string, subParam?: any) => {
     if (view === 'editor') {
+      setEditorExpressDefault(!!subParam?.express);
       if (subParam?.isNew) {
         setEditingPost(null);
       } else if (subParam) {
@@ -212,6 +214,7 @@ export default function App() {
   };
 
   const handleOpenEditor = (post: Post) => {
+    setEditorExpressDefault(false);
     setEditingPost(post);
     setCurrentView('editor');
     setIsWebsiteMode(false);
@@ -360,6 +363,7 @@ export default function App() {
           {currentView === 'editor' && (
             <AdvancedEditorView
               postToEdit={editingPost}
+              defaultExpressMode={editorExpressDefault}
               onBack={() => setCurrentView('posts')}
               onSaved={(savedPost) => {
                 setEditingPost(savedPost);

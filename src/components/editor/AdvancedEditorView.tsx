@@ -50,12 +50,14 @@ import { compressAndUploadGalleryImage } from '../../utils/imageUpload';
 
 interface AdvancedEditorViewProps {
   postToEdit?: Post | null;
+  defaultExpressMode?: boolean;
   onBack: () => void;
   onSaved: (post: Post) => void;
 }
 
 export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   postToEdit,
+  defaultExpressMode = false,
   onBack,
   onSaved,
 }) => {
@@ -141,10 +143,13 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
-  // Mobile-friendly Express / Quick Phone Mode (auto-enabled on mobile screens < 1024px)
-  const [expressMode, setExpressMode] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
-  );
+  // Classic Full Studio is default everywhere so Add New Post opens the familiar full editor;
+  // Quick Phone mode opens when explicitly requested or toggled from the top bar.
+  const [expressMode, setExpressMode] = useState<boolean>(!!defaultExpressMode);
+
+  React.useEffect(() => {
+    setExpressMode(!!defaultExpressMode);
+  }, [defaultExpressMode, postToEdit?.id]);
   const blocksToPlainText = (blkList: EditorBlock[]): string =>
     blkList
       .map((b) => {
@@ -857,10 +862,10 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
           {/* Preview button */}
           <button
             onClick={() => setShowPreviewModal(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>Preview</span>
+            <span className="hidden sm:inline">Preview</span>
           </button>
 
           {!expressMode && (

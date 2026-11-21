@@ -173,7 +173,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => onNavigate('editor', { isNew: true })}
+            onClick={() => onNavigate('editor', { isNew: true, express: true })}
             className="min-h-[44px] px-4 py-2 bg-[#00C5FF] hover:bg-cyan-400 text-slate-950 rounded-xl text-xs font-black transition-colors cursor-pointer"
           >
             📱 Quick Phone Post
