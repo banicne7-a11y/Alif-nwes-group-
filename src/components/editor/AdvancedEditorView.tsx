@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -13,6 +13,8 @@ import {
   Heading,
   AlignLeft,
   Quote,
+  Bold,
+  List,
   Table as TableIcon,
   Video,
   Code2,
@@ -47,6 +49,7 @@ import { Post, EditorBlock, PostStatus, TargetCountry, MediaItem } from '../../t
 import { TARGET_COUNTRY_LIST, isCountryEditionSlug } from '../../utils/countryEditions';
 import { formatArticleForReader, parseTextToEditorBlocks } from '../../utils/articleFormatter';
 import { compressAndUploadGalleryImage } from '../../utils/imageUpload';
+import { renderInlineFormatting } from '../../utils/inlineFormat';
 
 interface AdvancedEditorViewProps {
   postToEdit?: Post | null;
@@ -182,6 +185,102 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
     setExpressMode(nextExpress);
   };
 
+  const expressTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const paragraphTextareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+
+  const applyFormatToTextarea = (
+    textarea: HTMLTextAreaElement | null,
+    currentValue: string,
+    onChangeValue: (nextVal: string) => void,
+    format: 'bold' | 'h2' | 'h3' | 'list' | 'quote'
+  ) => {
+    const val = currentValue || '';
+    const start = textarea ? textarea.selectionStart ?? val.length : val.length;
+    const end = textarea ? textarea.selectionEnd ?? val.length : val.length;
+    const selected = val.slice(start, end);
+
+    let nextVal = val;
+    let nextSelStart = start;
+    let nextSelEnd = end;
+
+    if (format === 'bold') {
+      const marker = '**';
+      const placeholder = 'bold text';
+      if (selected) {
+        if (selected.startsWith(marker) && selected.endsWith(marker) && selected.length > 4) {
+          const inner = selected.slice(2, -2);
+          nextVal = val.slice(0, start) + inner + val.slice(end);
+          nextSelStart = start;
+          nextSelEnd = start + inner.length;
+        } else {
+          const wrapped = `${marker}${selected}${marker}`;
+          nextVal = val.slice(0, start) + wrapped + val.slice(end);
+          nextSelStart = start;
+          nextSelEnd = start + wrapped.length;
+        }
+      } else {
+        const needsSpace = start > 0 && !/[\s\n]$/.test(val.slice(0, start));
+        const pad = needsSpace ? ' ' : '';
+        const insertText = `${pad}${marker}${placeholder}${marker}`;
+        nextVal = val.slice(0, start) + insertText + val.slice(end);
+        nextSelStart = start + pad.length + marker.length;
+        nextSelEnd = nextSelStart + placeholder.length;
+      }
+    } else {
+      const prefix = format === 'h2' ? '## ' : format === 'h3' ? '### ' : format === 'list' ? '• ' : '> ';
+      const placeholder =
+        format === 'h2'
+          ? 'Section Headline Here'
+          : format === 'h3'
+          ? 'Subheading Here'
+          : format === 'list'
+          ? 'List item here'
+          : 'Important quote here';
+
+      if (selected) {
+        const formattedLines = selected
+          .split('\n')
+          .map((line) => {
+            const trimmed = line.trim();
+            if (!trimmed) return line;
+            const cleaned = trimmed.replace(/^(#{1,4}\s+|•\s+|-\s+|>\s+)/, '');
+            return trimmed.startsWith(prefix) ? cleaned : `${prefix}${cleaned}`;
+          })
+          .join('\n');
+        nextVal = val.slice(0, start) + formattedLines + val.slice(end);
+        nextSelStart = start;
+        nextSelEnd = start + formattedLines.length;
+      } else {
+        const lineStart = val.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+        const lineEndIdx = val.indexOf('\n', start);
+        const lineEnd = lineEndIdx === -1 ? val.length : lineEndIdx;
+        const currentLine = val.slice(lineStart, lineEnd);
+
+        if (currentLine.trim()) {
+          const cleaned = currentLine.trim().replace(/^(#{1,4}\s+|•\s+|-\s+|>\s+)/, '');
+          const replacement = currentLine.trim().startsWith(prefix) ? cleaned : `${prefix}${cleaned}`;
+          nextVal = val.slice(0, lineStart) + replacement + val.slice(lineEnd);
+          nextSelStart = lineStart;
+          nextSelEnd = lineStart + replacement.length;
+        } else {
+          const needsBreak = start > 0 && val[start - 1] !== '\n';
+          const insertPrefix = `${needsBreak ? '\n' : ''}${prefix}`;
+          nextVal = val.slice(0, start) + insertPrefix + placeholder + val.slice(end);
+          nextSelStart = start + insertPrefix.length;
+          nextSelEnd = nextSelStart + placeholder.length;
+        }
+      }
+    }
+
+    onChangeValue(nextVal);
+    if (textarea) {
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(nextSelStart, nextSelEnd);
+      });
+    }
+  };
+
   const handleExpressBodyChange = (val: string) => {
     setExpressBodyText(val);
     if (val.trim()) {
@@ -291,7 +390,11 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
       hasTags: selectedTags.length >= 3,
       hasSecondaryKeywords: secondaryKeywords.length > 0,
       wordCountAdequate: wordCount >= 250,
-      hasHeadings: blocks.some((b) => b.type === 'heading'),
+      hasHeadings: blocks.some(
+        (b) =>
+          b.type === 'heading' ||
+          (b.type === 'paragraph' && typeof b.content === 'string' && /^#{1,4}\s+\S+/m.test(b.content))
+      ),
       hasImage: !!featuredImage,
     };
 
@@ -1017,11 +1120,65 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                   📋 Paste Text
                 </button>
               </div>
+              {/* Quick Phone Bold & Heading Toolbar */}
+              <div className="flex flex-wrap items-center gap-1.5 p-2 mb-2 bg-slate-100 border border-slate-200 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() =>
+                    applyFormatToTextarea(expressTextareaRef.current, expressBodyText, handleExpressBodyChange, 'bold')
+                  }
+                  className="min-h-[34px] px-2.5 py-1 bg-white hover:bg-slate-900 hover:text-white border border-slate-300 rounded-lg text-xs font-black text-slate-900 flex items-center gap-1 cursor-pointer"
+                  title="লেখা মোটা করুন (Bold)"
+                >
+                  <Bold className="w-3.5 h-3.5" /> মোটা (B)
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    applyFormatToTextarea(expressTextareaRef.current, expressBodyText, handleExpressBodyChange, 'h2')
+                  }
+                  className="min-h-[34px] px-2.5 py-1 bg-white hover:bg-sky-700 hover:text-white border border-slate-300 rounded-lg text-xs font-extrabold text-slate-800 cursor-pointer"
+                  title="বড় সাব-হেডলাইন (H2)"
+                >
+                  H2 হেডলাইন
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    applyFormatToTextarea(expressTextareaRef.current, expressBodyText, handleExpressBodyChange, 'h3')
+                  }
+                  className="min-h-[34px] px-2.5 py-1 bg-white hover:bg-sky-700 hover:text-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
+                  title="ছোট হেডলাইন (H3)"
+                >
+                  H3
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    applyFormatToTextarea(expressTextareaRef.current, expressBodyText, handleExpressBodyChange, 'list')
+                  }
+                  className="min-h-[34px] px-2.5 py-1 bg-white hover:bg-slate-800 hover:text-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                  title="পয়েন্ট লিস্ট"
+                >
+                  <List className="w-3.5 h-3.5" /> List
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    applyFormatToTextarea(expressTextareaRef.current, expressBodyText, handleExpressBodyChange, 'quote')
+                  }
+                  className="min-h-[34px] px-2.5 py-1 bg-white hover:bg-slate-800 hover:text-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                  title="উদ্ধৃতি (Quote)"
+                >
+                  <Quote className="w-3.5 h-3.5" /> Quote
+                </button>
+              </div>
               <textarea
+                ref={expressTextareaRef}
                 rows={9}
                 value={expressBodyText}
                 onChange={(e) => handleExpressBodyChange(e.target.value)}
-                placeholder="পুরো আর্টিকেল এখানে লিখুন বা Paste করুন (নিজেই সুন্দর প্যারাগ্রাফ ও হেডিং হয়ে যাবে)..."
+                placeholder="পুরো আর্টিকেল এখানে লিখুন বা Paste করুন (যেকোনো লেখা সিলেক্ট করে B চাপলে মোটা ও H2 চাপলে হেডলাইন হবে)..."
                 className="w-full p-3.5 text-sm leading-relaxed text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500 resize-y"
               />
               <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
@@ -1686,14 +1843,96 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
 
                 {/* Block Content Renderers / Editors */}
                 {block.type === 'paragraph' && (
-                  <textarea
-                    rows={5}
-                    value={block.content}
-                    onChange={(e) => handleUpdateBlock(block.id, { content: e.target.value })}
-                    onPaste={(e) => handleParagraphPaste(e, index)}
-                    className="w-full text-sm text-slate-700 leading-relaxed border-none focus:outline-hidden resize-y placeholder:text-slate-300"
-                    placeholder="Type or paste article content here (automatically splits into clean paragraphs & headings)..."
-                  />
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyFormatToTextarea(
+                            paragraphTextareaRefs.current[block.id] || null,
+                            String(block.content || ''),
+                            (nextVal) => handleUpdateBlock(block.id, { content: nextVal }),
+                            'bold'
+                          )
+                        }
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-900 hover:text-white border border-slate-200 rounded-md text-[11px] font-black text-slate-900 flex items-center gap-1 cursor-pointer"
+                        title="সিলেক্ট করা লেখা মোটা করুন (**Bold**)"
+                      >
+                        <Bold className="w-3 h-3" /> মোটা (B)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyFormatToTextarea(
+                            paragraphTextareaRefs.current[block.id] || null,
+                            String(block.content || ''),
+                            (nextVal) => handleUpdateBlock(block.id, { content: nextVal }),
+                            'h2'
+                          )
+                        }
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-sky-700 hover:text-white border border-slate-200 rounded-md text-[11px] font-extrabold text-slate-800 cursor-pointer"
+                        title="বড় মোটা সাব-হেডলাইন (## H2)"
+                      >
+                        H2 হেডলাইন
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyFormatToTextarea(
+                            paragraphTextareaRefs.current[block.id] || null,
+                            String(block.content || ''),
+                            (nextVal) => handleUpdateBlock(block.id, { content: nextVal }),
+                            'h3'
+                          )
+                        }
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-sky-700 hover:text-white border border-slate-200 rounded-md text-[11px] font-bold text-slate-700 cursor-pointer"
+                        title="ছোট হেডলাইন (### H3)"
+                      >
+                        H3
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyFormatToTextarea(
+                            paragraphTextareaRefs.current[block.id] || null,
+                            String(block.content || ''),
+                            (nextVal) => handleUpdateBlock(block.id, { content: nextVal }),
+                            'list'
+                          )
+                        }
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-800 hover:text-white border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                        title="পয়েন্ট লিস্ট"
+                      >
+                        <List className="w-3 h-3" /> List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyFormatToTextarea(
+                            paragraphTextareaRefs.current[block.id] || null,
+                            String(block.content || ''),
+                            (nextVal) => handleUpdateBlock(block.id, { content: nextVal }),
+                            'quote'
+                          )
+                        }
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-800 hover:text-white border border-slate-200 rounded-md text-[11px] font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                        title="উদ্ধৃতি (Quote)"
+                      >
+                        <Quote className="w-3 h-3" /> Quote
+                      </button>
+                    </div>
+                    <textarea
+                      ref={(el) => {
+                        paragraphTextareaRefs.current[block.id] = el;
+                      }}
+                      rows={5}
+                      value={block.content}
+                      onChange={(e) => handleUpdateBlock(block.id, { content: e.target.value })}
+                      onPaste={(e) => handleParagraphPaste(e, index)}
+                      className="w-full text-sm text-slate-700 leading-relaxed border-none focus:outline-hidden resize-y placeholder:text-slate-300"
+                      placeholder="লেখা লিখুন বা Paste করুন—যেকোনো লেখা সিলেক্ট করে উপরে 'মোটা (B)' বা 'H2 হেডলাইন' চাপতে পারেন..."
+                    />
+                  </div>
                 )}
 
                 {block.type === 'heading' && (
@@ -1711,8 +1950,8 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                       type="text"
                       value={block.content}
                       onChange={(e) => handleUpdateBlock(block.id, { content: e.target.value })}
-                      placeholder="Heading text..."
-                      className="w-full text-lg font-bold text-slate-900 border-none focus:outline-hidden"
+                      placeholder="Bold Headline / Subheading text..."
+                      className="w-full text-xl font-extrabold text-slate-950 border-none focus:outline-hidden"
                     />
                   </div>
                 )}
@@ -1827,9 +2066,9 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
             </button>
             <button
               onClick={() => handleAddBlock('heading')}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
-              <Heading className="w-3.5 h-3.5 text-sky-600" /> Heading
+              <Heading className="w-3.5 h-3.5 text-sky-600" /> Heading (H2/H3)
             </button>
             <button
               onClick={() => handleAddBlock('image')}
@@ -2868,7 +3107,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                     <div key={sec.id}>
                       {sec.type === 'paragraph' && (
                         <p className="text-[16px] text-slate-800 leading-[1.8]">
-                          {sec.text}
+                          {renderInlineFormatting(sec.text)}
                         </p>
                       )}
                       {sec.type === 'heading' && (
@@ -2879,13 +3118,13 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                       {sec.type === 'list' && (
                         <ul className="pl-5 list-disc space-y-1.5 text-[15px] text-slate-800">
                           {sec.items.map((item, idx) => (
-                            <li key={idx}>{item}</li>
+                            <li key={idx}>{renderInlineFormatting(item)}</li>
                           ))}
                         </ul>
                       )}
                       {sec.type === 'quote' && (
                         <blockquote className="border-y border-slate-200 py-4 my-4 text-center italic font-['Playfair_Display',Georgia,serif] text-lg text-slate-900">
-                          “{sec.text}”
+                          “{renderInlineFormatting(sec.text)}”
                           {sec.caption && (
                             <cite className="block text-xs font-sans not-italic text-slate-500 mt-1">
                               — {sec.caption}

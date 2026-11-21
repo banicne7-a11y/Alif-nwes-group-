@@ -30,6 +30,13 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function renderSafeInlineHtml(raw: string): string {
+  const escaped = escapeHtml(raw);
+  return escaped
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+}
+
 function readStr(fields: Record<string, any> | undefined, key: string): string {
   return fields?.[key]?.stringValue ? String(fields[key].stringValue) : '';
 }
@@ -45,11 +52,13 @@ function readBlocksText(fields: Record<string, any> | undefined): string {
     const content = readStr(mapFields, 'content');
     if (!content) continue;
     if (type === 'heading') {
-      parts.push(`<h2>${escapeHtml(content)}</h2>`);
+      const levelNum = Number(mapFields?.level?.integerValue || 2);
+      const tag = levelNum === 4 ? 'h4' : levelNum === 3 ? 'h3' : 'h2';
+      parts.push(`<${tag}>${escapeHtml(content.replace(/\*\*/g, ''))}</${tag}>`);
     } else if (type === 'quote') {
-      parts.push(`<blockquote>${escapeHtml(content)}</blockquote>`);
+      parts.push(`<blockquote>${renderSafeInlineHtml(content)}</blockquote>`);
     } else if (type === 'paragraph' || type === 'callout') {
-      parts.push(`<p>${escapeHtml(content)}</p>`);
+      parts.push(`<p>${renderSafeInlineHtml(content)}</p>`);
     }
   }
   return parts.join('\n');
@@ -62,13 +71,16 @@ function formatPlainTextHtml(raw: string): string {
     .filter(Boolean)
     .slice(0, 40)
     .map((chunk) => {
+      if (chunk.startsWith('### ')) {
+        return `<h3>${escapeHtml(chunk.slice(4).replace(/\*\*/g, '').trim())}</h3>`;
+      }
       if (chunk.startsWith('## ')) {
-        return `<h2>${escapeHtml(chunk.slice(3).trim())}</h2>`;
+        return `<h2>${escapeHtml(chunk.slice(3).replace(/\*\*/g, '').trim())}</h2>`;
       }
       if (chunk.startsWith('# ')) {
-        return `<h2>${escapeHtml(chunk.slice(2).trim())}</h2>`;
+        return `<h2>${escapeHtml(chunk.slice(2).replace(/\*\*/g, '').trim())}</h2>`;
       }
-      return `<p>${escapeHtml(chunk)}</p>`;
+      return `<p>${renderSafeInlineHtml(chunk)}</p>`;
     })
     .join('\n');
 }

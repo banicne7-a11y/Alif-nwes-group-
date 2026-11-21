@@ -46,6 +46,7 @@ import {
   estimateReadingTimeMinutes,
   FormattedSection,
 } from '../../utils/articleFormatter';
+import { renderInlineFormatting } from '../../utils/inlineFormat';
 
 interface PublicWebsiteViewProps {
   onBackToAdmin: () => void;
@@ -1174,7 +1175,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         key={sec.id}
                         className="border-l-4 border-red-600 pl-4 italic text-slate-600 dark:text-slate-300 py-1"
                       >
-                        {sec.text}
+                        {renderInlineFormatting(sec.text)}
                       </blockquote>
                     );
                   }
@@ -1184,7 +1185,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         key={sec.id}
                         className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm"
                       >
-                        {sec.text}
+                        {renderInlineFormatting(sec.text)}
                       </div>
                     );
                   }
@@ -1193,13 +1194,13 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                     return (
                       <ListEl key={sec.id} className={sec.ordered ? 'list-decimal pl-6 space-y-1.5' : 'list-disc pl-6 space-y-1.5'}>
                         {sec.items.map((item, i) => (
-                          <li key={i}>{item}</li>
+                          <li key={i}>{renderInlineFormatting(item)}</li>
                         ))}
                       </ListEl>
                     );
                   }
                   if (sec.type === 'paragraph') {
-                    return <p key={sec.id}>{sec.text}</p>;
+                    return <p key={sec.id}>{renderInlineFormatting(sec.text)}</p>;
                   }
                   return null;
                 })}
@@ -1442,7 +1443,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                                 : ''
                             }
                           >
-                            {sec.text}
+                            {renderInlineFormatting(sec.text)}
                           </p>
                           {paragraphCount === 2 && (
                             <AdSlotRenderer
@@ -1479,7 +1480,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                         >
                           {sec.items.map((item, idx) => (
                             <li key={idx} className="pl-1">
-                              {item}
+                              {renderInlineFormatting(item)}
                             </li>
                           ))}
                         </ListEl>
@@ -1493,7 +1494,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                           className="my-7 py-5 px-2 sm:px-6 border-y border-slate-200 dark:border-slate-700 text-center"
                         >
                           <p className="font-['Playfair_Display',Georgia,serif] italic text-xl sm:text-2xl leading-relaxed text-slate-900 dark:text-slate-100">
-                            “{sec.text}”
+                            “{renderInlineFormatting(sec.text)}”
                           </p>
                           {sec.caption && (
                             <cite className="block font-['Plus_Jakarta_Sans',sans-serif] text-xs not-italic font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-3">
@@ -1510,7 +1511,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                           key={sec.id}
                           className="my-5 p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 font-['Plus_Jakarta_Sans',sans-serif] text-sm leading-relaxed text-slate-700 dark:text-slate-200"
                         >
-                          {sec.text}
+                          {renderInlineFormatting(sec.text)}
                         </div>
                       );
                     }
