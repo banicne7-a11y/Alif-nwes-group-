@@ -261,7 +261,17 @@ export async function injectSeoIntoHtml(
   if (isRealAdSense) {
     const metaAdSense = `<meta name="google-adsense-account" content="${escapeHtml(adsenseId)}" id="google-adsense-account" />`;
     const scriptAdSense = `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(adsenseId)}" crossorigin="anonymous" data-alif-adsense="true"></script>`;
-    if (!html.includes('name="google-adsense-account"')) {
+    if (html.includes('name="google-adsense-account"')) {
+      html = html.replace(/<meta\s+name="google-adsense-account"[^>]*>/i, metaAdSense);
+      if (html.includes('data-alif-adsense="true"')) {
+        html = html.replace(
+          /<script async src="https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=[^"]+"[^>]*data-alif-adsense="true"><\/script>/i,
+          scriptAdSense
+        );
+      } else {
+        html = html.replace(/<\/head>/i, `    ${scriptAdSense}\n  </head>`);
+      }
+    } else {
       html = html.replace(/<\/head>/i, `    ${metaAdSense}\n    ${scriptAdSense}\n  </head>`);
     }
   }
