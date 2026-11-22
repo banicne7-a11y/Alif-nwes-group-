@@ -118,7 +118,14 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
       setAnalyzedMap(map);
       toast.success(`⚡ ${res.data.length}টি ট্রেন্ডিং টপিক AI দিয়ে বিশ্লেষণ করা হয়েছে!`);
     } catch (err: any) {
-      toast.error(err?.message || 'AI দিয়ে ট্রেন্ড অ্যানালাইসিস করা যায়নি।');
+      const msg = String(err?.message || '');
+      if (msg.includes('GEMINI_API_KEY')) {
+        toast.error(
+          'সার্ভারে GEMINI_API_KEY সেট করা নেই—AI অ্যানালাইসিস চালাতে Vercel Environment Variables-এ GEMINI_API_KEY যোগ করুন।'
+        );
+      } else {
+        toast.error(msg || 'AI দিয়ে ট্রেন্ড অ্যানালাইসিস করা যায়নি।');
+      }
     } finally {
       setAnalyzingTrends(false);
     }
@@ -204,7 +211,52 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
         onNavigateToEditor(newPost);
       }
     } catch (err: any) {
-      toast.error(err?.message || 'আর্টিকেল তৈরি করতে সমস্যা হয়েছে।');
+      const msg = String(err?.message || '');
+      if (mode === 'editor' && msg.includes('GEMINI_API_KEY')) {
+        const validThumb =
+          trend.picture && trend.picture.startsWith('http')
+            ? trend.picture
+            : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80';
+        const bulletSummary = (trend.newsItems || [])
+          .map((n) => `• ${n.title}${n.source ? ` (${n.source})` : ''}`)
+          .join('\n');
+        const starterBody = [
+          `## Why Is "${trend.title}" Trending Today?`,
+          bulletSummary || `Latest updates and background context on ${trend.title}.`,
+          `## Key Details & What to Know`,
+          `Write or paste your full verified report here...`,
+        ].join('\n\n');
+        const blocks = parseTextToEditorBlocks(starterBody);
+        const draftPost = db.savePost({
+          title: analysis?.suggestedTitle || trend.title,
+          subtitle: trend.newsItems?.[0]?.title || '',
+          category: analysis?.category || 'Business',
+          tags: [trend.title, selectedTrendCountry.toUpperCase()],
+          content: starterBody,
+          blocks: blocks.length > 0 ? blocks : undefined,
+          excerpt: trend.newsItems?.[0]?.title || `${trend.title} latest updates.`,
+          featuredImage: validThumb,
+          targetCountry: selectedTrendCountry as TargetCountry,
+          isTrending: true,
+          status: 'draft',
+          seo: {
+            title: analysis?.suggestedTitle || trend.title,
+            description: trend.newsItems?.[0]?.title || `Read the latest updates about ${trend.title} on Alif News 24.`,
+            focusKeyword: analysis?.targetKeyword || trend.title,
+            secondaryKeywords: [trend.title],
+            score: 65,
+          },
+        });
+        setPosts([...db.getPosts()]);
+        toast.info('AI Key না থাকায় টপিকটি সরাসরি Editor-এ ওপেন করা হয়েছে—এখন লিখে Publish করতে পারবেন।');
+        onNavigateToEditor(draftPost);
+      } else if (msg.includes('GEMINI_API_KEY')) {
+        toast.error(
+          "AI দিয়ে লিখতে Vercel-এ GEMINI_API_KEY যোগ করুন, অথবা বাম পাশের 'Editor' বাটনে চাপ দিয়ে সরাসরি পোস্ট লিখুন।"
+        );
+      } else {
+        toast.error(msg || 'আর্টিকেল তৈরি করতে সমস্যা হয়েছে।');
+      }
     } finally {
       setWritingTopicId(null);
     }
