@@ -94,6 +94,10 @@ export function applyGoogleAnalyticsTag(gaId?: string): string {
   const isRealGa = Boolean(cleanId && cleanId !== PLACEHOLDER_GA_ID);
 
   if (typeof document !== 'undefined' && isRealGa) {
+    const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+    if (isAdminRoute) {
+      return cleanId;
+    }
     let script = document.querySelector<HTMLScriptElement>('script[data-alif-ga="true"]');
     const desiredSrc = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(cleanId)}`;
     if (!script) {
@@ -105,7 +109,7 @@ export function applyGoogleAnalyticsTag(gaId?: string): string {
 
       const inline = document.createElement('script');
       inline.setAttribute('data-alif-ga-init', 'true');
-      inline.text = `window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} window.gtag = window.gtag || gtag; gtag('js', new Date()); gtag('config', '${cleanId}');`;
+      inline.text = `window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} window.gtag = window.gtag || gtag; gtag('js', new Date()); if (!window.location.pathname.startsWith('/admin')) { gtag('config', '${cleanId}'); }`;
       document.head.appendChild(inline);
     } else if (script.src !== desiredSrc) {
       script.src = desiredSrc;

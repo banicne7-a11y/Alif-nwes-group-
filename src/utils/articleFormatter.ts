@@ -166,7 +166,10 @@ function parseRawTextToSections(rawText: string, baseId: string): FormattedSecti
     const chunk = rawChunk.trim();
     if (!chunk) continue;
 
-    const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
+    const lines = chunk
+      .split('\n')
+      .map((l) => l.trim().replace(/^#{1,4}(?=[A-Z\u0980-\u09FF][a-zA-Z\u0980-\u09FF\s,.'’-]{15,})/, ''))
+      .filter(Boolean);
 
     // Check if the chunk is a bullet or numbered list
     if (lines.length > 0 && lines.every((l) => /^([-*•]\s+|\d+[.)]\s+)/.test(l))) {
@@ -314,7 +317,8 @@ function parseRawTextToSections(rawText: string, baseId: string): FormattedSecti
  */
 export function formatArticleForReader(
   blocks?: EditorBlock[],
-  fallbackContent?: string
+  fallbackContent?: string,
+  articleTitle?: string
 ): FormattedSection[] {
   const validBlocks = Array.isArray(blocks)
     ? blocks.filter((b) => {
@@ -323,51 +327,60 @@ export function formatArticleForReader(
       })
     : [];
 
+  let out: FormattedSection[] = [];
   if (validBlocks.length === 0) {
     if (!fallbackContent || !fallbackContent.trim()) return [];
-    return parseRawTextToSections(fallbackContent, 'content');
+    out = parseRawTextToSections(fallbackContent, 'content');
+  } else {
+    validBlocks.forEach((block, i) => {
+      const baseId = block.id || `blk-${i}`;
+      if (block.type === 'heading') {
+        out.push({
+          id: baseId,
+          type: 'heading',
+          level: block.level || 2,
+          text: String(block.content).trim(),
+        });
+      } else if (block.type === 'quote') {
+        out.push({
+          id: baseId,
+          type: 'quote',
+          text: String(block.content).trim(),
+          caption: block.caption,
+        });
+      } else if (block.type === 'callout') {
+        out.push({
+          id: baseId,
+          type: 'callout',
+          text: String(block.content).trim(),
+        });
+      } else if (block.type === 'image') {
+        out.push({
+          id: baseId,
+          type: 'image',
+          url: String(block.content).trim(),
+          caption: block.caption,
+        });
+      } else if (block.type === 'table' && Array.isArray(block.content)) {
+        out.push({
+          id: baseId,
+          type: 'table',
+          rows: block.content,
+        });
+      } else if (block.type === 'paragraph') {
+        out.push(...parseRawTextToSections(String(block.content), baseId));
+      }
+    });
   }
 
-  const out: FormattedSection[] = [];
-  validBlocks.forEach((block, i) => {
-    const baseId = block.id || `blk-${i}`;
-    if (block.type === 'heading') {
-      out.push({
-        id: baseId,
-        type: 'heading',
-        level: block.level || 2,
-        text: String(block.content).trim(),
-      });
-    } else if (block.type === 'quote') {
-      out.push({
-        id: baseId,
-        type: 'quote',
-        text: String(block.content).trim(),
-        caption: block.caption,
-      });
-    } else if (block.type === 'callout') {
-      out.push({
-        id: baseId,
-        type: 'callout',
-        text: String(block.content).trim(),
-      });
-    } else if (block.type === 'image') {
-      out.push({
-        id: baseId,
-        type: 'image',
-        url: String(block.content).trim(),
-        caption: block.caption,
-      });
-    } else if (block.type === 'table' && Array.isArray(block.content)) {
-      out.push({
-        id: baseId,
-        type: 'table',
-        rows: block.content,
-      });
-    } else if (block.type === 'paragraph') {
-      out.push(...parseRawTextToSections(String(block.content), baseId));
+  if (articleTitle && out.length > 0 && out[0].type === 'heading') {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, ' ').trim();
+    const firstNorm = norm(out[0].text);
+    const titleNorm = norm(articleTitle);
+    if (firstNorm && titleNorm && (firstNorm === titleNorm || titleNorm.startsWith(firstNorm) || firstNorm.startsWith(titleNorm))) {
+      out = out.slice(1);
     }
-  });
+  }
 
   return out;
 }

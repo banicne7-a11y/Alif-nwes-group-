@@ -41,20 +41,28 @@ function readStr(fields: Record<string, any> | undefined, key: string): string {
   return fields?.[key]?.stringValue ? String(fields[key].stringValue) : '';
 }
 
-function readBlocksText(fields: Record<string, any> | undefined): string {
+function cleanStrayLeadingHash(raw: string): string {
+  return String(raw || '').replace(/^#{1,4}(?=[A-Z\u0980-\u09FF][a-zA-Z\u0980-\u09FF\s,.'’-]{15,})/gm, '');
+}
+
+function readBlocksText(fields: Record<string, any> | undefined, articleTitle?: string): string {
   const arr = fields?.blocks?.arrayValue?.values;
   if (!Array.isArray(arr) || arr.length === 0) return '';
+  const normTitle = (articleTitle || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const parts: string[] = [];
   for (const item of arr) {
     const mapFields = item?.mapValue?.fields;
     if (!mapFields) continue;
     const type = readStr(mapFields, 'type');
-    const content = readStr(mapFields, 'content');
+    const content = cleanStrayLeadingHash(readStr(mapFields, 'content'));
     if (!content) continue;
     if (type === 'heading') {
+      const cleanHeading = content.replace(/\*\*/g, '').trim();
+      const normH = cleanHeading.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if (parts.length === 0 && normTitle && normH === normTitle) continue;
       const levelNum = Number(mapFields?.level?.integerValue || 2);
       const tag = levelNum === 4 ? 'h4' : levelNum === 3 ? 'h3' : 'h2';
-      parts.push(`<${tag}>${escapeHtml(content.replace(/\*\*/g, ''))}</${tag}>`);
+      parts.push(`<${tag}>${escapeHtml(cleanHeading)}</${tag}>`);
     } else if (type === 'quote') {
       parts.push(`<blockquote>${renderSafeInlineHtml(content)}</blockquote>`);
     } else if (type === 'paragraph' || type === 'callout') {
@@ -64,13 +72,14 @@ function readBlocksText(fields: Record<string, any> | undefined): string {
   return parts.join('\n');
 }
 
-function formatPlainTextHtml(raw: string): string {
-  return raw
+function formatPlainTextHtml(raw: string, articleTitle?: string): string {
+  const normTitle = (articleTitle || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return cleanStrayLeadingHash(raw)
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean)
     .slice(0, 40)
-    .map((chunk) => {
+    .map((chunk, idx) => {
       if (chunk.startsWith('### ')) {
         return `<h3>${escapeHtml(chunk.slice(4).replace(/\*\*/g, '').trim())}</h3>`;
       }
@@ -78,10 +87,14 @@ function formatPlainTextHtml(raw: string): string {
         return `<h2>${escapeHtml(chunk.slice(3).replace(/\*\*/g, '').trim())}</h2>`;
       }
       if (chunk.startsWith('# ')) {
-        return `<h2>${escapeHtml(chunk.slice(2).replace(/\*\*/g, '').trim())}</h2>`;
+        const headingText = chunk.slice(2).replace(/\*\*/g, '').trim();
+        const normH = headingText.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        if (idx === 0 && normTitle && normH === normTitle) return '';
+        return `<h2>${escapeHtml(headingText)}</h2>`;
       }
       return `<p>${renderSafeInlineHtml(chunk)}</p>`;
     })
+    .filter(Boolean)
     .join('\n');
 }
 
@@ -160,8 +173,8 @@ async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promis
   if (!title) return null;
 
   const rawContent = readStr(f, 'content');
-  const blocksHtml = readBlocksText(f);
-  const contentHtml = blocksHtml || (rawContent ? formatPlainTextHtml(rawContent) : '');
+  const blocksHtml = readBlocksText(f, title);
+  const contentHtml = blocksHtml || (rawContent ? formatPlainTextHtml(rawContent, title) : '');
   const description =
     readStr(f, 'seoDescription') ||
     readStr(f?.seo?.mapValue?.fields, 'description') ||
@@ -348,10 +361,10 @@ export async function injectSeoIntoHtml(
       );
       html = html.replace(
         /<script data-alif-ga-init="true">[\s\S]*?<\/script>/i,
-        `<script data-alif-ga-init="true">window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=window.gtag||gtag;gtag('js',new Date());gtag('config','${escapeHtml(gaId)}');</script>`
+        `<script data-alif-ga-init="true">window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=window.gtag||gtag;gtag('js',new Date());if(!window.location.pathname.startsWith('/admin')){gtag('config','${escapeHtml(gaId)}');}</script>`
       );
     } else {
-      const gaTag = `<script async src="https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}" data-alif-ga="true"></script>\n    <script data-alif-ga-init="true">window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=window.gtag||gtag;gtag('js',new Date());gtag('config','${escapeHtml(gaId)}');</script>`;
+      const gaTag = `<script async src="https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}" data-alif-ga="true"></script>\n    <script data-alif-ga-init="true">window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=window.gtag||gtag;gtag('js',new Date());if(!window.location.pathname.startsWith('/admin')){gtag('config','${escapeHtml(gaId)}');}</script>`;
       html = html.replace(/<\/head>/i, `    ${gaTag}\n  </head>`);
     }
   }

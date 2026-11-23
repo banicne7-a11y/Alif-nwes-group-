@@ -45,7 +45,9 @@
       function gtag(){window.dataLayer.push(arguments);}
       window.gtag = window.gtag || gtag;
       gtag('js', new Date());
-      gtag('config', 'G-VDEL10JT6W');
+      if (!window.location.pathname.startsWith('/admin')) {
+        gtag('config', 'G-VDEL10JT6W');
+      }
     </script>
     <!-- Google AdSense Verification -->
     <meta name="google-adsense-account" content="ca-pub-5838132584781260" id="google-adsense-account" />

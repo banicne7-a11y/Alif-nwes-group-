@@ -648,7 +648,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
   });
 
   const activeSections: FormattedSection[] = activeArticle
-    ? formatArticleForReader(activeArticle.blocks, activeArticle.content)
+    ? formatArticleForReader(activeArticle.blocks, activeArticle.content, activeArticle.title)
     : [];
   const activeReadMinutes = activeArticle
     ? estimateReadingTimeMinutes(activeSections, activeArticle.title)
