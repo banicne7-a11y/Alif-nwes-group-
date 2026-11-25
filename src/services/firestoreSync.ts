@@ -552,23 +552,7 @@ class FirestoreSyncService {
       }
     );
 
-    // 4. Tags
-    const unsubTags = onSnapshot(
-      collection(firestoreDb, 'tags'),
-      (snap) => {
-        if (!snap.empty || this.isRemoteConfigInitialized) {
-          cb.onTagsUpdate(
-            snap.docs.map((d) => d.data() as Tag),
-            this.isRemoteConfigInitialized || !snap.empty
-          );
-        }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'tags');
-      }
-    );
-
-    // 5. Pages
+    // 4. Pages
     const pagesQuery = isAdmin
       ? collection(firestoreDb, 'pages')
       : query(collection(firestoreDb, 'pages'), where('status', '==', 'published'));
@@ -587,7 +571,7 @@ class FirestoreSyncService {
       }
     );
 
-    // 6. Ads
+    // 5. Ads
     const unsubAds = onSnapshot(
       collection(firestoreDb, 'ads'),
       (snap) => {
@@ -603,23 +587,7 @@ class FirestoreSyncService {
       }
     );
 
-    // 7. Media
-    const unsubMedia = onSnapshot(
-      collection(firestoreDb, 'media'),
-      (snap) => {
-        if (!snap.empty || this.isRemoteConfigInitialized) {
-          cb.onMediaUpdate(
-            snap.docs.map((d) => d.data() as MediaItem),
-            this.isRemoteConfigInitialized || !snap.empty
-          );
-        }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'media');
-      }
-    );
-
-    // 8. Comments
+    // 6. Comments
     const commentsQuery = isAdmin
       ? collection(firestoreDb, 'comments')
       : query(collection(firestoreDb, 'comments'), where('status', '==', 'approved'));
@@ -642,10 +610,8 @@ class FirestoreSyncService {
       unsubConfig,
       unsubPosts,
       unsubCats,
-      unsubTags,
       unsubPages,
       unsubAds,
-      unsubMedia,
       unsubComments
     );
   }
@@ -653,6 +619,36 @@ class FirestoreSyncService {
   private attachAdminListeners() {
     if (!this.callbacks) return;
     const cb = this.callbacks;
+
+    const unsubTags = onSnapshot(
+      collection(firestoreDb, 'tags'),
+      (snap) => {
+        if (!snap.empty || this.isRemoteConfigInitialized) {
+          cb.onTagsUpdate(
+            snap.docs.map((d) => d.data() as Tag),
+            this.isRemoteConfigInitialized || !snap.empty
+          );
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'tags');
+      }
+    );
+
+    const unsubMedia = onSnapshot(
+      collection(firestoreDb, 'media'),
+      (snap) => {
+        if (!snap.empty || this.isRemoteConfigInitialized) {
+          cb.onMediaUpdate(
+            snap.docs.map((d) => d.data() as MediaItem),
+            this.isRemoteConfigInitialized || !snap.empty
+          );
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'media');
+      }
+    );
 
     const unsubUsers = onSnapshot(
       collection(firestoreDb, 'users'),
@@ -704,7 +700,7 @@ class FirestoreSyncService {
       (error) => handleFirestoreError(error, OperationType.GET, 'admin_config/system')
     );
 
-    this.adminUnsubscribers.push(unsubUsers, unsubSubs, unsubCampaigns, unsubLogs, unsubAdminConfig);
+    this.adminUnsubscribers.push(unsubTags, unsubMedia, unsubUsers, unsubSubs, unsubCampaigns, unsubLogs, unsubAdminConfig);
   }
 
   // -------------------------------------------------------------

@@ -149,12 +149,133 @@ function isLikelyStandaloneHeading(line: string): boolean {
   return titleCased === words.length;
 }
 
+const CAMEL_CASE_WHITELIST = new Set([
+  'youtube', 'linkedin', 'paypal', 'github', 'tiktok', 'wordpress', 'javascript',
+  'typescript', 'macbook', 'whatsapp', 'playstation', 'powerpoint', 'sharepoint',
+  'onedrive', 'cloudflare', 'openai', 'deepmind', 'chatgpt', 'spacex', 'quickbooks',
+  'godaddy', 'fedex', 'mastercard', 'blackberry', 'dreamworks', 'soundcloud',
+  'jetblue', 'airbnb', 'ebay', 'iphone', 'ipad', 'ios', 'macos', 'tvos', 'watchos',
+]);
+
+function splitGluedHeadingLine(line: string): string {
+  const m = line.match(/^(#{1,4})\s+(.+)$/);
+  if (!m) return line;
+  const hashes = m[1];
+  const rest = m[2].trim();
+
+  // Case A: Question or exclamation heading glued directly to prose (e.g. "## Is There a Full Moon?The Moon...")
+  const qMatch = rest.match(/^([^?\n!]{3,115}[?!])([A-Z0-9"“'(\u0980-\u09FF].{12,})$/);
+  if (qMatch) {
+    return `${hashes} ${qMatch[1].trim()}\n\n${qMatch[2].trim()}`;
+  }
+
+  // Case B: Exact repeated city/topic word at boundary (e.g. "### SydneySydney residents...")
+  const dupMatch = rest.match(/^(.*?\b([A-Z][a-z]{2,}))(\2\b.{10,})$/);
+  if (dupMatch && dupMatch[1].length <= 115) {
+    return `${hashes} ${dupMatch[1].trim()}\n\n${dupMatch[3].trim()}`;
+  }
+
+  // Case C: Number glued directly to prose starter (e.g. "## Moonrise Times – November 25Moonrise times vary...")
+  const digitBound = rest.match(/^(.{4,110}?\d)([A-Z][a-z]{1,}\s+.{15,})$/);
+  if (digitBound) {
+    return `${hashes} ${digitBound[1].trim()}\n\n${digitBound[2].trim()}`;
+  }
+
+  // Case D: Lowercase heading end glued to prose starter (e.g. "### MelbourneIn Melbourne..." or "# TitleThe Moon...")
+  const camelRegex = /([a-z]{2,})([A-Z][a-z]{1,}\s+|(?:A|I)\s+[a-z])/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = camelRegex.exec(rest)) !== null) {
+    const splitPos = cm.index + cm[1].length;
+    if (splitPos < 4 || splitPos > 120) continue;
+    const before = rest.slice(0, splitPos);
+    const after = rest.slice(splitPos);
+    if (after.length < 20) continue;
+    const prevWordMatch = before.match(/([A-Za-z]+)$/);
+    const nextWordMatch = after.match(/^([A-Za-z]+)/);
+    const combined = `${prevWordMatch?.[1] || ''}${nextWordMatch?.[1] || ''}`.toLowerCase();
+    if (CAMEL_CASE_WHITELIST.has(combined)) continue;
+    return `${hashes} ${before.trim()}\n\n${after.trim()}`;
+  }
+
+  return line;
+}
+
+/**
+ * Restores lost line breaks when articles with Markdown (#, ##, tables, bullets)
+ * are pasted from mobile browsers or editors that flatten newlines.
+ */
+export function expandCollapsedMarkdown(rawText: string): string {
+  let text = String(rawText || '').replace(/\r\n/g, '\n').trim();
+  if (!text) return '';
+
+  // 1. Insert breaks before pipe tables glued after punctuation, and between collapsed table rows (||)
+  text = text.replace(/([.!?:)"”])(\|\s*[^|\n]+\|\s*[^|\n]*\|)/g, '$1\n\n$2');
+  text = text.replace(/\|\s*\|(?=(?:[-:]{2,}|[^|\n]+\|))/g, '|\n|');
+
+  // 2. Detach trailing prose glued right after a table row's closing pipe
+  text = text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('|')) {
+        const lastPipe = trimmed.lastIndexOf('|');
+        if (lastPipe > 0 && lastPipe < trimmed.length - 1) {
+          const tablePart = trimmed.slice(0, lastPipe + 1).trim();
+          const trailing = trimmed.slice(lastPipe + 1).trim();
+          if (trailing) {
+            return `${tablePart}\n\n${trailing}`;
+          }
+        }
+      }
+      return line;
+    })
+    .join('\n');
+
+  // 3. Insert breaks before embedded markdown headings (e.g. "permitted.## Is There...")
+  text = text.replace(/([^\n#])(#{1,4}\s+)/g, '$1\n\n$2');
+
+  // 4. Insert breaks before collapsed bullet items (e.g. "suggestions:- Find...- Move...")
+  text = text.replace(/([.!?:)"”])(-\s+(?=[A-Z0-9\u0980-\u09FF]))/g, '$1\n\n$2');
+
+  // 5. Split glued sentences lacking spaces after periods (e.g. "sky.The Moon", "equipment.*Moonrise")
+  text = text.replace(
+    /([a-z0-9)"”])\.(?!\d)(?<!\b(?:Mr|Mrs|Ms|Dr|St|Mt|Prof|Sr|Jr|vs|etc|Fig|No|Vol))(\*?(?:[A-Z][a-z]{1,}|A|I)\s+[a-zA-Z0-9])/g,
+    '$1.\n\n$2'
+  );
+
+  // 6. Detach prose glued to the end of markdown heading lines
+  text = text
+    .split('\n')
+    .map((line) => splitGluedHeadingLine(line.trim()))
+    .join('\n');
+
+  return text;
+}
+
+function isMarkdownTableLine(line: string): boolean {
+  const t = line.trim();
+  return t.startsWith('|') && t.endsWith('|') && t.indexOf('|', 1) !== -1;
+}
+
+function isTableSeparatorLine(line: string): boolean {
+  return /^\|(?:\s*:?-{2,}:?\s*\|)+\s*$/.test(line.trim());
+}
+
+function parseMarkdownTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.replace(/\*\*/g, '').trim());
+}
+
 /**
  * Parses raw multi-line or markdown-like text into clean semantic sections.
  */
 function parseRawTextToSections(rawText: string, baseId: string): FormattedSection[] {
   const sections: FormattedSection[] = [];
-  const normalized = rawText.replace(/\r\n/g, '\n').trim();
+  const normalized = expandCollapsedMarkdown(rawText);
   if (!normalized) return sections;
 
   // Split by blank lines or single newlines if no blank lines exist
@@ -171,6 +292,22 @@ function parseRawTextToSections(rawText: string, baseId: string): FormattedSecti
       .map((l) => l.trim().replace(/^#{1,4}(?=[A-Z\u0980-\u09FF][a-zA-Z\u0980-\u09FF\s,.'’-]{15,})/, ''))
       .filter(Boolean);
 
+    // Check if the entire chunk is a Markdown table
+    if (lines.length >= 2 && lines.every(isMarkdownTableLine)) {
+      const rows = lines
+        .filter((l) => !isTableSeparatorLine(l))
+        .map(parseMarkdownTableRow)
+        .filter((r) => r.length > 0);
+      if (rows.length > 0) {
+        sections.push({
+          id: `${baseId}-tbl-${idx++}`,
+          type: 'table',
+          rows,
+        });
+      }
+      continue;
+    }
+
     // Check if the chunk is a bullet or numbered list
     if (lines.length > 0 && lines.every((l) => /^([-*•]\s+|\d+[.)]\s+)/.test(l))) {
       const ordered = /^\d+[.)]\s+/.test(lines[0]);
@@ -183,9 +320,14 @@ function parseRawTextToSections(rawText: string, baseId: string): FormattedSecti
       continue;
     }
 
-    // Handle multi-line chunks that contain mixed lines (headings, lists, paragraphs)
-    if (lines.length > 1 && lines.some((l) => /^(#{1,4}\s+|>\s+|[-*•]\s+|\d+[.)]\s+)/.test(l) || isLikelyStandaloneHeading(l))) {
+    // Handle multi-line chunks that contain mixed lines (headings, tables, lists, paragraphs)
+    if (
+      lines.length > 1 &&
+      lines.some((l) => /^(#{1,4}\s+|>\s+|[-*•]\s+|\d+[.)]\s+)/.test(l) || isMarkdownTableLine(l) || isLikelyStandaloneHeading(l))
+    ) {
       let currentList: { ordered: boolean; items: string[] } | null = null;
+      let currentTable: string[][] | null = null;
+
       const flushList = () => {
         if (currentList && currentList.items.length > 0) {
           sections.push({
@@ -198,7 +340,28 @@ function parseRawTextToSections(rawText: string, baseId: string): FormattedSecti
         }
       };
 
+      const flushTable = () => {
+        if (currentTable && currentTable.length > 0) {
+          sections.push({
+            id: `${baseId}-tbl-${idx++}`,
+            type: 'table',
+            rows: currentTable,
+          });
+          currentTable = null;
+        }
+      };
+
       for (const line of lines) {
+        if (isMarkdownTableLine(line)) {
+          flushList();
+          if (!isTableSeparatorLine(line)) {
+            if (!currentTable) currentTable = [];
+            currentTable.push(parseMarkdownTableRow(line));
+          }
+          continue;
+        }
+        flushTable();
+
         const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
         if (headingMatch) {
           flushList();
@@ -246,6 +409,7 @@ function parseRawTextToSections(rawText: string, baseId: string): FormattedSecti
         }
       }
       flushList();
+      flushTable();
       continue;
     }
 
@@ -398,6 +562,8 @@ export function parseTextToEditorBlocks(rawText: string): EditorBlock[] {
       blocks.push({ id, type: 'heading', level: sec.level, content: sec.text });
     } else if (sec.type === 'quote') {
       blocks.push({ id, type: 'quote', content: sec.text, caption: sec.caption });
+    } else if (sec.type === 'table') {
+      blocks.push({ id, type: 'table', content: sec.rows });
     } else if (sec.type === 'list') {
       const formattedList = sec.items
         .map((item, i) => (sec.ordered ? `${i + 1}. ${item}` : `• ${item}`))

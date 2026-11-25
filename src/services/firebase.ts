@@ -7,7 +7,15 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  doc,
+  getDocFromServer,
+  Firestore,
+} from 'firebase/firestore';
 import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -19,10 +27,28 @@ export const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(fireb
 // Initialize Auth
 export const auth = getAuth(firebaseApp);
 
-// Initialize Firestore targeting the provisioned database ID
-export const firestoreDb = firebaseConfig.firestoreDatabaseId
-  ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(firebaseApp);
+// Initialize Firestore targeting the provisioned database ID with multi-tab IndexedDB persistence
+function createFirestoreInstance(): Firestore {
+  const dbId = firebaseConfig.firestoreDatabaseId || undefined;
+  if (typeof window !== 'undefined') {
+    try {
+      return initializeFirestore(
+        firebaseApp,
+        {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager(),
+          }),
+        },
+        dbId
+      );
+    } catch {
+      return dbId ? getFirestore(firebaseApp, dbId) : getFirestore(firebaseApp);
+    }
+  }
+  return dbId ? getFirestore(firebaseApp, dbId) : getFirestore(firebaseApp);
+}
+
+export const firestoreDb = createFirestoreInstance();
 
 // Initialize Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
@@ -43,10 +69,12 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Required boot connection test per Firebase integration guidelines
+// Boot connection test throttled to once per browser session to avoid unnecessary daily reads
 async function testConnection() {
   if (typeof window === 'undefined') return;
   try {
+    if (window.sessionStorage?.getItem('alif_fb_conn_checked')) return;
+    window.sessionStorage?.setItem('alif_fb_conn_checked', '1');
     await getDocFromServer(doc(firestoreDb, 'test', 'connection'));
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
@@ -82,9 +110,15 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): void {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const rawCode = (error as any)?.code ? String((error as any).code) : '';
+  const isQuotaExhausted =
+    rawCode.includes('resource-exhausted') ||
+    /quota|resource_exhausted|429/i.test(rawMessage);
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: rawMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -100,6 +134,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
+  if (isQuotaExhausted) {
+    console.warn('Firestore daily read quota temporarily reached; falling back to cached data.', path);
+    return;
+  }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

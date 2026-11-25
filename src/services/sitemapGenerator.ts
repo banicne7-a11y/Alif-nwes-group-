@@ -63,43 +63,65 @@ async function runFirestoreQuery(structuredQuery: Record<string, any>): Promise<
     .map((r) => r.document.fields as Record<string, any>);
 }
 
-async function fetchLiveSitemapData(baseUrl: string): Promise<{
+type SitemapDataPayload = {
   posts: SitemapUrlItem[];
   countryEditions: SitemapUrlItem[];
   categories: SitemapUrlItem[];
   pages: SitemapUrlItem[];
-}> {
+};
+
+const SITEMAP_CACHE_TTL_MS = 15 * 60 * 1000;
+const cachedSitemapByBase = new Map<string, { expiresAt: number; data: SitemapDataPayload }>();
+
+async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload> {
   const cleanBase = baseUrl.replace(/\/+$/, '');
+  const now = Date.now();
+  const cached = cachedSitemapByBase.get(cleanBase);
+  if (cached && now < cached.expiresAt) {
+    return cached.data;
+  }
+
   const today = new Date().toISOString().slice(0, 10);
 
-  const [postFields, catFields, pageFields] = await Promise.all([
-    runFirestoreQuery({
-      from: [{ collectionId: 'posts' }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: 'status' },
-          op: 'EQUAL',
-          value: { stringValue: 'published' },
+  let postFields: Array<Record<string, any>>;
+  let catFields: Array<Record<string, any>>;
+  let pageFields: Array<Record<string, any>>;
+  try {
+    [postFields, catFields, pageFields] = await Promise.all([
+      runFirestoreQuery({
+        from: [{ collectionId: 'posts' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'status' },
+            op: 'EQUAL',
+            value: { stringValue: 'published' },
+          },
         },
-      },
-      limit: 500,
-    }).catch(() => []),
-    runFirestoreQuery({
-      from: [{ collectionId: 'categories' }],
-      limit: 100,
-    }).catch(() => []),
-    runFirestoreQuery({
-      from: [{ collectionId: 'pages' }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: 'status' },
-          op: 'EQUAL',
-          value: { stringValue: 'published' },
+        limit: 500,
+      }),
+      runFirestoreQuery({
+        from: [{ collectionId: 'categories' }],
+        limit: 100,
+      }).catch(() => []),
+      runFirestoreQuery({
+        from: [{ collectionId: 'pages' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'status' },
+            op: 'EQUAL',
+            value: { stringValue: 'published' },
+          },
         },
-      },
-      limit: 100,
-    }).catch(() => []),
-  ]);
+        limit: 100,
+      }).catch(() => []),
+    ]);
+  } catch (err) {
+    if (cached) {
+      cached.expiresAt = now + 5 * 60 * 1000;
+      return cached.data;
+    }
+    throw err;
+  }
 
   const posts: SitemapUrlItem[] = postFields
     .map<SitemapUrlItem | null>((f) => {
@@ -182,7 +204,12 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<{
       priority: '0.6',
     }));
 
-  return { posts, countryEditions, categories, pages };
+  const payload: SitemapDataPayload = { posts, countryEditions, categories, pages };
+  cachedSitemapByBase.set(cleanBase, {
+    expiresAt: now + SITEMAP_CACHE_TTL_MS,
+    data: payload,
+  });
+  return payload;
 }
 
 export async function generateStandardSitemapXml(baseUrl: string): Promise<string> {
@@ -257,7 +284,14 @@ Sitemap: ${cleanBase}/google-news-sitemap.xml
 `;
 }
 
+let cachedAdsTxt: { expiresAt: number; value: string } | null = null;
+
 export async function generateAdsTxt(): Promise<string> {
+  const now = Date.now();
+  if (cachedAdsTxt && now < cachedAdsTxt.expiresAt) {
+    return cachedAdsTxt.value;
+  }
+
   const projectId = firebaseConfig.projectId;
   const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
   const apiKey = firebaseConfig.apiKey;
@@ -266,22 +300,28 @@ export async function generateAdsTxt(): Promise<string> {
   let clientId = '';
   try {
     const res = await fetch(endpoint);
-    if (res.ok) {
+    if (!res.ok) {
+      if (cachedAdsTxt) return cachedAdsTxt.value;
+    } else {
       const docData: any = await res.json();
       clientId = readStringField(docData?.fields, 'adsenseClientId').trim();
     }
   } catch {
-    // Fallback below if Firestore fetch fails
+    if (cachedAdsTxt) return cachedAdsTxt.value;
   }
 
   const pubMatch = clientId.match(/(?:ca-)?(pub-\d{10,})/i);
   const pubId = pubMatch ? pubMatch[1].toLowerCase() : '';
   const isPlaceholder = pubId === 'pub-9386736849071234';
 
-  if (!pubId || isPlaceholder) {
-    return '# Google AdSense Publisher ID is not configured yet.\n# Add your ca-pub-XXXXXXXXXXXXXXXX ID in Admin Panel -> Ad Placements -> AdSense Domain Verification.\n';
-  }
+  const result =
+    !pubId || isPlaceholder
+      ? '# Google AdSense Publisher ID is not configured yet.\n# Add your ca-pub-XXXXXXXXXXXXXXXX ID in Admin Panel -> Ad Placements -> AdSense Domain Verification.\n'
+      : `google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`;
 
-  return `google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`;
+  if (pubId && !isPlaceholder) {
+    cachedAdsTxt = { expiresAt: now + 60 * 60 * 1000, value: result };
+  }
+  return result;
 }
 

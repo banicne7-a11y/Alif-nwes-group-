@@ -82,7 +82,7 @@ export default async function handler(req: any, res: any) {
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('Vary', 'x-vercel-ip-country, user-agent');
     } else {
-      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
     }
     res.statusCode = 200;
     res.end(rendered);

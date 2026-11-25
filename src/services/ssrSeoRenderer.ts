@@ -33,6 +33,10 @@ function escapeHtml(str: string): string {
 function renderSafeInlineHtml(raw: string): string {
   const escaped = escapeHtml(raw);
   return escaped
+    .replace(
+      /\[([^\]\n]+)\]\((https?:\/\/[^\s)&]+(?:&amp;[^\s)]+)*)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    )
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
 }
@@ -45,58 +49,239 @@ function cleanStrayLeadingHash(raw: string): string {
   return String(raw || '').replace(/^#{1,4}(?=[A-Z\u0980-\u09FF][a-zA-Z\u0980-\u09FF\s,.'’-]{15,})/gm, '');
 }
 
+const SSR_CAMEL_CASE_WHITELIST = new Set([
+  'youtube', 'linkedin', 'paypal', 'github', 'tiktok', 'wordpress', 'javascript',
+  'typescript', 'macbook', 'whatsapp', 'playstation', 'powerpoint', 'sharepoint',
+  'onedrive', 'cloudflare', 'openai', 'deepmind', 'chatgpt', 'spacex', 'quickbooks',
+  'godaddy', 'fedex', 'mastercard', 'blackberry', 'dreamworks', 'soundcloud',
+  'jetblue', 'airbnb', 'ebay', 'iphone', 'ipad', 'ios', 'macos', 'tvos', 'watchos',
+]);
+
+function splitGluedHeadingLineSsr(line: string): string {
+  const m = line.match(/^(#{1,4})\s+(.+)$/);
+  if (!m) return line;
+  const hashes = m[1];
+  const rest = m[2].trim();
+
+  const qMatch = rest.match(/^([^?\n!]{3,115}[?!])([A-Z0-9"“'(\u0980-\u09FF].{12,})$/);
+  if (qMatch) {
+    return `${hashes} ${qMatch[1].trim()}\n\n${qMatch[2].trim()}`;
+  }
+
+  const dupMatch = rest.match(/^(.*?\b([A-Z][a-z]{2,}))(\2\b.{10,})$/);
+  if (dupMatch && dupMatch[1].length <= 115) {
+    return `${hashes} ${dupMatch[1].trim()}\n\n${dupMatch[3].trim()}`;
+  }
+
+  const digitBound = rest.match(/^(.{4,110}?\d)([A-Z][a-z]{1,}\s+.{15,})$/);
+  if (digitBound) {
+    return `${hashes} ${digitBound[1].trim()}\n\n${digitBound[2].trim()}`;
+  }
+
+  const camelRegex = /([a-z]{2,})([A-Z][a-z]{1,}\s+|(?:A|I)\s+[a-z])/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = camelRegex.exec(rest)) !== null) {
+    const splitPos = cm.index + cm[1].length;
+    if (splitPos < 4 || splitPos > 120) continue;
+    const before = rest.slice(0, splitPos);
+    const after = rest.slice(splitPos);
+    if (after.length < 20) continue;
+    const prevWordMatch = before.match(/([A-Za-z]+)$/);
+    const nextWordMatch = after.match(/^([A-Za-z]+)/);
+    const combined = `${prevWordMatch?.[1] || ''}${nextWordMatch?.[1] || ''}`.toLowerCase();
+    if (SSR_CAMEL_CASE_WHITELIST.has(combined)) continue;
+    return `${hashes} ${before.trim()}\n\n${after.trim()}`;
+  }
+
+  return line;
+}
+
+function expandCollapsedMarkdownSsr(rawText: string): string {
+  let text = String(rawText || '').replace(/\r\n/g, '\n').trim();
+  if (!text) return '';
+
+  text = text.replace(/([.!?:)"”])(\|\s*[^|\n]+\|\s*[^|\n]*\|)/g, '$1\n\n$2');
+  text = text.replace(/\|\s*\|(?=(?:[-:]{2,}|[^|\n]+\|))/g, '|\n|');
+
+  text = text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('|')) {
+        const lastPipe = trimmed.lastIndexOf('|');
+        if (lastPipe > 0 && lastPipe < trimmed.length - 1) {
+          const tablePart = trimmed.slice(0, lastPipe + 1).trim();
+          const trailing = trimmed.slice(lastPipe + 1).trim();
+          if (trailing) {
+            return `${tablePart}\n\n${trailing}`;
+          }
+        }
+      }
+      return line;
+    })
+    .join('\n');
+
+  text = text.replace(/([^\n#])(#{1,4}\s+)/g, '$1\n\n$2');
+  text = text.replace(/([.!?:)"”])(-\s+(?=[A-Z0-9\u0980-\u09FF]))/g, '$1\n\n$2');
+  text = text.replace(
+    /([a-z0-9)"”])\.(?!\d)(?<!\b(?:Mr|Mrs|Ms|Dr|St|Mt|Prof|Sr|Jr|vs|etc|Fig|No|Vol))(\*?(?:[A-Z][a-z]{1,}|A|I)\s+[a-zA-Z0-9])/g,
+    '$1.\n\n$2'
+  );
+
+  text = text
+    .split('\n')
+    .map((line) => splitGluedHeadingLineSsr(line.trim()))
+    .join('\n');
+
+  return text;
+}
+
+function renderSsrTable(rows: string[][]): string {
+  if (!rows || rows.length === 0) return '';
+  const [header, ...body] = rows;
+  const thead = `<thead><tr>${header.map((c) => `<th style="text-align:left;padding:8px 12px;border-bottom:2px solid #cbd5e1;background:#f8fafc;">${escapeHtml(c)}</th>`).join('')}</tr></thead>`;
+  const tbody =
+    body.length > 0
+      ? `<tbody>${body
+          .map(
+            (r) =>
+              `<tr>${r
+                .map((c) => `<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${renderSafeInlineHtml(c)}</td>`)
+                .join('')}</tr>`
+          )
+          .join('')}</tbody>`
+      : '';
+  return `<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:15px;">${thead}${tbody}</table>`;
+}
+
+function isSsrTableLine(line: string): boolean {
+  const t = line.trim();
+  return t.startsWith('|') && t.endsWith('|') && t.indexOf('|', 1) !== -1;
+}
+
+function isSsrTableSep(line: string): boolean {
+  return /^\|(?:\s*:?-{2,}:?\s*\|)+\s*$/.test(line.trim());
+}
+
+function parseSsrTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((c) => c.replace(/\*\*/g, '').trim());
+}
+
+function formatPlainTextHtml(raw: string, articleTitle?: string): string {
+  const normTitle = (articleTitle || '').toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, ' ').trim();
+  const expanded = expandCollapsedMarkdownSsr(cleanStrayLeadingHash(raw));
+  if (!expanded) return '';
+
+  const chunks = /\n\s*\n/.test(expanded) ? expanded.split(/\n\s*\n+/) : expanded.split(/\n+/);
+  const outHtml: string[] = [];
+
+  for (let idx = 0; idx < chunks.length && outHtml.length < 80; idx++) {
+    const lines = chunks[idx]
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) continue;
+
+    if (lines.length >= 2 && lines.every(isSsrTableLine)) {
+      const rows = lines.filter((l) => !isSsrTableSep(l)).map(parseSsrTableRow).filter((r) => r.length > 0);
+      if (rows.length > 0) outHtml.push(renderSsrTable(rows));
+      continue;
+    }
+
+    if (lines.every((l) => /^([-*•]\s+|\d+[.)]\s+)/.test(l))) {
+      const ordered = /^\d+[.)]\s+/.test(lines[0]);
+      const tag = ordered ? 'ol' : 'ul';
+      const itemsHtml = lines
+        .map((l) => `<li>${renderSafeInlineHtml(l.replace(/^([-*•]\s+|\d+[.)]\s+)/, '').trim())}</li>`)
+        .join('');
+      outHtml.push(`<${tag}>${itemsHtml}</${tag}>`);
+      continue;
+    }
+
+    const joined = lines.join(' ').trim();
+    const hd = joined.match(/^(#{1,4})\s+(.+)$/);
+    if (hd) {
+      const headingText = hd[2].replace(/\*\*/g, '').trim();
+      const normH = headingText.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, ' ').trim();
+      if (outHtml.length === 0 && normTitle && (normH === normTitle || normTitle.startsWith(normH) || normH.startsWith(normTitle))) {
+        continue;
+      }
+      const lvl = Math.min(4, Math.max(2, hd[1].length));
+      outHtml.push(`<h${lvl}>${escapeHtml(headingText)}</h${lvl}>`);
+      continue;
+    }
+
+    if (joined.startsWith('> ')) {
+      outHtml.push(`<blockquote>${renderSafeInlineHtml(joined.slice(2).trim())}</blockquote>`);
+      continue;
+    }
+
+    outHtml.push(`<p>${renderSafeInlineHtml(joined)}</p>`);
+  }
+
+  return outHtml.join('\n');
+}
+
 function readBlocksText(fields: Record<string, any> | undefined, articleTitle?: string): string {
   const arr = fields?.blocks?.arrayValue?.values;
   if (!Array.isArray(arr) || arr.length === 0) return '';
-  const normTitle = (articleTitle || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const normTitle = (articleTitle || '').toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, ' ').trim();
   const parts: string[] = [];
   for (const item of arr) {
     const mapFields = item?.mapValue?.fields;
     if (!mapFields) continue;
     const type = readStr(mapFields, 'type');
+
+    if (type === 'table') {
+      const rowValues = mapFields?.content?.arrayValue?.values;
+      if (Array.isArray(rowValues)) {
+        const rows: string[][] = rowValues
+          .map((rv: any) => {
+            const cells = rv?.arrayValue?.values;
+            return Array.isArray(cells) ? cells.map((c: any) => String(c?.stringValue || '')) : [];
+          })
+          .filter((r: string[]) => r.length > 0);
+        if (rows.length > 0) parts.push(renderSsrTable(rows));
+      }
+      continue;
+    }
+
     const content = cleanStrayLeadingHash(readStr(mapFields, 'content'));
     if (!content) continue;
     if (type === 'heading') {
       const cleanHeading = content.replace(/\*\*/g, '').trim();
-      const normH = cleanHeading.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      if (parts.length === 0 && normTitle && normH === normTitle) continue;
+      const normH = cleanHeading.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, ' ').trim();
+      if (parts.length === 0 && normTitle && (normH === normTitle || normTitle.startsWith(normH) || normH.startsWith(normTitle))) continue;
       const levelNum = Number(mapFields?.level?.integerValue || 2);
       const tag = levelNum === 4 ? 'h4' : levelNum === 3 ? 'h3' : 'h2';
       parts.push(`<${tag}>${escapeHtml(cleanHeading)}</${tag}>`);
     } else if (type === 'quote') {
       parts.push(`<blockquote>${renderSafeInlineHtml(content)}</blockquote>`);
-    } else if (type === 'paragraph' || type === 'callout') {
+    } else if (type === 'paragraph') {
+      const formatted = formatPlainTextHtml(content, parts.length === 0 ? articleTitle : undefined);
+      if (formatted) parts.push(formatted);
+    } else if (type === 'callout') {
       parts.push(`<p>${renderSafeInlineHtml(content)}</p>`);
     }
   }
   return parts.join('\n');
 }
 
-function formatPlainTextHtml(raw: string, articleTitle?: string): string {
-  const normTitle = (articleTitle || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  return cleanStrayLeadingHash(raw)
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 40)
-    .map((chunk, idx) => {
-      if (chunk.startsWith('### ')) {
-        return `<h3>${escapeHtml(chunk.slice(4).replace(/\*\*/g, '').trim())}</h3>`;
-      }
-      if (chunk.startsWith('## ')) {
-        return `<h2>${escapeHtml(chunk.slice(3).replace(/\*\*/g, '').trim())}</h2>`;
-      }
-      if (chunk.startsWith('# ')) {
-        const headingText = chunk.slice(2).replace(/\*\*/g, '').trim();
-        const normH = headingText.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-        if (idx === 0 && normTitle && normH === normTitle) return '';
-        return `<h2>${escapeHtml(headingText)}</h2>`;
-      }
-      return `<p>${renderSafeInlineHtml(chunk)}</p>`;
-    })
-    .filter(Boolean)
-    .join('\n');
-}
+const DEFAULT_SITE_CONFIG: SiteSeoConfig = {
+  adsenseClientId: '',
+  searchConsoleCode: '',
+  googleAnalyticsId: '',
+  siteName: 'Alif News 24',
+};
+let cachedSiteConfig: { expiresAt: number; value: SiteSeoConfig } | null = null;
+const entityCache = new Map<string, { expiresAt: number; entity: SeoEntity | null }>();
+type CountryPostSummary = { title: string; slug: string; excerpt: string; targetCountry: string; featuredImage: string };
+const countryPostsCache = new Map<string, { expiresAt: number; items: CountryPostSummary[] }>();
 
 async function queryFirestore(structuredQuery: Record<string, any>): Promise<Array<Record<string, any>>> {
   const projectId = firebaseConfig.projectId;
@@ -110,7 +295,9 @@ async function queryFirestore(structuredQuery: Record<string, any>): Promise<Arr
     body: JSON.stringify({ structuredQuery }),
   });
 
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error(`Firestore runQuery failed (${res.status})`);
+  }
   const rows: any[] = await res.json();
   return rows
     .filter((r) => r && r.document && r.document.fields)
@@ -118,6 +305,11 @@ async function queryFirestore(structuredQuery: Record<string, any>): Promise<Arr
 }
 
 async function fetchSiteConfig(): Promise<SiteSeoConfig> {
+  const now = Date.now();
+  if (cachedSiteConfig && now < cachedSiteConfig.expiresAt) {
+    return cachedSiteConfig.value;
+  }
+
   const projectId = firebaseConfig.projectId;
   const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
   const apiKey = firebaseConfig.apiKey;
@@ -125,47 +317,63 @@ async function fetchSiteConfig(): Promise<SiteSeoConfig> {
 
   try {
     const res = await fetch(endpoint);
-    if (!res.ok) return { adsenseClientId: '', searchConsoleCode: '', googleAnalyticsId: '', siteName: 'Alif News 24' };
+    if (!res.ok) {
+      return cachedSiteConfig?.value || DEFAULT_SITE_CONFIG;
+    }
     const docData: any = await res.json();
     const fields = docData?.fields;
-    return {
+    const cfg: SiteSeoConfig = {
       adsenseClientId: readStr(fields, 'adsenseClientId').trim(),
       searchConsoleCode: readStr(fields, 'searchConsoleCode').trim(),
       googleAnalyticsId: readStr(fields, 'googleAnalyticsId').trim(),
       siteName: readStr(fields, 'siteName').trim() || 'Alif News 24',
     };
+    cachedSiteConfig = { expiresAt: now + 60 * 60 * 1000, value: cfg };
+    return cfg;
   } catch {
-    return { adsenseClientId: '', searchConsoleCode: '', googleAnalyticsId: '', siteName: 'Alif News 24' };
+    return cachedSiteConfig?.value || DEFAULT_SITE_CONFIG;
   }
 }
 
 async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promise<SeoEntity | null> {
+  const cacheKey = `${kind}:${slug}`;
+  const now = Date.now();
+  const cached = entityCache.get(cacheKey);
+  if (cached && now < cached.expiresAt) {
+    return cached.entity;
+  }
+
   const collectionId = kind === 'article' ? 'posts' : 'pages';
-  const docs = await queryFirestore({
-    from: [{ collectionId }],
-    where: {
-      compositeFilter: {
-        op: 'AND',
-        filters: [
-          {
-            fieldFilter: {
-              field: { fieldPath: 'status' },
-              op: 'EQUAL',
-              value: { stringValue: 'published' },
+  let docs: Array<Record<string, any>>;
+  try {
+    docs = await queryFirestore({
+      from: [{ collectionId }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: 'status' },
+                op: 'EQUAL',
+                value: { stringValue: 'published' },
+              },
             },
-          },
-          {
-            fieldFilter: {
-              field: { fieldPath: 'slug' },
-              op: 'EQUAL',
-              value: { stringValue: slug },
+            {
+              fieldFilter: {
+                field: { fieldPath: 'slug' },
+                op: 'EQUAL',
+                value: { stringValue: slug },
+              },
             },
-          },
-        ],
+          ],
+        },
       },
-    },
-    limit: 1,
-  }).catch(() => []);
+      limit: 1,
+    });
+  } catch {
+    return cached?.entity || null;
+  }
 
   if (!docs || docs.length === 0) return null;
   const f = docs[0];
@@ -182,7 +390,7 @@ async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promis
     readStr(f, 'subtitle') ||
     title;
 
-  return {
+  const entity: SeoEntity = {
     kind,
     title,
     subtitle: readStr(f, 'subtitle'),
@@ -195,6 +403,13 @@ async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promis
     contentHtml,
     targetCountry: readStr(f, 'targetCountry').toLowerCase().trim(),
   };
+
+  if (entityCache.size > 150) {
+    const oldestKey = entityCache.keys().next().value;
+    if (oldestKey) entityCache.delete(oldestKey);
+  }
+  entityCache.set(cacheKey, { expiresAt: now + 10 * 60 * 1000, entity });
+  return entity;
 }
 
 const COUNTRY_META: Record<string, { label: string; title: string; desc: string }> = {
@@ -268,20 +483,31 @@ function injectSocialMetaTags(
 
 async function fetchCountryPosts(
   country: string
-): Promise<Array<{ title: string; slug: string; excerpt: string; targetCountry: string; featuredImage: string }>> {
-  const docs = await queryFirestore({
-    from: [{ collectionId: 'posts' }],
-    where: {
-      fieldFilter: {
-        field: { fieldPath: 'status' },
-        op: 'EQUAL',
-        value: { stringValue: 'published' },
-      },
-    },
-    limit: 60,
-  }).catch(() => []);
+): Promise<CountryPostSummary[]> {
+  const now = Date.now();
+  const cached = countryPostsCache.get(country);
+  if (cached && now < cached.expiresAt) {
+    return cached.items;
+  }
 
-  return docs
+  let docs: Array<Record<string, any>>;
+  try {
+    docs = await queryFirestore({
+      from: [{ collectionId: 'posts' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'status' },
+          op: 'EQUAL',
+          value: { stringValue: 'published' },
+        },
+      },
+      limit: 30,
+    });
+  } catch {
+    return cached?.items || [];
+  }
+
+  const items = docs
     .map((f) => ({
       title: readStr(f, 'title'),
       slug: readStr(f, 'slug') || readStr(f, 'id'),
@@ -297,7 +523,17 @@ async function fetchCountryPosts(
       return p.targetCountry === country;
     })
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, 20);
+    .slice(0, 20)
+    .map(({ title, slug, excerpt, targetCountry, featuredImage }) => ({
+      title,
+      slug,
+      excerpt,
+      targetCountry,
+      featuredImage,
+    }));
+
+  countryPostsCache.set(country, { expiresAt: now + 10 * 60 * 1000, items });
+  return items;
 }
 
 export async function injectSeoIntoHtml(

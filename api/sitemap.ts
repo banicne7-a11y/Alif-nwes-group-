@@ -14,12 +14,14 @@ export default async function handler(req: any, res: any) {
       : await generateStandardSitemapXml(baseUrl);
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    res.setHeader('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=86400');
     res.statusCode = 200;
     res.end(xml);
   } catch (err: any) {
-    res.statusCode = 500;
+    res.statusCode = 503;
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.end('Error generating sitemap: ' + (err?.message || 'Unknown error'));
+    res.setHeader('Retry-After', '3600');
+    res.setHeader('Cache-Control', 'no-store');
+    res.end('Sitemap temporarily unavailable: ' + (err?.message || 'Unknown error'));
   }
 }
