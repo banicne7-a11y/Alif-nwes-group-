@@ -88,7 +88,9 @@ export const api = {
     items?: LiveTrendItem[];
     error?: string;
   }> {
-    const res = await fetch(`/api/trends?geo=${encodeURIComponent(geo)}`);
+    const res = await fetch(`/api/trends?geo=${encodeURIComponent(geo)}&_t=${Date.now()}`, {
+      cache: 'no-store',
+    });
     return res.json().catch(() => ({ success: false, error: 'Failed to load trends' }));
   },
 

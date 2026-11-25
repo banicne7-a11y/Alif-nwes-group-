@@ -77,10 +77,12 @@ export async function fetchGoogleTrendsFeed(geoRaw: string = 'US'): Promise<{
   for (const url of rssUrls) {
     try {
       const response = await fetch(url, {
+        cache: 'no-store',
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
           Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
+          'Cache-Control': 'no-cache',
         },
       });
       if (response.ok) {
@@ -141,6 +143,12 @@ export async function fetchGoogleTrendsFeed(geoRaw: string = 'US'): Promise<{
       newsItems,
     });
   }
+
+  items.sort((a, b) => {
+    const ta = Date.parse(a.pubDate) || 0;
+    const tb = Date.parse(b.pubDate) || 0;
+    return tb - ta;
+  });
 
   return {
     geo,

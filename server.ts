@@ -53,6 +53,7 @@ app.get('/api/trends', async (req, res) => {
   try {
     const geo = String(req.query?.geo || 'US');
     const data = await fetchGoogleTrendsFeed(geo);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     return res.json({ success: true, ...data });
   } catch (err: any) {
     return res.status(500).json({
@@ -66,6 +67,7 @@ app.post('/api/trends', async (req, res) => {
   try {
     const geo = String(req.body?.geo || 'US');
     const data = await fetchGoogleTrendsFeed(geo);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     return res.json({ success: true, ...data });
   } catch (err: any) {
     return res.status(500).json({

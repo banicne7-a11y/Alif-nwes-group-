@@ -10,7 +10,9 @@ export default async function handler(req: any, res: any) {
     const data = await fetchGoogleTrendsFeed(String(geo));
 
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('CDN-Cache-Control', 'no-store');
+    res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
     res.statusCode = 200;
     res.end(JSON.stringify({ success: true, ...data }));
   } catch (err: any) {

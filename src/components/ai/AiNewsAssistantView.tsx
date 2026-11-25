@@ -72,7 +72,9 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
   const [posts, setPosts] = useState<Post[]>(db.getPosts());
   const pendingAiPosts = posts.filter((p) => p.isAiGenerated && p.aiApprovalStatus === 'pending');
 
-  const loadTrends = async (countrySlug: CountryRouteSlug) => {
+  const [onlyTodayTrends, setOnlyTodayTrends] = useState(false);
+
+  const loadTrends = async (countrySlug: CountryRouteSlug, isManualRefresh = false) => {
     const cfg = TREND_COUNTRY_OPTIONS.find((c) => c.code === countrySlug) || TREND_COUNTRY_OPTIONS[0];
     setTrendsLoading(true);
     setTrendsError(null);
@@ -84,6 +86,9 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
       }
       setLiveTrends(res.items);
       setTrendsFetchedAt(res.fetchedAt || new Date().toISOString());
+      if (isManualRefresh) {
+        toast.success(`${cfg.label}-এর সর্বশেষ Google Trends আপডেট হয়েছে!`);
+      }
     } catch (err: any) {
       setTrendsError(err?.message || 'Google Trends লোড করতে সমস্যা হয়েছে।');
       setLiveTrends([]);
@@ -375,11 +380,28 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
     toast.info(`"${post.title}" returned to drafts.`);
   };
 
-  // Sort trends by AI opportunity score if analyzed
-  const sortedTrends = [...liveTrends].sort((a, b) => {
+  const formatTrendAge = (pubDate: string): { label: string; isFresh24h: boolean } => {
+    const ts = Date.parse(pubDate);
+    if (!ts) return { label: 'Live', isFresh24h: true };
+    const diffMs = Math.max(0, Date.now() - ts);
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 60) return { label: `${Math.max(1, mins)}m ago`, isFresh24h: true };
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return { label: `${hours}h ago`, isFresh24h: true };
+    const days = Math.floor(hours / 24);
+    return { label: `${days}d ago`, isFresh24h: false };
+  };
+
+  // Filter & sort trends: AI opportunity score first if analyzed, otherwise newest pubDate first
+  const filteredTrends = onlyTodayTrends
+    ? liveTrends.filter((t) => formatTrendAge(t.pubDate).isFresh24h)
+    : liveTrends;
+
+  const sortedTrends = [...filteredTrends].sort((a, b) => {
     const scoreA = analyzedMap[a.title.toLowerCase().trim()]?.opportunityScore ?? -1;
     const scoreB = analyzedMap[b.title.toLowerCase().trim()]?.opportunityScore ?? -1;
-    return scoreB - scoreA;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0);
   });
 
   return (
@@ -476,7 +498,19 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => loadTrends(selectedTrendCountry)}
+                  onClick={() => setOnlyTodayTrends((prev) => !prev)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    onlyTodayTrends
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  {onlyTodayTrends ? '✓ Today (24h) Only' : 'Today (24h) Only'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => loadTrends(selectedTrendCountry, true)}
                   disabled={trendsLoading}
                   className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
                 >
@@ -605,6 +639,20 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
                                 <Flame className="w-3 h-3" />
                                 {trend.approxTraffic}
                               </span>
+                              {(() => {
+                                const age = formatTrendAge(trend.pubDate);
+                                return (
+                                  <span
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                      age.isFresh24h
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                                    }`}
+                                  >
+                                    {age.isFresh24h ? `🟢 ${age.label}` : age.label}
+                                  </span>
+                                );
+                              })()}
                               {analysis && (
                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${diffColor}`}>
                                   {analysis.difficulty === 'Low'
