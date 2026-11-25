@@ -153,6 +153,10 @@ export default function App() {
       setDbRevision((r) => r + 1);
       applyGoogleVerificationTag();
       applyAdSenseVerificationTags();
+      const prunedCount = db.runOneTimeAdminEmptyCategoryPrune();
+      if (prunedCount > 0) {
+        toast.info(`${prunedCount}টি খালি ক্যাটাগরি সরানো হয়েছে—এখন শুধু পোস্ট থাকা ক্যাটাগরিগুলোই রয়েছে।`);
+      }
       const route = parseCurrentRoute();
       if (route.type === 'article' || route.type === 'page') {
         handleSync();
@@ -181,7 +185,14 @@ export default function App() {
 
     const unsubAuth = onAuthStateChanged(auth, () => {
       setFirebaseAuthChecked(true);
-      setIsFirebaseConnected(isFirebaseAdminUser());
+      const isConnected = isFirebaseAdminUser();
+      setIsFirebaseConnected(isConnected);
+      if (isConnected) {
+        const prunedCount = db.runOneTimeAdminEmptyCategoryPrune();
+        if (prunedCount > 0) {
+          toast.info(`${prunedCount}টি খালি ক্যাটাগরি সরানো হয়েছে—এখন শুধু পোস্ট থাকা ক্যাটাগরিগুলোই রয়েছে।`);
+        }
+      }
     });
 
     return () => {

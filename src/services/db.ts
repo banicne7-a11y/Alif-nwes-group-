@@ -18,6 +18,7 @@ import {
 } from '../types';
 import {
   firestoreSync,
+  isFirebaseAdminUser,
   sanitizePost,
   sanitizeCategory,
   sanitizeTag,
@@ -1323,12 +1324,11 @@ export const initialFooterConfig: FooterConfig = {
       id: 'col-1',
       title: 'News Desks',
       items: [
-        { id: 'item-1-1', label: 'Business & Finance', url: '/category/business' },
-        { id: 'item-1-2', label: 'Politics & Policy', url: '/category/politics' },
-        { id: 'item-1-3', label: 'Technology & AI', url: '/category/technology' },
-        { id: 'item-1-4', label: 'Health & Science', url: '/category/health' },
-        { id: 'item-1-5', label: 'Sports & World', url: '/category/sports' },
-        { id: 'item-1-6', label: 'Opinion & Editorial', url: '/category/opinion' },
+        { id: 'item-1-1', label: 'Business', url: '/category/business' },
+        { id: 'item-1-2', label: 'Stock Market & Technology', url: '/category/stock-market-technology' },
+        { id: 'item-1-3', label: 'Technology', url: '/category/technology' },
+        { id: 'item-1-4', label: 'U.S News', url: '/category/u-s-news' },
+        { id: 'item-1-5', label: 'Sports', url: '/category/sports' },
       ],
     },
     {
@@ -1363,6 +1363,19 @@ class DatabaseService {
   private state: DatabaseState;
   private listeners = new Set<() => void>();
   private isSyncingPolicyPages = false;
+  private remotePostsLoaded = false;
+  private remoteCatsLoaded = false;
+  private static readonly CATEGORY_COLORS = [
+    '#0284C7',
+    '#6366F1',
+    '#10B981',
+    '#EF4444',
+    '#F59E0B',
+    '#EC4899',
+    '#06B6D4',
+    '#F97316',
+    '#8B5CF6',
+  ];
 
   constructor() {
     this.state = this.loadFromStorage();
@@ -1391,12 +1404,14 @@ class DatabaseService {
 
   private initRealtimeSync(): void {
     firestoreSync.start({
-      onPostsUpdate: (posts) => {
+      onPostsUpdate: (posts, firestoreInitialized) => {
         this.state.posts = posts;
+        if (firestoreInitialized) this.remotePostsLoaded = true;
         this.save();
       },
-      onCategoriesUpdate: (categories) => {
+      onCategoriesUpdate: (categories, firestoreInitialized) => {
         this.state.categories = categories;
+        if (firestoreInitialized) this.remoteCatsLoaded = true;
         this.save();
       },
       onTagsUpdate: (tags) => {
@@ -1745,6 +1760,12 @@ class DatabaseService {
     }
 
     this.save();
+    // Ensure every category assigned to this post exists in the categories list
+    for (const catName of post.categories || [post.category]) {
+      if (catName && catName.trim()) {
+        this.saveCategory({ name: catName.trim() });
+      }
+    }
     firestoreSync.writeDoc('posts', post.id, sanitizePost(post)).catch(console.error);
     return post;
   }
@@ -1789,34 +1810,63 @@ class DatabaseService {
   public getCategories(): Category[] {
     return this.state.categories.map((c) => {
       const target = c.name.toLowerCase().trim();
+      const targetSlug = (c.slug || '').toLowerCase().trim();
       return {
         ...c,
         count: this.state.posts.filter((p) => {
+          if (p.status === 'trash') return false;
           const cats = p.categories && p.categories.length > 0 ? p.categories : [p.category];
-          return cats.some((pc) => pc.toLowerCase().trim() === target);
+          return cats.some((pc) => {
+            const norm = pc.toLowerCase().trim();
+            const slug = norm.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            return norm === target || (targetSlug && slug === targetSlug);
+          });
         }).length,
       };
     });
   }
 
   public saveCategory(catData: Partial<Category> & { name: string }): Category {
+    const cleanName = catData.name.trim() || 'General';
+    const cleanSlug =
+      (catData.slug || cleanName)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || `cat-${Date.now()}`;
+
     if (catData.id) {
       const idx = this.state.categories.findIndex((c) => c.id === catData.id);
       if (idx !== -1) {
-        this.state.categories[idx] = { ...this.state.categories[idx], ...catData };
-        this.logAction('Category Updated', `Updated category "${catData.name}"`);
+        this.state.categories[idx] = {
+          ...this.state.categories[idx],
+          ...catData,
+          name: cleanName,
+          slug: cleanSlug,
+        };
+        this.logAction('Category Updated', `Updated category "${cleanName}"`);
         this.save();
         firestoreSync.writeDoc('categories', this.state.categories[idx].id, sanitizeCategory(this.state.categories[idx])).catch(console.error);
         return this.state.categories[idx];
       }
     }
 
+    const existing = this.state.categories.find(
+      (c) =>
+        c.name.toLowerCase().trim() === cleanName.toLowerCase() ||
+        c.slug.toLowerCase().trim() === cleanSlug
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const colorIdx = this.state.categories.length % DatabaseService.CATEGORY_COLORS.length;
     const newCat: Category = {
-      id: `cat-${Date.now()}`,
-      name: catData.name,
-      slug: catData.slug || catData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      id: `cat-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      name: cleanName,
+      slug: cleanSlug,
       parentId: catData.parentId || null,
-      color: catData.color || '#0284C7',
+      color: catData.color || DatabaseService.CATEGORY_COLORS[colorIdx],
       description: catData.description || '',
       image: catData.image,
       count: 0,
@@ -1836,6 +1886,54 @@ class DatabaseService {
     if (cat) this.logAction('Category Deleted', `Deleted category "${cat.name}"`, 'warning');
     this.save();
     firestoreSync.deleteRemoteDoc('categories', id).catch(console.error);
+  }
+
+  public pruneEmptyCategories(onlyPublished = false): Category[] {
+    const usedKeys = new Set<string>();
+    for (const p of this.state.posts) {
+      if (onlyPublished ? p.status !== 'published' : p.status === 'trash') continue;
+      const cats = p.categories && p.categories.length > 0 ? p.categories : [p.category];
+      for (const c of cats) {
+        const norm = String(c || '').toLowerCase().trim();
+        if (!norm) continue;
+        usedKeys.add(norm);
+        const slug = norm.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        if (slug) usedKeys.add(slug);
+      }
+    }
+
+    const emptyCats = this.state.categories.filter((c) => {
+      const nameNorm = c.name.toLowerCase().trim();
+      const slugNorm = (c.slug || '').toLowerCase().trim().replace(/(^-|-$)/g, '');
+      return !usedKeys.has(nameNorm) && (!slugNorm || !usedKeys.has(slugNorm));
+    });
+
+    if (emptyCats.length === 0) return [];
+
+    const emptyIds = new Set(emptyCats.map((c) => c.id));
+    this.state.categories = this.state.categories.filter((c) => !emptyIds.has(c.id));
+    this.logAction(
+      'Empty Categories Pruned',
+      `Removed ${emptyCats.length} unused categories: ${emptyCats.map((c) => c.name).join(', ')}`,
+      'info'
+    );
+    this.save();
+    for (const c of emptyCats) {
+      firestoreSync.deleteRemoteDoc('categories', c.id).catch(console.error);
+    }
+    return emptyCats;
+  }
+
+  public runOneTimeAdminEmptyCategoryPrune(): number {
+    if (typeof window === 'undefined') return 0;
+    if (localStorage.getItem('alif_empty_cats_pruned_v1') === '1') return 0;
+    if (!this.remotePostsLoaded || !this.remoteCatsLoaded) return 0;
+    if (this.state.posts.length === 0) return 0;
+    if (!isFirebaseAdminUser()) return 0;
+
+    const removed = this.pruneEmptyCategories(false);
+    localStorage.setItem('alif_empty_cats_pruned_v1', '1');
+    return removed.length;
   }
 
   // -------------------------

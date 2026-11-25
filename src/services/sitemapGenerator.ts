@@ -134,10 +134,38 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<{
     priority: '0.9',
   }));
 
-  const categories: SitemapUrlItem[] = (catFields.length > 0
-    ? catFields.map((f) => readStringField(f, 'slug')).filter(Boolean)
-    : ['business', 'politics', 'health', 'sports', 'travels', 'familys', 'science', 'technology', 'religion']
-  ).map((slug) => ({
+  const usedCategoryKeys = new Set<string>();
+  const derivedCatSlugs: string[] = [];
+  for (const f of postFields) {
+    const primaryCat = readStringField(f, 'category');
+    const arrCats = Array.isArray(f?.categories?.arrayValue?.values)
+      ? f.categories.arrayValue.values.map((v: any) => String(v?.stringValue || '').trim()).filter(Boolean)
+      : [];
+    for (const rawCat of [primaryCat, ...arrCats]) {
+      const norm = String(rawCat || '').toLowerCase().trim();
+      if (!norm) continue;
+      const slug = norm.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      usedCategoryKeys.add(norm);
+      if (slug && !usedCategoryKeys.has(slug)) {
+        usedCategoryKeys.add(slug);
+        derivedCatSlugs.push(slug);
+      }
+    }
+  }
+
+  const matchedFirestoreSlugs = catFields
+    .map((f) => ({
+      name: readStringField(f, 'name').toLowerCase().trim(),
+      slug: readStringField(f, 'slug').toLowerCase().trim().replace(/(^-|-$)/g, ''),
+    }))
+    .filter((c) => c.slug && (usedCategoryKeys.has(c.name) || usedCategoryKeys.has(c.slug)))
+    .map((c) => c.slug);
+
+  const uniqueCatSlugs = Array.from(
+    new Set(matchedFirestoreSlugs.length > 0 ? matchedFirestoreSlugs : derivedCatSlugs)
+  );
+
+  const categories: SitemapUrlItem[] = uniqueCatSlugs.map((slug) => ({
     loc: `${cleanBase}/category/${encodeURIComponent(slug)}`,
     lastmod: today,
     changefreq: 'daily',

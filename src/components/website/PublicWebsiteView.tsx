@@ -317,12 +317,17 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
 
   const postHasCategory = (post: Post, targetCat: string): boolean => {
     const norm = targetCat.toLowerCase().trim();
+    const normSlug = norm.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     return getPostCategoryList(post).some((c) => {
       const cNorm = c.toLowerCase().trim();
-      const cSlug = cNorm.replace(/[^a-z0-9]+/g, '-');
-      return cNorm === norm || cSlug === norm;
+      const cSlug = cNorm.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      return cNorm === norm || cSlug === norm || (normSlug && cSlug === normSlug);
     });
   };
+
+  const activeCategories = categories.filter((c) =>
+    posts.some((p) => postHasCategory(p, c.name) || postHasCategory(p, c.slug))
+  );
 
   const editionPosts = posts.filter((p) => doesPostBelongToEdition(p, activeCountry));
 
@@ -1094,7 +1099,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 All Stories
               </button>
 
-              {categories.map((c) => (
+              {activeCategories.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => handleSelectCategory(c.name)}
@@ -2130,15 +2135,21 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                 {col.title}
               </h4>
               <div className="space-y-1.5 text-xs">
-                {col.items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleFooterLinkClick(item.url)}
-                    className="block text-left hover:text-red-600 transition-colors cursor-pointer"
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                {col.items
+                  .filter((item) => {
+                    if (!item.url.startsWith('/category/')) return true;
+                    const catSlug = item.url.replace('/category/', '').trim();
+                    return posts.some((p) => postHasCategory(p, catSlug));
+                  })
+                  .map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleFooterLinkClick(item.url)}
+                      className="block text-left hover:text-red-600 transition-colors cursor-pointer"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 {col.id === 'col-2' &&
                   footerPages
                     .filter((fp) => !col.items.some((it) => it.url.includes(fp.slug)))

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -64,10 +64,16 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
   onBack,
   onSaved,
 }) => {
-  const categories = db.getCategories();
+  const [categories, setCategories] = useState(() => db.getCategories());
   const allTags = db.getTags();
   const currentUser = db.getCurrentUser();
   const allUsers = db.getUsers();
+
+  useEffect(() => {
+    return db.subscribe(() => {
+      setCategories(db.getCategories());
+    });
+  }, []);
 
   // Core post state
   const [title, setTitle] = useState(postToEdit?.title || '');
@@ -82,6 +88,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
         : [categories[0]?.name || 'Business'];
     return Array.from(new Set(raw.filter(Boolean)));
   });
+  const [newCategoryInput, setNewCategoryInput] = useState('');
   const category = selectedCategories[0] || 'Business';
   const [selectedTags, setSelectedTags] = useState<string[]>(postToEdit?.tags || ['News']);
   const [newTagInput, setNewTagInput] = useState('');
@@ -530,6 +537,23 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
       catName,
       ...prev.filter((c) => c.toLowerCase() !== catName.toLowerCase()),
     ]);
+  };
+
+  const handleQuickAddCategory = (mode: 'replace' | 'append') => {
+    const clean = newCategoryInput.trim();
+    if (!clean) return;
+    const savedCat = db.saveCategory({ name: clean });
+    setCategories(db.getCategories());
+    if (mode === 'replace') {
+      setSelectedCategories([savedCat.name]);
+    } else {
+      setSelectedCategories((prev) => {
+        const exists = prev.some((c) => c.toLowerCase().trim() === savedCat.name.toLowerCase().trim());
+        return exists ? prev : [...prev, savedCat.name];
+      });
+    }
+    setNewCategoryInput('');
+    toast.success(`ক্যাটাগরি "${savedCat.name}" যোগ ও সিলেক্ট হয়েছে!`);
   };
 
   const handleAddTag = () => {
@@ -1202,7 +1226,7 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                 ৪. ক্যাটাগরি (Category)
               </label>
               <select
-                value={selectedCategories[0] || 'Business'}
+                value={selectedCategories[0] || categories[0]?.name || 'Business'}
                 onChange={(e) => setSelectedCategories([e.target.value])}
                 className="w-full min-h-[44px] px-3 py-2 text-sm font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
               >
@@ -1211,7 +1235,35 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                     {c.name}
                   </option>
                 ))}
+                {selectedCategories[0] &&
+                  !categories.some((c) => c.name.toLowerCase().trim() === selectedCategories[0].toLowerCase().trim()) && (
+                    <option value={selectedCategories[0]}>{selectedCategories[0]}</option>
+                  )}
               </select>
+              <div className="mt-2 flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newCategoryInput}
+                  onChange={(e) => setNewCategoryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleQuickAddCategory('replace');
+                    }
+                  }}
+                  placeholder="+ নতুন ক্যাটাগরি লিখুন (যেমন: World)..."
+                  className="flex-1 min-h-[40px] px-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleQuickAddCategory('replace')}
+                  disabled={!newCategoryInput.trim()}
+                  className="min-h-[40px] px-3 py-1.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white rounded-xl text-xs font-extrabold flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>যোগ করুন</span>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -2339,6 +2391,31 @@ export const AdvancedEditorView: React.FC<AdvancedEditorViewProps> = ({
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="mt-2.5 flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newCategoryInput}
+                  onChange={(e) => setNewCategoryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleQuickAddCategory('append');
+                    }
+                  }}
+                  placeholder="+ নতুন ক্যাটাগরি যোগ করুন..."
+                  className="flex-1 px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleQuickAddCategory('append')}
+                  disabled={!newCategoryInput.trim()}
+                  className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add</span>
+                </button>
               </div>
 
               {selectedCategories.length > 1 && (

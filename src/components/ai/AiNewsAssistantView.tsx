@@ -58,6 +58,7 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
   const [quickDraftTitle, setQuickDraftTitle] = useState('');
   const [quickDraftImage, setQuickDraftImage] = useState('');
   const [quickDraftCategory, setQuickDraftCategory] = useState('Business');
+  const [quickNewCategoryInput, setQuickNewCategoryInput] = useState('');
   const [quickDraftBreaking, setQuickDraftBreaking] = useState(true);
 
   // Classic AI workspace state
@@ -1114,7 +1115,46 @@ export const AiNewsAssistantView: React.FC<AiNewsAssistantViewProps> = ({
                         {c.name}
                       </option>
                     ))}
+                    {quickDraftCategory &&
+                      !db.getCategories().some((c) => c.name.toLowerCase().trim() === quickDraftCategory.toLowerCase().trim()) && (
+                        <option value={quickDraftCategory}>{quickDraftCategory}</option>
+                      )}
                   </select>
+                  <div className="mt-1.5 flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={quickNewCategoryInput}
+                      onChange={(e) => setQuickNewCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const clean = quickNewCategoryInput.trim();
+                          if (!clean) return;
+                          const created = db.saveCategory({ name: clean });
+                          setQuickDraftCategory(created.name);
+                          setQuickNewCategoryInput('');
+                          toast.success(`ক্যাটাগরি "${created.name}" যোগ হয়েছে!`);
+                        }
+                      }}
+                      placeholder="+ নতুন ক্যাটাগরি..."
+                      className="flex-1 min-w-0 px-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={!quickNewCategoryInput.trim()}
+                      onClick={() => {
+                        const clean = quickNewCategoryInput.trim();
+                        if (!clean) return;
+                        const created = db.saveCategory({ name: clean });
+                        setQuickDraftCategory(created.name);
+                        setQuickNewCategoryInput('');
+                        toast.success(`ক্যাটাগরি "${created.name}" যোগ হয়েছে!`);
+                      }}
+                      className="px-2 py-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white rounded-lg text-[11px] font-bold cursor-pointer shrink-0"
+                    >
+                      + Add
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-end">
                   <label className="w-full min-h-[42px] px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2 cursor-pointer">

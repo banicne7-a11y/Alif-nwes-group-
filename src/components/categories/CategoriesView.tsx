@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FolderTree,
   Plus,
@@ -32,6 +32,30 @@ export const CategoriesView: React.FC = () => {
   const refreshData = () => {
     setCategories([...db.getCategories()]);
     setTags([...db.getTags()]);
+  };
+
+  useEffect(() => {
+    return db.subscribe(refreshData);
+  }, []);
+
+  const emptyCategoriesCount = categories.filter((c) => c.count === 0).length;
+
+  const handlePruneEmptyCategories = () => {
+    toast.confirm({
+      title: 'খালি ক্যাটাগরি মুছুন (Remove Empty Categories)',
+      message: `যেসব ক্যাটাগরিতে কোনো পোস্ট নেই এমন ${emptyCategoriesCount}টি খালি ক্যাটাগরি রিমুভ করা হবে। যেগুলোতে পোস্ট আছে সেগুলো অক্ষত থাকবে।`,
+      confirmLabel: 'রিমুভ করুন',
+      isDestructive: true,
+      onConfirm: () => {
+        const removed = db.pruneEmptyCategories(false);
+        refreshData();
+        if (removed.length > 0) {
+          toast.success(`${removed.length}টি খালি ক্যাটাগরি রিমুভ করা হয়েছে!`);
+        } else {
+          toast.info('কোনো খালি ক্যাটাগরি পাওয়া যায়নি।');
+        }
+      },
+    });
   };
 
   const handleSaveCategory = (e: React.FormEvent) => {
@@ -125,6 +149,27 @@ export const CategoriesView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {emptyCategoriesCount > 0 && activeSubTab === 'categories' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="text-xs text-amber-950">
+            <p className="font-extrabold">
+              {emptyCategoriesCount}টি খালি ক্যাটাগরিতে কোনো পোস্ট নেই
+            </p>
+            <p className="text-amber-800 mt-0.5">
+              লাইভ সাইট ও AdSense রিভিউ পরিষ্কার রাখতে খালি ক্যাটাগরিগুলো রিমুভ করে দিন (যেগুলোতে পোস্ট আছে সেগুলো থাকবে)।
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handlePruneEmptyCategories}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl shadow-xs shrink-0 cursor-pointer flex items-center gap-1.5"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Remove {emptyCategoriesCount} Empty Categories</span>
+          </button>
+        </div>
+      )}
 
       {activeSubTab === 'categories' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
