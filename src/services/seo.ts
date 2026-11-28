@@ -1,4 +1,7 @@
 import { db } from './db';
+import { Post, SeoRedirectRule } from '../types';
+import { getPostPublicPath } from '../utils/countryEditions';
+import { buildArticleGraphSchema, smartExcerpt } from '../utils/rankSeo';
 
 /**
  * Normalizes user input for Google Search Console verification.
@@ -11,20 +14,27 @@ export function cleanGoogleVerificationCode(input: string): string {
   if (!input) return '';
   let str = input.trim();
 
-  // If user pasted a full <meta ...> tag
   const contentMatch = str.match(/content=["']([^"']+)["']/i);
   if (contentMatch && contentMatch[1]) {
     str = contentMatch[1];
   }
 
-  // If user pasted with google-site-verification= prefix
   if (str.toLowerCase().startsWith('google-site-verification=')) {
     str = str.replace(/^google-site-verification=/i, '');
   }
 
-  // Remove surrounding quotes, slashes, or angle brackets
   str = str.replace(/[/"'>]/g, '').trim();
   return str;
+}
+
+export function cleanGenericVerificationCode(input: string): string {
+  if (!input) return '';
+  let str = input.trim();
+  const contentMatch = str.match(/content=["']([^"']+)["']/i);
+  if (contentMatch && contentMatch[1]) {
+    str = contentMatch[1];
+  }
+  return str.replace(/[/"'>]/g, '').trim();
 }
 
 export function applyDynamicFavicon(customUrl?: string): string {
@@ -58,7 +68,7 @@ export function applyDynamicFavicon(customUrl?: string): string {
 }
 
 /**
- * Dynamically injects or updates the Google Search Console verification tag in document <head>.
+ * Dynamically injects Google, Bing, Yandex webmaster verification tags in document <head>.
  */
 export function applyGoogleVerificationTag(code?: string): string {
   const settings = db.getSettings();
@@ -66,13 +76,17 @@ export function applyGoogleVerificationTag(code?: string): string {
   const cleanCode = cleanGoogleVerificationCode(rawCode);
 
   if (typeof document !== 'undefined') {
-    let metaTag = document.querySelector<HTMLMetaElement>('meta[name="google-site-verification"]');
-    if (!metaTag) {
-      metaTag = document.createElement('meta');
-      metaTag.name = 'google-site-verification';
-      document.head.appendChild(metaTag);
+    if (cleanCode) {
+      setMeta('google-site-verification', cleanCode);
     }
-    metaTag.content = cleanCode;
+    const bingCode = cleanGenericVerificationCode(settings.rankSeo?.bingVerificationCode || '');
+    if (bingCode) {
+      setMeta('msvalidate.01', bingCode);
+    }
+    const yandexCode = cleanGenericVerificationCode(settings.rankSeo?.yandexVerificationCode || '');
+    if (yandexCode) {
+      setMeta('yandex-verification', yandexCode);
+    }
     applyDynamicFavicon();
     applyGoogleAnalyticsTag();
   }
@@ -123,13 +137,6 @@ export function applyGoogleAnalyticsTag(gaId?: string): string {
 
 const PLACEHOLDER_ADSENSE_ID = 'ca-pub-9386736849071234';
 
-/**
- * Extracts a normalized AdSense Publisher ID (ca-pub-XXXXXXXXXXXXXXXX) from:
- * - Raw ID: ca-pub-1234567890123456 or pub-1234567890123456
- * - Script snippet: <script async src="...client=ca-pub-1234567890123456"...></script>
- * - Meta tag: <meta name="google-adsense-account" content="ca-pub-1234567890123456">
- * - ads.txt line: google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0
- */
 export function cleanAdSensePublisherId(input: string): string {
   if (!input) return '';
   const match = input.trim().match(/(?:ca-)?(pub-\d{10,})/i);
@@ -142,10 +149,6 @@ export function isValidAdSensePublisherId(input?: string): boolean {
   return /^ca-pub-\d{10,}$/.test(clean) && clean !== PLACEHOLDER_ADSENSE_ID;
 }
 
-/**
- * Injects or updates Google AdSense domain verification <meta name="google-adsense-account">
- * and the official AdSense verification <script> in document <head>.
- */
 export function applyAdSenseVerificationTags(code?: string): string {
   const settings = db.getSettings();
   const raw = code !== undefined ? code : settings.adsenseClientId;
@@ -177,30 +180,77 @@ export function applyAdSenseVerificationTags(code?: string): string {
   return cleanId;
 }
 
+function setJsonLdScript(jsonLd?: Record<string, any> | null) {
+  if (typeof document === 'undefined') return;
+  let script = document.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
+  if (!jsonLd) return;
+  if (!script) {
+    script = document.createElement('script');
+    script.type = 'application/ld+json';
+    document.head.appendChild(script);
+  }
+  script.textContent = JSON.stringify(jsonLd);
+}
+
 /**
- * Dynamically updates page metadata (title, description, canonical URL, OpenGraph)
+ * Dynamically updates page metadata (title, description, robots, canonical URL, OpenGraph, Twitter, JSON-LD)
  */
 export function updatePageSeo(options: {
   title?: string;
+  noSiteSuffix?: boolean;
   description?: string;
   canonicalUrl?: string;
+  metaRobots?: string;
+  ogTitle?: string;
+  ogDescription?: string;
   ogImage?: string;
+  ogImageAlt?: string;
   ogType?: 'website' | 'article';
+  twitterCard?: 'summary_large_image' | 'summary';
+  twitterTitle?: string;
+  twitterDescription?: string;
   publishedTime?: string;
+  modifiedTime?: string;
   author?: string;
+  section?: string;
+  jsonLd?: Record<string, any> | null;
 }) {
   if (typeof document === 'undefined') return;
 
-  const siteName = 'Alif News 24';
-  const fullTitle = options.title ? `${options.title} | ${siteName}` : `${siteName} - America's 24/7 Live News Portal`;
+  const settings = db.getSettings();
+  const rankSeo = settings.rankSeo;
+  const siteName = settings.siteName || 'Alif News 24';
+  const sep = rankSeo?.titleSeparator || '|';
+
+  const fullTitle = options.title
+    ? options.noSiteSuffix || options.title.toLowerCase().includes(siteName.toLowerCase())
+      ? options.title
+      : `${options.title} ${sep} ${siteName}`
+    : rankSeo?.homeSeoTitle || `${siteName} - America's 24/7 Live News Portal`;
   document.title = fullTitle;
 
-  // Description
-  const desc = options.description || "Alif News 24 - Real-time American breaking news, politics, Wall Street markets, technology, national investigations, and global dispatches.";
+  const desc =
+    options.description ||
+    rankSeo?.homeSeoDescription ||
+    "Alif News 24 - Real-time American breaking news, politics, Wall Street markets, technology, national investigations, and global dispatches.";
   setMeta('description', desc);
 
-  // Canonical URL
-  const currentUrl = options.canonicalUrl || (window.location.origin + window.location.pathname);
+  const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+  const hasSearchParam =
+    typeof window !== 'undefined' &&
+    (new URLSearchParams(window.location.search).has('search') ||
+      new URLSearchParams(window.location.search).has('s'));
+  const robotsValue = isAdmin
+    ? 'noindex, nofollow'
+    : options.metaRobots?.trim() ||
+      (hasSearchParam && rankSeo?.noindexSearchResults !== false
+        ? 'noindex, follow'
+        : rankSeo?.defaultRobots || 'index, follow, max-image-preview:large');
+  setMeta('robots', robotsValue);
+
+  const currentUrl =
+    options.canonicalUrl ||
+    (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : 'https://www.official1.online/');
   let canonicalLink = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if (!canonicalLink) {
     canonicalLink = document.createElement('link');
@@ -209,25 +259,39 @@ export function updatePageSeo(options: {
   }
   canonicalLink.href = currentUrl;
 
-  // OpenGraph
-  setMetaProperty('og:title', options.title || fullTitle);
-  setMetaProperty('og:description', desc);
+  const resolvedOgImage = options.ogImage || rankSeo?.defaultOgImage;
+  const resolvedOgTitle = options.ogTitle || options.title || rankSeo?.defaultOgTitle || fullTitle;
+  const resolvedOgDesc = options.ogDescription || desc;
+
+  setMetaProperty('og:title', resolvedOgTitle);
+  setMetaProperty('og:description', resolvedOgDesc);
   setMetaProperty('og:url', currentUrl);
   setMetaProperty('og:site_name', siteName);
   setMetaProperty('og:type', options.ogType || 'website');
-  if (options.ogImage) {
-    setMetaProperty('og:image', options.ogImage);
+  if (resolvedOgImage) {
+    setMetaProperty('og:image', resolvedOgImage);
+    setMetaProperty('og:image:alt', options.ogImageAlt || resolvedOgTitle);
+  }
+  if (options.ogType === 'article') {
+    if (options.publishedTime) setMetaProperty('article:published_time', options.publishedTime);
+    if (options.modifiedTime) setMetaProperty('article:modified_time', options.modifiedTime);
+    if (options.section) setMetaProperty('article:section', options.section);
   }
 
-  // Twitter
-  setMeta('twitter:card', 'summary_large_image');
-  setMeta('twitter:title', options.title || fullTitle);
-  setMeta('twitter:description', desc);
-  if (options.ogImage) {
-    setMeta('twitter:image', options.ogImage);
+  setMeta('twitter:card', options.twitterCard || 'summary_large_image');
+  setMeta('twitter:title', options.twitterTitle || resolvedOgTitle);
+  setMeta('twitter:description', options.twitterDescription || resolvedOgDesc);
+  if (rankSeo?.twitterHandle) {
+    setMeta('twitter:site', rankSeo.twitterHandle);
+  }
+  if (resolvedOgImage) {
+    setMeta('twitter:image', resolvedOgImage);
   }
 
-  // Always ensure Google Site Verification, AdSense Verification, GA4, and Favicon are synced
+  if (options.jsonLd) {
+    setJsonLdScript(options.jsonLd);
+  }
+
   applyGoogleVerificationTag();
   applyAdSenseVerificationTags();
 
@@ -244,6 +308,92 @@ export function updatePageSeo(options: {
       page_path: window.location.pathname,
     });
   }
+}
+
+export function applyPostSeoToHead(post: Post) {
+  if (typeof window === 'undefined') return;
+  const settings = db.getSettings();
+  const rankSeo = settings.rankSeo;
+  const origin = window.location.origin;
+  const canonicalUrl = post.seo?.canonicalUrl?.trim() || `${origin}${getPostPublicPath(post)}`;
+  const title = post.seo?.title?.trim() || post.title;
+  const description =
+    post.seo?.description?.trim() ||
+    smartExcerpt(post.excerpt || post.subtitle || post.content || post.title, 160);
+  const ogImage = post.seo?.ogImage?.trim() || post.featuredImage || rankSeo?.defaultOgImage;
+
+  const jsonLd = buildArticleGraphSchema({
+    post,
+    canonicalUrl,
+    baseUrl: origin,
+    siteName: rankSeo?.publisherName || settings.siteName || 'Alif News 24',
+    publisherLogo: rankSeo?.publisherLogo || settings.logoUrl,
+    enableBreadcrumbs: rankSeo?.enableBreadcrumbs !== false,
+    enableOrganizationSchema: rankSeo?.enableOrganizationSchema !== false,
+  });
+
+  updatePageSeo({
+    title,
+    description,
+    canonicalUrl,
+    metaRobots: post.seo?.metaRobots || rankSeo?.defaultRobots || 'index, follow',
+    ogTitle: post.seo?.ogTitle?.trim() || title,
+    ogDescription: post.seo?.ogDescription?.trim() || description,
+    ogImage,
+    ogImageAlt: post.seo?.featuredImageAlt?.trim() || post.title,
+    ogType: 'article',
+    twitterCard: post.seo?.twitterCardType || 'summary_large_image',
+    twitterTitle: post.seo?.twitterTitle?.trim() || post.seo?.ogTitle?.trim() || title,
+    twitterDescription: post.seo?.twitterDescription?.trim() || post.seo?.ogDescription?.trim() || description,
+    publishedTime: post.publishedAt,
+    modifiedTime: post.updatedAt || post.publishedAt,
+    author: post.author?.name,
+    section: post.category,
+    jsonLd,
+  });
+}
+
+export function applyHomeSeoToHead(titleOverride?: string, descriptionOverride?: string) {
+  const settings = db.getSettings();
+  const rankSeo = settings.rankSeo;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.official1.online';
+  const siteName = settings.siteName || 'Alif News 24';
+
+  updatePageSeo({
+    title: titleOverride || rankSeo?.homeSeoTitle || `${siteName} - America's 24/7 Live News Portal`,
+    noSiteSuffix: !titleOverride && Boolean(rankSeo?.homeSeoTitle),
+    description: descriptionOverride || rankSeo?.homeSeoDescription,
+    ogTitle: !titleOverride ? rankSeo?.defaultOgTitle : undefined,
+    ogDescription: !titleOverride ? rankSeo?.defaultOgDescription : descriptionOverride,
+    ogImage: rankSeo?.defaultOgImage,
+    ogType: 'website',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'NewsMediaOrganization',
+      name: rankSeo?.publisherName || siteName,
+      url: origin,
+      logo: rankSeo?.publisherLogo || `${origin}/favicon.svg`,
+      description: rankSeo?.homeSeoDescription || settings.tagline,
+    },
+  });
+}
+
+export function matchClientRedirectRule(
+  pathname: string,
+  rules: SeoRedirectRule[] = db.getSettings().seoRedirects || []
+): SeoRedirectRule | null {
+  const cleanPath = (pathname || '/').replace(/\/+$/, '') || '/';
+  for (const rule of rules) {
+    if (!rule || !rule.active || !rule.sourcePath) continue;
+    const src = rule.sourcePath.trim().replace(/\/+$/, '') || '/';
+    if (src.endsWith('*')) {
+      const prefix = src.slice(0, -1);
+      if (cleanPath.startsWith(prefix)) return rule;
+    } else if (cleanPath.toLowerCase() === src.toLowerCase()) {
+      return rule;
+    }
+  }
+  return null;
 }
 
 function setMeta(name: string, content: string) {

@@ -21,6 +21,7 @@ import { db } from '../../services/db';
 import { toast } from '../../services/toast';
 import { Post, PostStatus } from '../../types';
 import { COUNTRY_EDITIONS, TARGET_COUNTRY_LIST, getPostPublicPath } from '../../utils/countryEditions';
+import { auditPostObject } from '../../utils/rankSeo';
 
 interface PostsViewProps {
   onNavigate: (view: string, subParam?: any) => void;
@@ -405,7 +406,7 @@ export const PostsView: React.FC<PostsViewProps> = ({
                       </div>
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-500">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 tabular-nums">
                         <span className="flex items-center gap-1 font-mono">
                           <Eye className="w-3.5 h-3.5 text-slate-400" />
                           {post.views}
@@ -415,6 +416,34 @@ export const PostsView: React.FC<PostsViewProps> = ({
                           {post.commentsCount}
                         </span>
                       </div>
+                      {(() => {
+                        const score = auditPostObject(post).score;
+                        const toneClass =
+                          score >= 81
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : score >= 60
+                            ? 'text-amber-700 bg-amber-50 border-amber-200'
+                            : 'text-rose-700 bg-rose-50 border-rose-200';
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onEditPost(post)}
+                            title={
+                              post.seo?.focusKeyword
+                                ? `Focus Keyword: ${post.seo.focusKeyword}`
+                                : 'Click to optimize SEO in editor'
+                            }
+                            className={`mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold tabular-nums cursor-pointer ${toneClass}`}
+                          >
+                            <span>SEO {score}/100</span>
+                            {post.seo?.focusKeyword && (
+                              <span className="font-normal opacity-80 truncate max-w-[90px]">
+                                · {post.seo.focusKeyword}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })()}
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <span

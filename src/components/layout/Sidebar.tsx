@@ -320,7 +320,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <Search className="w-4 h-4 text-sky-400" />
-            <span>SEO Manager & Sitemaps</span>
+            <span>Rank SEO Pro</span>
           </button>
 
           {/* Analytics & Reports */}

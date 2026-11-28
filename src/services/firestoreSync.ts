@@ -245,7 +245,7 @@ export function sanitizeUser(u: User): Record<string, any> {
 }
 
 export function sanitizePublicSettings(s: SystemSettings): Record<string, any> {
-  return cleanUndefined({
+  const payload: Record<string, any> = {
     id: 'site_settings',
     siteName: trunc(s.siteName, 150),
     tagline: trunc(s.tagline, 300),
@@ -263,7 +263,26 @@ export function sanitizePublicSettings(s: SystemSettings): Record<string, any> {
     autoAds: !!s.autoAds,
     breakingNewsTickerActive: !!s.breakingNewsTickerActive,
     breakingNewsText: trunc(s.breakingNewsText, 1000),
-  });
+    robotsTxt: trunc(s.robotsTxt || '', 5000),
+  };
+  if (s.rankSeo && typeof s.rankSeo === 'object') {
+    payload.rankSeo = cleanUndefined(s.rankSeo);
+  }
+  if (Array.isArray(s.seoRedirects)) {
+    payload.seoRedirects = s.seoRedirects.slice(0, 100).map((r) =>
+      cleanUndefined({
+        id: safeId(r.id),
+        sourcePath: trunc(r.sourcePath || '/', 300),
+        targetUrl: trunc(r.targetUrl || '/', 500),
+        type: ['301', '302', '410'].includes(r.type) ? r.type : '301',
+        active: !!r.active,
+        hits: Math.max(0, Number(r.hits) || 0),
+        note: trunc(r.note || '', 200),
+        createdAt: trunc(r.createdAt || new Date().toISOString().slice(0, 10), 64),
+      })
+    );
+  }
+  return cleanUndefined(payload);
 }
 
 export function sanitizeAdminSettings(s: SystemSettings): Record<string, any> {

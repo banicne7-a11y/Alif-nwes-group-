@@ -61,6 +61,14 @@
       "destination": "/api/render?type=page&slug=:slug"
     },
     {
+      "source": "/tag/:path*",
+      "destination": "/api/render?type=redirect"
+    },
+    {
+      "source": "/product/:path*",
+      "destination": "/api/render?type=redirect"
+    },
+    {
       "source": "/((?!api/|index\\.html).*)",
       "destination": "/index.html"
     }

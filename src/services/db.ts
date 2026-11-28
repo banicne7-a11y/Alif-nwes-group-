@@ -34,6 +34,7 @@ import {
   sanitizeCampaign,
   sanitizeLog,
 } from './firestoreSync';
+import { DEFAULT_RANK_SEO_SETTINGS } from '../utils/rankSeo';
 
 const STORAGE_KEY = 'alif_news_24_cms_db_v8';
 
@@ -1288,6 +1289,8 @@ const initialSettings: SystemSettings = {
   maxLoginAttempts: 5,
   breakingNewsTickerActive: true,
   breakingNewsText: 'BREAKING: US Federal Reserve signals data-driven interest rate adjustments | Wall Street rallies on cooler inflation index | Bipartisan infrastructure accords advance in Congress',
+  rankSeo: DEFAULT_RANK_SEO_SETTINGS,
+  seoRedirects: [],
 };
 
 const initialLogs: ActivityLog[] = [
@@ -2507,12 +2510,39 @@ class DatabaseService {
   // Settings
   // -------------------------
   public getSettings(): SystemSettings {
-    return this.state.settings;
+    return {
+      ...this.state.settings,
+      rankSeo: {
+        ...DEFAULT_RANK_SEO_SETTINGS,
+        ...(this.state.settings.rankSeo || {}),
+        modules: {
+          ...DEFAULT_RANK_SEO_SETTINGS.modules,
+          ...(this.state.settings.rankSeo?.modules || {}),
+        },
+      },
+      seoRedirects: Array.isArray(this.state.settings.seoRedirects)
+        ? this.state.settings.seoRedirects
+        : [],
+    };
   }
 
   public updateSettings(updates: Partial<SystemSettings>): SystemSettings {
-    this.state.settings = { ...this.state.settings, ...updates };
-    this.logAction('Settings Updated', 'Global enterprise CMS configuration updated.');
+    const current = this.getSettings();
+    this.state.settings = {
+      ...current,
+      ...updates,
+      rankSeo: updates.rankSeo
+        ? {
+            ...current.rankSeo!,
+            ...updates.rankSeo,
+            modules: {
+              ...current.rankSeo!.modules,
+              ...(updates.rankSeo.modules || {}),
+            },
+          }
+        : current.rankSeo,
+    };
+    this.logAction('Settings Updated', 'Global enterprise CMS & Rank SEO configuration updated.');
     this.save();
     firestoreSync.writeDoc('config', 'site_settings', sanitizePublicSettings(this.state.settings)).catch(console.error);
     firestoreSync.writeDoc('admin_config', 'system', sanitizeAdminSettings(this.state.settings)).catch(console.error);

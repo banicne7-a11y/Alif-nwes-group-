@@ -2,10 +2,28 @@ import firebaseConfig from '../../firebase-applet-config.json' with { type: 'jso
 
 interface SeoEntity {
   title: string;
+  seoTitle?: string;
   subtitle?: string;
   description: string;
   slug: string;
+  category?: string;
+  tags?: string[];
   image?: string;
+  imageAlt?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  twitterCardType?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  canonicalUrl?: string;
+  metaRobots?: string;
+  schemaType?: string;
+  breadcrumbTitle?: string;
+  faqItems?: Array<{ question: string; answer: string }>;
+  howToSteps?: Array<{ title: string; description: string }>;
+  redirectUrl?: string;
+  redirectType?: '301' | '302';
   authorName?: string;
   publishedAt?: string;
   updatedAt?: string;
@@ -14,11 +32,35 @@ interface SeoEntity {
   kind: 'article' | 'page';
 }
 
+interface RedirectEntry {
+  sourcePath: string;
+  targetUrl: string;
+  type: '301' | '302' | '410';
+  active: boolean;
+}
+
 interface SiteSeoConfig {
   adsenseClientId: string;
   searchConsoleCode: string;
   googleAnalyticsId: string;
   siteName: string;
+  titleSeparator: string;
+  homeSeoTitle: string;
+  homeSeoDescription: string;
+  defaultOgTitle: string;
+  defaultOgDescription: string;
+  defaultOgImage: string;
+  twitterHandle: string;
+  bingVerificationCode: string;
+  yandexVerificationCode: string;
+  publisherName: string;
+  publisherLogo: string;
+  defaultArticleSchema: string;
+  defaultRobots: string;
+  enableBreadcrumbs: boolean;
+  enableOrganizationSchema: boolean;
+  noindexSearchResults: boolean;
+  seoRedirects: RedirectEntry[];
 }
 
 function escapeHtml(str: string): string {
@@ -37,12 +79,23 @@ function renderSafeInlineHtml(raw: string): string {
       /\[([^\]\n]+)\]\((https?:\/\/[^\s)&]+(?:&amp;[^\s)]+)*)\)/g,
       '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
     )
+    .replace(
+      /\[([^\]\n]+)\]\((\/[^\s)]+)\)/g,
+      '<a href="$2">$1</a>'
+    )
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
 }
 
 function readStr(fields: Record<string, any> | undefined, key: string): string {
   return fields?.[key]?.stringValue ? String(fields[key].stringValue) : '';
+}
+
+function readBool(fields: Record<string, any> | undefined, key: string, fallback: boolean): boolean {
+  if (fields?.[key] && typeof fields[key].booleanValue === 'boolean') {
+    return fields[key].booleanValue;
+  }
+  return fallback;
 }
 
 function cleanStrayLeadingHash(raw: string): string {
@@ -272,11 +325,32 @@ function readBlocksText(fields: Record<string, any> | undefined, articleTitle?: 
   return parts.join('\n');
 }
 
+const DEFAULT_SOCIAL_IMAGE =
+  'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&h=630&fit=crop&q=85&fm=jpg';
+
 const DEFAULT_SITE_CONFIG: SiteSeoConfig = {
   adsenseClientId: '',
   searchConsoleCode: '',
   googleAnalyticsId: '',
   siteName: 'Alif News 24',
+  titleSeparator: '|',
+  homeSeoTitle: '',
+  homeSeoDescription:
+    'Around-the-clock independent investigative journalism, US politics, business, tech, sports, and world news.',
+  defaultOgTitle: '',
+  defaultOgDescription: '',
+  defaultOgImage: DEFAULT_SOCIAL_IMAGE,
+  twitterHandle: '@AlifNews24',
+  bingVerificationCode: '',
+  yandexVerificationCode: '',
+  publisherName: 'Alif News 24',
+  publisherLogo: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=300&auto=format&fit=crop&q=80',
+  defaultArticleSchema: 'NewsArticle',
+  defaultRobots: 'index, follow, max-image-preview:large',
+  enableBreadcrumbs: true,
+  enableOrganizationSchema: true,
+  noindexSearchResults: true,
+  seoRedirects: [],
 };
 let cachedSiteConfig: { expiresAt: number; value: SiteSeoConfig } | null = null;
 const entityCache = new Map<string, { expiresAt: number; entity: SeoEntity | null }>();
@@ -322,17 +396,74 @@ async function fetchSiteConfig(): Promise<SiteSeoConfig> {
     }
     const docData: any = await res.json();
     const fields = docData?.fields;
+    const rankFields = fields?.rankSeo?.mapValue?.fields;
+    const rawRedirects = Array.isArray(fields?.seoRedirects?.arrayValue?.values)
+      ? fields.seoRedirects.arrayValue.values
+          .map((rv: any) => {
+            const rf = rv?.mapValue?.fields;
+            if (!rf) return null;
+            return {
+              sourcePath: readStr(rf, 'sourcePath'),
+              targetUrl: readStr(rf, 'targetUrl'),
+              type: (readStr(rf, 'type') || '301') as '301' | '302' | '410',
+              active: readBool(rf, 'active', true),
+            };
+          })
+          .filter((x: RedirectEntry | null): x is RedirectEntry => Boolean(x && x.sourcePath))
+      : [];
+
     const cfg: SiteSeoConfig = {
       adsenseClientId: readStr(fields, 'adsenseClientId').trim(),
       searchConsoleCode: readStr(fields, 'searchConsoleCode').trim(),
       googleAnalyticsId: readStr(fields, 'googleAnalyticsId').trim(),
       siteName: readStr(fields, 'siteName').trim() || 'Alif News 24',
+      titleSeparator: readStr(rankFields, 'titleSeparator').trim() || '|',
+      homeSeoTitle: readStr(rankFields, 'homeSeoTitle').trim(),
+      homeSeoDescription: readStr(rankFields, 'homeSeoDescription').trim() || DEFAULT_SITE_CONFIG.homeSeoDescription,
+      defaultOgTitle: readStr(rankFields, 'defaultOgTitle').trim(),
+      defaultOgDescription: readStr(rankFields, 'defaultOgDescription').trim(),
+      defaultOgImage: readStr(rankFields, 'defaultOgImage').trim() || DEFAULT_SOCIAL_IMAGE,
+      twitterHandle: readStr(rankFields, 'twitterHandle').trim() || '@AlifNews24',
+      bingVerificationCode: readStr(rankFields, 'bingVerificationCode').trim(),
+      yandexVerificationCode: readStr(rankFields, 'yandexVerificationCode').trim(),
+      publisherName: readStr(rankFields, 'publisherName').trim() || readStr(fields, 'siteName').trim() || 'Alif News 24',
+      publisherLogo: readStr(rankFields, 'publisherLogo').trim() || DEFAULT_SITE_CONFIG.publisherLogo,
+      defaultArticleSchema: readStr(rankFields, 'defaultArticleSchema').trim() || 'NewsArticle',
+      defaultRobots: readStr(rankFields, 'defaultRobots').trim() || 'index, follow, max-image-preview:large',
+      enableBreadcrumbs: readBool(rankFields, 'enableBreadcrumbs', true),
+      enableOrganizationSchema: readBool(rankFields, 'enableOrganizationSchema', true),
+      noindexSearchResults: readBool(rankFields, 'noindexSearchResults', true),
+      seoRedirects: rawRedirects,
     };
-    cachedSiteConfig = { expiresAt: now + 60 * 60 * 1000, value: cfg };
+    cachedSiteConfig = { expiresAt: now + 5 * 60 * 1000, value: cfg };
     return cfg;
   } catch {
     return cachedSiteConfig?.value || DEFAULT_SITE_CONFIG;
   }
+}
+
+export async function resolveSsrRedirect(
+  requestPath: string
+): Promise<{ status: 301 | 302 | 410; location?: string } | null> {
+  const cfg = await fetchSiteConfig();
+  const cleanPath = (requestPath || '/').split('?')[0].replace(/\/+$/, '') || '/';
+  for (const rule of cfg.seoRedirects) {
+    if (!rule.active || !rule.sourcePath) continue;
+    const src = rule.sourcePath.trim().replace(/\/+$/, '') || '/';
+    const matched = src.endsWith('*')
+      ? cleanPath.startsWith(src.slice(0, -1))
+      : cleanPath.toLowerCase() === src.toLowerCase();
+    if (matched) {
+      if (rule.type === '410') {
+        return { status: 410 };
+      }
+      return {
+        status: rule.type === '302' ? 302 : 301,
+        location: rule.targetUrl || '/',
+      };
+    }
+  }
+  return null;
 }
 
 async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promise<SeoEntity | null> {
@@ -380,23 +511,70 @@ async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promis
   const title = readStr(f, 'title');
   if (!title) return null;
 
+  const seoFields = f?.seo?.mapValue?.fields;
   const rawContent = readStr(f, 'content');
   const blocksHtml = readBlocksText(f, title);
   const contentHtml = blocksHtml || (rawContent ? formatPlainTextHtml(rawContent, title) : '');
   const description =
+    readStr(seoFields, 'description') ||
     readStr(f, 'seoDescription') ||
-    readStr(f?.seo?.mapValue?.fields, 'description') ||
     readStr(f, 'excerpt') ||
     readStr(f, 'subtitle') ||
     title;
 
+  const tags = Array.isArray(f?.tags?.arrayValue?.values)
+    ? f.tags.arrayValue.values.map((t: any) => String(t?.stringValue || '').trim()).filter(Boolean)
+    : [];
+
+  const faqItems = Array.isArray(seoFields?.faqItems?.arrayValue?.values)
+    ? seoFields.faqItems.arrayValue.values
+        .map((fv: any) => {
+          const ff = fv?.mapValue?.fields;
+          if (!ff) return null;
+          const q = readStr(ff, 'question').trim();
+          const a = readStr(ff, 'answer').trim();
+          return q && a ? { question: q, answer: a } : null;
+        })
+        .filter((x: any): x is { question: string; answer: string } => Boolean(x))
+    : [];
+
+  const howToSteps = Array.isArray(seoFields?.howToSteps?.arrayValue?.values)
+    ? seoFields.howToSteps.arrayValue.values
+        .map((sv: any) => {
+          const sf = sv?.mapValue?.fields;
+          if (!sf) return null;
+          const t = readStr(sf, 'title').trim();
+          const d = readStr(sf, 'description').trim();
+          return t ? { title: t, description: d || t } : null;
+        })
+        .filter((x: any): x is { title: string; description: string } => Boolean(x))
+    : [];
+
   const entity: SeoEntity = {
     kind,
     title,
+    seoTitle: readStr(seoFields, 'title') || readStr(f, 'seoTitle'),
     subtitle: readStr(f, 'subtitle'),
     description: description.slice(0, 300),
     slug: readStr(f, 'slug') || slug,
+    category: readStr(f, 'category'),
+    tags,
     image: readStr(f, 'featuredImage'),
+    imageAlt: readStr(seoFields, 'featuredImageAlt') || title,
+    ogTitle: readStr(seoFields, 'ogTitle'),
+    ogDescription: readStr(seoFields, 'ogDescription'),
+    ogImage: readStr(seoFields, 'ogImage'),
+    twitterCardType: readStr(seoFields, 'twitterCardType') || 'summary_large_image',
+    twitterTitle: readStr(seoFields, 'twitterTitle'),
+    twitterDescription: readStr(seoFields, 'twitterDescription'),
+    canonicalUrl: readStr(seoFields, 'canonicalUrl'),
+    metaRobots: readStr(seoFields, 'metaRobots'),
+    schemaType: readStr(seoFields, 'schemaType'),
+    breadcrumbTitle: readStr(seoFields, 'breadcrumbTitle'),
+    faqItems,
+    howToSteps,
+    redirectUrl: readStr(seoFields, 'redirectUrl'),
+    redirectType: (readStr(seoFields, 'redirectType') || '301') as '301' | '302',
     authorName: readStr(f, 'authorName') || 'Alif News 24 Editorial Desk',
     publishedAt: readStr(f, 'publishedAt') || readStr(f, 'createdAt'),
     updatedAt: readStr(f, 'updatedAt'),
@@ -408,8 +586,22 @@ async function fetchEntityBySlug(kind: 'article' | 'page', slug: string): Promis
     const oldestKey = entityCache.keys().next().value;
     if (oldestKey) entityCache.delete(oldestKey);
   }
-  entityCache.set(cacheKey, { expiresAt: now + 10 * 60 * 1000, entity });
+  entityCache.set(cacheKey, { expiresAt: now + 5 * 60 * 1000, entity });
   return entity;
+}
+
+export async function getEntityRedirectIfAny(
+  type: 'article' | 'page',
+  slug: string
+): Promise<{ status: 301 | 302; location: string } | null> {
+  const entity = await fetchEntityBySlug(type, slug);
+  if (entity?.redirectUrl?.trim()) {
+    return {
+      status: entity.redirectType === '302' ? 302 : 301,
+      location: entity.redirectUrl.trim(),
+    };
+  }
+  return null;
 }
 
 const COUNTRY_META: Record<string, { label: string; title: string; desc: string }> = {
@@ -435,16 +627,13 @@ const COUNTRY_META: Record<string, { label: string; title: string; desc: string 
   },
 };
 
-const DEFAULT_SOCIAL_IMAGE =
-  'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1200&h=630&fit=crop&q=85&fm=jpg';
-
-function resolveAbsoluteSocialImage(rawImg: string, cleanBase: string): string {
+function resolveAbsoluteSocialImage(rawImg: string, cleanBase: string, fallbackImg?: string): string {
   const trimmed = String(rawImg || '').trim();
   const abs = trimmed.startsWith('/') ? `${cleanBase}${trimmed}` : trimmed;
   if (abs && !abs.startsWith('data:')) {
     return abs;
   }
-  return DEFAULT_SOCIAL_IMAGE;
+  return fallbackImg || DEFAULT_SOCIAL_IMAGE;
 }
 
 function injectSocialMetaTags(
@@ -453,37 +642,51 @@ function injectSocialMetaTags(
     title: string;
     description: string;
     canonicalUrl: string;
+    ogTitle?: string;
+    ogDescription?: string;
     ogImage: string;
+    ogImageAlt?: string;
     ogType: 'website' | 'article';
+    robots: string;
+    twitterCard?: string;
+    twitterTitle?: string;
+    twitterDescription?: string;
+    twitterHandle?: string;
   }
 ): string {
   let out = inputHtml;
   out = out.replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '');
+  out = out.replace(/<meta\s+name=["']robots["'][^>]*>\s*/gi, '');
   out = out.replace(/<meta\s+property=["']og:(?:url|title|description|type|image|image:width|image:height|image:alt)["'][^>]*>\s*/gi, '');
-  out = out.replace(/<meta\s+name=["']twitter:(?:card|title|description|image)["'][^>]*>\s*/gi, '');
+  out = out.replace(/<meta\s+name=["']twitter:(?:card|site|title|description|image)["'][^>]*>\s*/gi, '');
+
+  const ogTitle = params.ogTitle || params.title;
+  const ogDesc = params.ogDescription || params.description;
+  const twTitle = params.twitterTitle || ogTitle;
+  const twDesc = params.twitterDescription || ogDesc;
 
   const tags = [
     `<link rel="canonical" href="${escapeHtml(params.canonicalUrl)}" />`,
+    `<meta name="robots" content="${escapeHtml(params.robots)}" />`,
     `<meta property="og:url" content="${escapeHtml(params.canonicalUrl)}" />`,
-    `<meta property="og:title" content="${escapeHtml(params.title)}" />`,
-    `<meta property="og:description" content="${escapeHtml(params.description)}" />`,
+    `<meta property="og:title" content="${escapeHtml(ogTitle)}" />`,
+    `<meta property="og:description" content="${escapeHtml(ogDesc)}" />`,
     `<meta property="og:type" content="${params.ogType}" />`,
     `<meta property="og:image" content="${escapeHtml(params.ogImage)}" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
-    `<meta property="og:image:alt" content="${escapeHtml(params.title)}" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:title" content="${escapeHtml(params.title)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(params.description)}" />`,
+    `<meta property="og:image:alt" content="${escapeHtml(params.ogImageAlt || ogTitle)}" />`,
+    `<meta name="twitter:card" content="${escapeHtml(params.twitterCard || 'summary_large_image')}" />`,
+    ...(params.twitterHandle ? [`<meta name="twitter:site" content="${escapeHtml(params.twitterHandle)}" />`] : []),
+    `<meta name="twitter:title" content="${escapeHtml(twTitle)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(twDesc)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(params.ogImage)}" />`,
   ].join('\n    ');
 
   return out.replace(/<\/head>/i, `    ${tags}\n  </head>`);
 }
 
-async function fetchCountryPosts(
-  country: string
-): Promise<CountryPostSummary[]> {
+async function fetchCountryPosts(country: string): Promise<CountryPostSummary[]> {
   const now = Date.now();
   const cached = countryPostsCache.get(country);
   if (cached && now < cached.expiresAt) {
@@ -538,7 +741,13 @@ async function fetchCountryPosts(
 
 export async function injectSeoIntoHtml(
   templateHtml: string,
-  options: { type: 'article' | 'page' | 'country' | 'home'; slug?: string; country?: string; baseUrl: string }
+  options: {
+    type: 'article' | 'page' | 'country' | 'home';
+    slug?: string;
+    country?: string;
+    baseUrl: string;
+    isSearchQuery?: boolean;
+  }
 ): Promise<string> {
   const cleanBase = options.baseUrl.replace(/\/+$/, '');
   const countryKey = (options.country || '').toLowerCase().trim();
@@ -556,7 +765,7 @@ export async function injectSeoIntoHtml(
 
   let html = templateHtml;
 
-  // Inject dynamic Google Search Console & AdSense verification meta/script if configured
+  // Inject Google, Bing, Yandex verification tags
   const pubMatch = siteCfg.adsenseClientId.match(/(?:ca-)?(pub-\d{10,})/i);
   const adsenseId = pubMatch ? `ca-${pubMatch[1].toLowerCase()}` : '';
   const isRealAdSense = Boolean(adsenseId && adsenseId !== 'ca-pub-9386736849071234');
@@ -565,6 +774,18 @@ export async function injectSeoIntoHtml(
     html = html.replace(
       /<meta\s+name="google-site-verification"[^>]*>/i,
       `<meta name="google-site-verification" content="${escapeHtml(siteCfg.searchConsoleCode)}" id="google-site-verification" />`
+    );
+  }
+  if (siteCfg.bingVerificationCode) {
+    html = html.replace(
+      /<\/head>/i,
+      `    <meta name="msvalidate.01" content="${escapeHtml(siteCfg.bingVerificationCode)}" />\n  </head>`
+    );
+  }
+  if (siteCfg.yandexVerificationCode) {
+    html = html.replace(
+      /<\/head>/i,
+      `    <meta name="yandex-verification" content="${escapeHtml(siteCfg.yandexVerificationCode)}" />\n  </head>`
     );
   }
 
@@ -605,16 +826,29 @@ export async function injectSeoIntoHtml(
     }
   }
 
+  const defaultRobots =
+    options.isSearchQuery && siteCfg.noindexSearchResults
+      ? 'noindex, follow'
+      : siteCfg.defaultRobots || 'index, follow, max-image-preview:large';
+
   if (options.type === 'home') {
-    const homeTitle = `${siteCfg.siteName} - America's 24/7 Live News Portal`;
-    const homeDesc =
-      'Around-the-clock independent investigative journalism, US politics, business, tech, sports, and world news.';
+    const homeTitle = siteCfg.homeSeoTitle || `${siteCfg.siteName} - America's 24/7 Live News Portal`;
+    const homeDesc = siteCfg.homeSeoDescription;
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(homeTitle)}</title>`);
+    html = html.replace(
+      /<meta\s+name="description"[^>]*>/i,
+      `<meta name="description" content="${escapeHtml(homeDesc)}" />`
+    );
     html = injectSocialMetaTags(html, {
       title: homeTitle,
       description: homeDesc,
       canonicalUrl: `${cleanBase}/`,
-      ogImage: DEFAULT_SOCIAL_IMAGE,
+      ogTitle: siteCfg.defaultOgTitle || homeTitle,
+      ogDescription: siteCfg.defaultOgDescription || homeDesc,
+      ogImage: siteCfg.defaultOgImage,
       ogType: 'website',
+      robots: defaultRobots,
+      twitterHandle: siteCfg.twitterHandle,
     });
 
     const listMarkup = countryPosts
@@ -649,9 +883,9 @@ export async function injectSeoIntoHtml(
   if (options.type === 'country' && COUNTRY_META[countryKey]) {
     const meta = COUNTRY_META[countryKey];
     const canonicalUrl = `${cleanBase}/${countryKey}`;
-    const fullTitle = `${meta.title} | ${siteCfg.siteName}`;
+    const fullTitle = `${meta.title} ${siteCfg.titleSeparator} ${siteCfg.siteName}`;
     const leadPostImage = countryPosts.find((p) => p.featuredImage && !p.featuredImage.startsWith('data:'))?.featuredImage || '';
-    const countryOgImage = resolveAbsoluteSocialImage(leadPostImage, cleanBase);
+    const countryOgImage = resolveAbsoluteSocialImage(leadPostImage, cleanBase, siteCfg.defaultOgImage);
 
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(fullTitle)}</title>`);
     html = html.replace(
@@ -664,6 +898,8 @@ export async function injectSeoIntoHtml(
       canonicalUrl,
       ogImage: countryOgImage,
       ogType: 'website',
+      robots: defaultRobots,
+      twitterHandle: siteCfg.twitterHandle,
     });
 
     const listMarkup = countryPosts
@@ -704,17 +940,19 @@ export async function injectSeoIntoHtml(
       ? countryKey
       : '';
 
-  const canonicalUrl =
+  const defaultCanonical =
     entity.kind === 'article'
       ? effectiveCountry
         ? `${cleanBase}/${effectiveCountry}/${encodeURIComponent(entity.slug)}`
         : `${cleanBase}/news/${encodeURIComponent(entity.slug)}`
       : `${cleanBase}/page/${encodeURIComponent(entity.slug)}`;
 
-  const fullTitle = `${entity.title} | ${siteCfg.siteName}`;
-  const ogImage = resolveAbsoluteSocialImage(entity.image || '', cleanBase);
+  const canonicalUrl = entity.canonicalUrl?.trim() || defaultCanonical;
+  const pageTitleCore = entity.seoTitle?.trim() || entity.title;
+  const fullTitle = `${pageTitleCore} ${siteCfg.titleSeparator} ${siteCfg.siteName}`;
+  const ogImage = resolveAbsoluteSocialImage(entity.ogImage || entity.image || '', cleanBase, siteCfg.defaultOgImage);
+  const robots = entity.metaRobots?.trim() || defaultRobots;
 
-  // Replace title & description
   html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(fullTitle)}</title>`);
   html = html.replace(
     /<meta\s+name="description"[^>]*>/i,
@@ -722,55 +960,149 @@ export async function injectSeoIntoHtml(
   );
 
   html = injectSocialMetaTags(html, {
-    title: entity.title,
+    title: pageTitleCore,
     description: entity.description,
     canonicalUrl,
+    ogTitle: entity.ogTitle || pageTitleCore,
+    ogDescription: entity.ogDescription || entity.description,
     ogImage,
+    ogImageAlt: entity.imageAlt || entity.title,
     ogType: entity.kind === 'article' ? 'article' : 'website',
+    robots,
+    twitterCard: entity.twitterCardType || 'summary_large_image',
+    twitterTitle: entity.twitterTitle || entity.ogTitle || pageTitleCore,
+    twitterDescription: entity.twitterDescription || entity.ogDescription || entity.description,
+    twitterHandle: siteCfg.twitterHandle,
   });
 
-  // Replace JSON-LD Schema.org block with rich NewsArticle / WebPage schema
-  const jsonLd =
-    entity.kind === 'article'
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'NewsArticle',
-          headline: entity.title,
-          description: entity.description,
-          image: [ogImage],
-          datePublished: entity.publishedAt || undefined,
-          dateModified: entity.updatedAt || entity.publishedAt || undefined,
-          mainEntityOfPage: {
-            '@type': 'WebPage',
-            '@id': canonicalUrl,
-          },
-          author: [
-            {
-              '@type': 'Person',
-              name: entity.authorName || siteCfg.siteName,
-            },
-          ],
-          publisher: {
-            '@type': 'NewsMediaOrganization',
-            name: siteCfg.siteName,
-            url: cleanBase,
-          },
-        }
-      : {
-          '@context': 'https://schema.org',
+  // Build Rank SEO @graph JSON-LD Schema.org payload
+  let jsonLd: Record<string, any>;
+  if (entity.kind === 'article') {
+    const graph: Array<Record<string, any>> = [];
+    if (siteCfg.enableOrganizationSchema) {
+      graph.push({
+        '@type': 'NewsMediaOrganization',
+        '@id': `${cleanBase}/#organization`,
+        name: siteCfg.publisherName || siteCfg.siteName,
+        url: cleanBase,
+        logo: {
+          '@type': 'ImageObject',
+          url: siteCfg.publisherLogo,
+        },
+      });
+    }
+
+    const schemaType = entity.schemaType || siteCfg.defaultArticleSchema || 'NewsArticle';
+    if (schemaType === 'HowTo' && entity.howToSteps && entity.howToSteps.length > 0) {
+      graph.push({
+        '@type': 'HowTo',
+        name: pageTitleCore,
+        description: entity.description,
+        image: [ogImage],
+        step: entity.howToSteps.map((s, idx) => ({
+          '@type': 'HowToStep',
+          position: idx + 1,
+          name: s.title,
+          text: s.description,
+        })),
+      });
+    } else {
+      graph.push({
+        '@type': schemaType === 'FAQPage' || schemaType === 'HowTo' ? 'NewsArticle' : schemaType,
+        headline: pageTitleCore,
+        description: entity.description,
+        image: [ogImage],
+        datePublished: entity.publishedAt || undefined,
+        dateModified: entity.updatedAt || entity.publishedAt || undefined,
+        mainEntityOfPage: {
           '@type': 'WebPage',
-          name: entity.title,
-          description: entity.description,
-          url: canonicalUrl,
-        };
+          '@id': canonicalUrl,
+        },
+        articleSection: entity.category || 'News',
+        keywords: (entity.tags || []).join(', ') || undefined,
+        author: [
+          {
+            '@type': 'Person',
+            name: entity.authorName || siteCfg.siteName,
+          },
+        ],
+        publisher: {
+          '@id': `${cleanBase}/#organization`,
+        },
+      });
+    }
+
+    if (siteCfg.enableBreadcrumbs) {
+      graph.push({
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: `${cleanBase}/`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: effectiveCountry ? effectiveCountry.toUpperCase() : 'News',
+            item: effectiveCountry ? `${cleanBase}/${effectiveCountry}` : `${cleanBase}/`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: entity.breadcrumbTitle || entity.category || entity.title,
+            item: canonicalUrl,
+          },
+        ],
+      });
+    }
+
+    if (entity.faqItems && entity.faqItems.length > 0) {
+      graph.push({
+        '@type': 'FAQPage',
+        mainEntity: entity.faqItems.map((f) => ({
+          '@type': 'Question',
+          name: f.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: f.answer,
+          },
+        })),
+      });
+    }
+
+    jsonLd = {
+      '@context': 'https://schema.org',
+      '@graph': graph,
+    };
+  } else {
+    jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: pageTitleCore,
+      description: entity.description,
+      url: canonicalUrl,
+    };
+  }
 
   html = html.replace(
     /<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/i,
     `<script type="application/ld+json">\n    ${JSON.stringify(jsonLd)}\n    </script>`
   );
 
-  // Inject clean semantic fallback article markup inside #root so Googlebot / social crawlers
-  // immediately read the full headline & story even before JS hydration replaces #root.
+  const faqHtml =
+    entity.faqItems && entity.faqItems.length > 0
+      ? `<section style="margin-top:32px;padding-top:20px;border-top:1px solid #e2e8f0;"><h2 style="font-size:20px;margin-bottom:12px;">Frequently Asked Questions</h2>${entity.faqItems
+          .map(
+            (f) =>
+              `<details style="margin-bottom:10px;"><summary style="font-weight:700;">${escapeHtml(
+                f.question
+              )}</summary><p style="margin-top:6px;color:#334155;">${escapeHtml(f.answer)}</p></details>`
+          )
+          .join('')}</section>`
+      : '';
+
   const preRenderedBody = `
     <div id="root">
       <main style="max-width:760px;margin:40px auto;padding:0 20px;font-family:Georgia,serif;color:#0f172a;line-height:1.7;">
@@ -778,8 +1110,9 @@ export async function injectSeoIntoHtml(
           <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#dc2626;font-weight:700;">${escapeHtml(siteCfg.siteName)}</p>
           <h1 style="font-size:32px;line-height:1.25;margin:10px 0 14px;">${escapeHtml(entity.title)}</h1>
           ${entity.subtitle ? `<p style="font-size:18px;color:#475569;margin-bottom:20px;">${escapeHtml(entity.subtitle)}</p>` : ''}
-          ${entity.image ? `<img src="${escapeHtml(entity.image)}" alt="${escapeHtml(entity.title)}" style="max-width:100%;height:auto;border-radius:12px;margin-bottom:24px;" />` : ''}
+          ${entity.image ? `<img src="${escapeHtml(entity.image)}" alt="${escapeHtml(entity.imageAlt || entity.title)}" style="max-width:100%;height:auto;border-radius:12px;margin-bottom:24px;" />` : ''}
           <div>${entity.contentHtml || `<p>${escapeHtml(entity.description)}</p>`}</div>
+          ${faqHtml}
         </article>
       </main>
     </div>`;

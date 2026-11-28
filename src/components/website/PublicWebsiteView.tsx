@@ -35,7 +35,7 @@ import {
   getPostPublicPath,
   isCountryEditionSlug,
 } from '../../utils/countryEditions';
-import { updatePageSeo } from '../../services/seo';
+import { updatePageSeo, applyPostSeoToHead, applyHomeSeoToHead } from '../../services/seo';
 import {
   AdSlotRenderer,
   ensureAdSenseScript,
@@ -126,12 +126,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
       setActiveCountry(post.targetCountry);
     }
     navigateTo(getPostPublicPath(post));
-    updatePageSeo({
-      title: post.title,
-      description: post.excerpt,
-      ogImage: post.featuredImage,
-      ogType: 'article',
-    });
+    applyPostSeoToHead(post);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -225,7 +220,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
       if (geo.edition && isCountryEditionSlug(geo.edition)) {
         setActiveCountry(geo.edition);
         replaceRoute('/' + geo.edition);
-        updatePageSeo({ title: COUNTRY_EDITIONS[geo.edition].tagline });
+        applyHomeSeoToHead(COUNTRY_EDITIONS[geo.edition].tagline);
       }
     });
     return () => {
@@ -419,10 +414,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
         document.cookie = 'alif_edition_override=global; path=/; max-age=86400';
       }
       navigateTo('/?edition=global');
-      updatePageSeo({ title: COUNTRY_EDITIONS.global.tagline });
+      applyHomeSeoToHead(COUNTRY_EDITIONS.global.tagline);
     } else {
       navigateTo('/' + country);
-      updatePageSeo({ title: COUNTRY_EDITIONS[country].tagline });
+      applyHomeSeoToHead(COUNTRY_EDITIONS[country].tagline);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -433,10 +428,10 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
     setActivePage(null);
     if (isCountryEditionSlug(activeCountry)) {
       navigateTo('/' + activeCountry);
-      updatePageSeo({ title: COUNTRY_EDITIONS[activeCountry].tagline });
+      applyHomeSeoToHead(COUNTRY_EDITIONS[activeCountry].tagline);
     } else {
       navigateTo('/');
-      updatePageSeo({ title: "America's 24/7 Live News Portal" });
+      applyHomeSeoToHead();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1323,6 +1318,41 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
             >
               {/* Article Editorial Header Column */}
               <header className="max-w-[68ch] mx-auto space-y-5">
+                {/* Semantic Breadcrumb Navigation (Rank SEO Schema Sync) */}
+                {settings.rankSeo?.enableBreadcrumbs !== false && (
+                  <nav
+                    aria-label="Breadcrumb"
+                    className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-slate-500"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCountryEdition('global')}
+                      className="hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
+                    >
+                      Home
+                    </button>
+                    <ChevronRight className="w-3 h-3 opacity-60" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSelectCountryEdition(
+                          isCountryEditionSlug(activeArticle.targetCountry)
+                            ? activeArticle.targetCountry
+                            : 'usa'
+                        )
+                      }
+                      className="hover:text-red-600 dark:hover:text-red-400 uppercase cursor-pointer"
+                    >
+                      {isCountryEditionSlug(activeArticle.targetCountry)
+                        ? activeArticle.targetCountry
+                        : 'News'}
+                    </button>
+                    <ChevronRight className="w-3 h-3 opacity-60" />
+                    <span className="text-slate-600 dark:text-slate-300 font-semibold truncate max-w-[260px]">
+                      {activeArticle.seo?.breadcrumbTitle || activeArticle.category || activeArticle.title}
+                    </span>
+                  </nav>
+                )}
                 {/* Clean unboxed metadata kicker */}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {getPostCategoryList(activeArticle).map((catName, idx, arr) => (
@@ -1405,7 +1435,7 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   <div className="rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-800">
                     <img
                       src={activeArticle.featuredImage}
-                      alt={activeArticle.title}
+                      alt={activeArticle.seo?.featuredImageAlt || activeArticle.title}
                       referrerPolicy="no-referrer"
                       className="w-full max-h-[480px] object-cover"
                     />
@@ -1570,6 +1600,64 @@ export const PublicWebsiteView: React.FC<PublicWebsiteViewProps> = ({
                   });
                 })()}
               </div>
+
+              {/* Step-by-Step HowTo Section (matches HowTo JSON-LD) */}
+              {activeArticle.seo?.schemaType === 'HowTo' &&
+                Array.isArray(activeArticle.seo?.howToSteps) &&
+                activeArticle.seo.howToSteps.some((s) => s.title?.trim()) && (
+                  <section className="max-w-[68ch] mx-auto mt-10 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                    <h2 className="font-['Playfair_Display',Georgia,serif] font-bold text-xl text-slate-950 dark:text-white">
+                      Step-by-Step Guide
+                    </h2>
+                    <ol className="space-y-3">
+                      {activeArticle.seo.howToSteps
+                        .filter((s) => s.title?.trim())
+                        .map((step, i) => (
+                          <li
+                            key={step.id || i}
+                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
+                          >
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                              Step {i + 1}: {step.title}
+                            </p>
+                            {step.description && (
+                              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                                {step.description}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                    </ol>
+                  </section>
+                )}
+
+              {/* Key Questions & Answers (matches FAQPage JSON-LD) */}
+              {Array.isArray(activeArticle.seo?.faqItems) &&
+                activeArticle.seo.faqItems.some((f) => f.question?.trim() && f.answer?.trim()) && (
+                  <section className="max-w-[68ch] mx-auto mt-10 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                    <h2 className="font-['Playfair_Display',Georgia,serif] font-bold text-xl text-slate-950 dark:text-white">
+                      Frequently Asked Questions
+                    </h2>
+                    <div className="space-y-2.5">
+                      {activeArticle.seo.faqItems
+                        .filter((f) => f.question?.trim() && f.answer?.trim())
+                        .map((faq, i) => (
+                          <details
+                            key={faq.id || i}
+                            className="group rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 p-4"
+                          >
+                            <summary className="cursor-pointer font-bold text-sm text-slate-900 dark:text-white list-none flex items-center justify-between gap-2">
+                              <span>{faq.question}</span>
+                              <ChevronRight className="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform shrink-0" />
+                            </summary>
+                            <p className="mt-2.5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {faq.answer}
+                            </p>
+                          </details>
+                        ))}
+                    </div>
+                  </section>
+                )}
 
               {/* Clean Topic Index / Tags */}
               {Array.isArray(activeArticle.tags) && activeArticle.tags.length > 0 && (

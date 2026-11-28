@@ -7,10 +7,14 @@ import dotenv from 'dotenv';
 import {
   generateStandardSitemapXml,
   generateNewsSitemapXml,
-  generateRobotsTxt,
+  generateDynamicRobotsTxt,
   generateAdsTxt,
 } from './src/services/sitemapGenerator';
-import { injectSeoIntoHtml } from './src/services/ssrSeoRenderer';
+import {
+  injectSeoIntoHtml,
+  resolveSsrRedirect,
+  getEntityRedirectIfAny,
+} from './src/services/ssrSeoRenderer';
 import { resolveMediaAsset } from './src/services/mediaServer';
 import { fetchGoogleTrendsFeed, runGeminiEditorialAction } from './src/services/trendsAndAiServer';
 import { getEditionFromIsoCountry } from './src/utils/countryEditions';
@@ -214,10 +218,11 @@ app.get('/google:hash.html', (req, res) => {
 });
 
 // 2. robots.txt endpoint
-app.get(['/robots.txt', '/api/robots'], (req, res) => {
+app.get(['/robots.txt', '/api/robots'], async (req, res) => {
   const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
   const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-  res.type('text/plain').send(generateRobotsTxt(`${protocol}://${host}`));
+  const txt = await generateDynamicRobotsTxt(`${protocol}://${host}`);
+  res.type('text/plain').send(txt);
 });
 
 // 3. Live Firestore-backed sitemap.xml & google-news-sitemap.xml endpoints for Google Search Console
@@ -360,6 +365,21 @@ async function startServer() {
     return false;
   };
 
+  const handleGlobalRedirect = async (req: express.Request, res: express.Response): Promise<boolean> => {
+    try {
+      const match = await resolveSsrRedirect(req.path);
+      if (!match) return false;
+      if (match.status === 410) {
+        res.status(410).type('html').send('<!doctype html><html><head><title>410 Content Removed</title><meta name="robots" content="noindex" /></head><body style="font-family:sans-serif;text-align:center;padding:60px;"><h1>410 - Content Permanently Removed</h1><p><a href="/">Return to Alif News 24</a></p></body></html>');
+        return true;
+      }
+      res.redirect(match.status, match.location || '/');
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -374,7 +394,11 @@ async function startServer() {
         const baseUrl = `${protocol}://${host}`;
         const rawHtml = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf8');
         const transformed = await vite.transformIndexHtml(req.originalUrl, rawHtml);
-        const finalHtml = await injectSeoIntoHtml(transformed, { type: 'home', baseUrl });
+        const finalHtml = await injectSeoIntoHtml(transformed, {
+          type: 'home',
+          baseUrl,
+          isSearchQuery: Boolean(req.query?.search || req.query?.s),
+        });
         res.status(200).set({ 'Content-Type': 'text/html' }).end(finalHtml);
       } catch (e) {
         next(e);
@@ -385,11 +409,7 @@ async function startServer() {
       ['/:country(usa|uk|canada|australia)', '/:country(usa|uk|canada|australia)/:slug', '/news/:slug', '/page/:slug'],
       async (req, res, next) => {
         try {
-          const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
-          const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-          const baseUrl = `${protocol}://${host}`;
-          const rawHtml = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf8');
-          const transformed = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+          if (await handleGlobalRedirect(req, res)) return;
           const country = req.params.country;
           const slug = req.params.slug;
           const type = req.path.startsWith('/page/')
@@ -397,6 +417,18 @@ async function startServer() {
             : country && !slug
             ? 'country'
             : 'article';
+          if ((type === 'article' || type === 'page') && slug) {
+            const entityRedir = await getEntityRedirectIfAny(type, slug);
+            if (entityRedir) {
+              res.redirect(entityRedir.status, entityRedir.location);
+              return;
+            }
+          }
+          const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+          const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+          const baseUrl = `${protocol}://${host}`;
+          const rawHtml = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf8');
+          const transformed = await vite.transformIndexHtml(req.originalUrl, rawHtml);
           const finalHtml = await injectSeoIntoHtml(transformed, {
             type,
             slug,
@@ -410,6 +442,11 @@ async function startServer() {
       }
     );
 
+    app.get(['/tag/*', '/product/*'], async (req, res, next) => {
+      if (await handleGlobalRedirect(req, res)) return;
+      next();
+    });
+
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
@@ -419,16 +456,17 @@ async function startServer() {
       const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
       const baseUrl = `${protocol}://${host}`;
       const distHtml = fs.readFileSync(path.resolve(__dirname, 'dist', 'index.html'), 'utf8');
-      const finalHtml = await injectSeoIntoHtml(distHtml, { type: 'home', baseUrl });
+      const finalHtml = await injectSeoIntoHtml(distHtml, {
+        type: 'home',
+        baseUrl,
+        isSearchQuery: Boolean(req.query?.search || req.query?.s),
+      });
       res.status(200).set({ 'Content-Type': 'text/html' }).end(finalHtml);
     });
     app.get(
       ['/:country(usa|uk|canada|australia)', '/:country(usa|uk|canada|australia)/:slug', '/news/:slug', '/page/:slug'],
       async (req, res) => {
-        const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
-        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-        const baseUrl = `${protocol}://${host}`;
-        const distHtml = fs.readFileSync(path.resolve(__dirname, 'dist', 'index.html'), 'utf8');
+        if (await handleGlobalRedirect(req, res)) return;
         const country = req.params.country;
         const slug = req.params.slug;
         const type = req.path.startsWith('/page/')
@@ -436,6 +474,17 @@ async function startServer() {
           : country && !slug
           ? 'country'
           : 'article';
+        if ((type === 'article' || type === 'page') && slug) {
+          const entityRedir = await getEntityRedirectIfAny(type, slug);
+          if (entityRedir) {
+            res.redirect(entityRedir.status, entityRedir.location);
+            return;
+          }
+        }
+        const host = req.get('x-forwarded-host') || req.get('host') || 'official1.online';
+        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+        const baseUrl = `${protocol}://${host}`;
+        const distHtml = fs.readFileSync(path.resolve(__dirname, 'dist', 'index.html'), 'utf8');
         const finalHtml = await injectSeoIntoHtml(distHtml, {
           type,
           slug,
@@ -445,7 +494,8 @@ async function startServer() {
         res.status(200).set({ 'Content-Type': 'text/html' }).end(finalHtml);
       }
     );
-    app.get('*', (req, res) => {
+    app.get('*', async (req, res) => {
+      if (await handleGlobalRedirect(req, res)) return;
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }

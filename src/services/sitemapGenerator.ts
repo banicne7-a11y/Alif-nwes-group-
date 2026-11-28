@@ -7,6 +7,8 @@ interface SitemapUrlItem {
   priority: string;
   title?: string;
   publishedAt?: string;
+  imageUrl?: string;
+  imageCaption?: string;
 }
 
 function escapeXml(str: string): string {
@@ -41,6 +43,13 @@ function readStringField(fields: Record<string, any> | undefined, key: string): 
   return fields?.[key]?.stringValue ? String(fields[key].stringValue) : '';
 }
 
+function readBoolField(fields: Record<string, any> | undefined, key: string, fallback: boolean): boolean {
+  if (fields?.[key] && typeof fields[key].booleanValue === 'boolean') {
+    return fields[key].booleanValue;
+  }
+  return fallback;
+}
+
 async function runFirestoreQuery(structuredQuery: Record<string, any>): Promise<Array<Record<string, any>>> {
   const projectId = firebaseConfig.projectId;
   const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
@@ -63,14 +72,27 @@ async function runFirestoreQuery(structuredQuery: Record<string, any>): Promise<
     .map((r) => r.document.fields as Record<string, any>);
 }
 
+async function fetchPublicSiteSettingsFields(): Promise<Record<string, any> | undefined> {
+  const projectId = firebaseConfig.projectId;
+  const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+  const apiKey = firebaseConfig.apiKey;
+  const endpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/${encodeURIComponent(databaseId)}/documents/config/site_settings?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(endpoint);
+  if (!res.ok) return undefined;
+  const docData: any = await res.json();
+  return docData?.fields;
+}
+
 type SitemapDataPayload = {
   posts: SitemapUrlItem[];
   countryEditions: SitemapUrlItem[];
   categories: SitemapUrlItem[];
   pages: SitemapUrlItem[];
+  enableImageSitemap: boolean;
+  siteName: string;
 };
 
-const SITEMAP_CACHE_TTL_MS = 15 * 60 * 1000;
+const SITEMAP_CACHE_TTL_MS = 10 * 60 * 1000;
 const cachedSitemapByBase = new Map<string, { expiresAt: number; data: SitemapDataPayload }>();
 
 async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload> {
@@ -86,8 +108,10 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload
   let postFields: Array<Record<string, any>>;
   let catFields: Array<Record<string, any>>;
   let pageFields: Array<Record<string, any>>;
+  let settingsFields: Record<string, any> | undefined;
+
   try {
-    [postFields, catFields, pageFields] = await Promise.all([
+    [postFields, catFields, pageFields, settingsFields] = await Promise.all([
       runFirestoreQuery({
         from: [{ collectionId: 'posts' }],
         where: {
@@ -114,6 +138,7 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload
         },
         limit: 100,
       }).catch(() => []),
+      fetchPublicSiteSettingsFields().catch(() => undefined),
     ]);
   } catch (err) {
     if (cached) {
@@ -123,8 +148,18 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload
     throw err;
   }
 
+  const rankSeoFields = settingsFields?.rankSeo?.mapValue?.fields;
+  const enableImageSitemap = readBoolField(rankSeoFields, 'enableImageSitemap', true);
+  const siteName = readStringField(settingsFields, 'siteName') || 'Alif News 24';
+
   const posts: SitemapUrlItem[] = postFields
     .map<SitemapUrlItem | null>((f) => {
+      const seoFields = f?.seo?.mapValue?.fields;
+      const metaRobots = readStringField(seoFields, 'metaRobots').toLowerCase();
+      const redirectUrl = readStringField(seoFields, 'redirectUrl').trim();
+      // Exclude noindex or redirected posts from XML sitemaps cleanly (Rank SEO rule)
+      if (metaRobots.includes('noindex') || redirectUrl) return null;
+
       const slug = readStringField(f, 'slug') || readStringField(f, 'id');
       if (!slug) return null;
       const targetCountry = readStringField(f, 'targetCountry').toLowerCase().trim();
@@ -137,13 +172,24 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload
           : `/news/${encodeURIComponent(slug)}`;
       const updated = readStringField(f, 'updatedAt') || readStringField(f, 'publishedAt');
       const published = readStringField(f, 'publishedAt') || readStringField(f, 'createdAt') || updated;
+      const rawImage = readStringField(f, 'featuredImage').trim();
+      const imageUrl =
+        rawImage && !rawImage.startsWith('data:')
+          ? rawImage.startsWith('/')
+            ? `${cleanBase}${rawImage}`
+            : rawImage
+          : '';
+      const imageCaption = readStringField(seoFields, 'featuredImageAlt') || readStringField(f, 'title') || slug;
+
       return {
         loc: `${cleanBase}${postPath}`,
         lastmod: toIsoDate(updated),
         changefreq: 'hourly',
-        priority: '0.9',
+        priority: readStringField(seoFields, 'isPillarContent') ? '1.0' : '0.9',
         title: readStringField(f, 'title') || slug,
         publishedAt: toIsoDateTime(published),
+        imageUrl,
+        imageCaption,
       };
     })
     .filter((item): item is SitemapUrlItem => item !== null)
@@ -204,7 +250,14 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload
       priority: '0.6',
     }));
 
-  const payload: SitemapDataPayload = { posts, countryEditions, categories, pages };
+  const payload: SitemapDataPayload = {
+    posts,
+    countryEditions,
+    categories,
+    pages,
+    enableImageSitemap,
+    siteName,
+  };
   cachedSitemapByBase.set(cleanBase, {
     expiresAt: now + SITEMAP_CACHE_TTL_MS,
     data: payload,
@@ -215,7 +268,7 @@ async function fetchLiveSitemapData(baseUrl: string): Promise<SitemapDataPayload
 export async function generateStandardSitemapXml(baseUrl: string): Promise<string> {
   const cleanBase = baseUrl.replace(/\/+$/, '');
   const today = new Date().toISOString().slice(0, 10);
-  const { posts, countryEditions, categories, pages } = await fetchLiveSitemapData(cleanBase);
+  const { posts, countryEditions, categories, pages, enableImageSitemap } = await fetchLiveSitemapData(cleanBase);
 
   const urls: SitemapUrlItem[] = [
     {
@@ -230,24 +283,32 @@ export async function generateStandardSitemapXml(baseUrl: string): Promise<strin
     ...pages,
   ];
 
+  const imageNs = enableImageSitemap ? ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"' : '';
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${imageNs}>
 ${urls
-  .map(
-    (u) => `  <url>
+  .map((u) => {
+    const imgXml =
+      enableImageSitemap && u.imageUrl
+        ? `\n    <image:image>\n      <image:loc>${escapeXml(u.imageUrl)}</image:loc>\n      <image:title>${escapeXml(
+            u.imageCaption || u.title || 'News Image'
+          )}</image:title>\n    </image:image>`
+        : '';
+    return `  <url>
     <loc>${escapeXml(u.loc)}</loc>
     <lastmod>${escapeXml(u.lastmod)}</lastmod>
     <changefreq>${escapeXml(u.changefreq)}</changefreq>
-    <priority>${escapeXml(u.priority)}</priority>
-  </url>`
-  )
+    <priority>${escapeXml(u.priority)}</priority>${imgXml}
+  </url>`;
+  })
   .join('\n')}
 </urlset>`;
 }
 
 export async function generateNewsSitemapXml(baseUrl: string): Promise<string> {
   const cleanBase = baseUrl.replace(/\/+$/, '');
-  const { posts } = await fetchLiveSitemapData(cleanBase);
+  const { posts, siteName } = await fetchLiveSitemapData(cleanBase);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -259,7 +320,7 @@ ${posts
     <loc>${escapeXml(p.loc)}</loc>
     <news:news>
       <news:publication>
-        <news:name>Alif News 24</news:name>
+        <news:name>${escapeXml(siteName)}</news:name>
         <news:language>en</news:language>
       </news:publication>
       <news:publication_date>${escapeXml(p.publishedAt || new Date().toISOString())}</news:publication_date>
@@ -282,6 +343,33 @@ Disallow: /api/
 Sitemap: ${cleanBase}/sitemap.xml
 Sitemap: ${cleanBase}/google-news-sitemap.xml
 `;
+}
+
+let cachedRobotsTxt: { expiresAt: number; value: string } | null = null;
+
+export async function generateDynamicRobotsTxt(baseUrl: string): Promise<string> {
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const now = Date.now();
+  if (cachedRobotsTxt && now < cachedRobotsTxt.expiresAt) {
+    return cachedRobotsTxt.value;
+  }
+
+  try {
+    const fields = await fetchPublicSiteSettingsFields();
+    const customRobots = readStringField(fields, 'robotsTxt').trim();
+    if (customRobots) {
+      let normalized = customRobots;
+      if (!/sitemap:/i.test(normalized)) {
+        normalized += `\n\nSitemap: ${cleanBase}/sitemap.xml\nSitemap: ${cleanBase}/google-news-sitemap.xml\n`;
+      }
+      cachedRobotsTxt = { expiresAt: now + 5 * 60 * 1000, value: normalized };
+      return normalized;
+    }
+  } catch {
+    if (cachedRobotsTxt) return cachedRobotsTxt.value;
+  }
+
+  return generateRobotsTxt(baseUrl);
 }
 
 let cachedAdsTxt: { expiresAt: number; value: string } | null = null;
@@ -324,4 +412,3 @@ export async function generateAdsTxt(): Promise<string> {
   }
   return result;
 }
-

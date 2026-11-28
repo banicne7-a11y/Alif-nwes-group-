@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { injectSeoIntoHtml } from '../src/services/ssrSeoRenderer.js';
+import {
+  injectSeoIntoHtml,
+  resolveSsrRedirect,
+  getEntityRedirectIfAny,
+} from '../src/services/ssrSeoRenderer.js';
 import { getEditionFromIsoCountry } from '../src/utils/countryEditions.js';
 
 const BOT_UA_REGEX =
@@ -14,6 +18,26 @@ export default async function handler(req: any, res: any) {
     const proto = Array.isArray(rawProto) ? rawProto[0] : rawProto;
     const baseUrl = `${proto}://${host}`;
 
+    const rawUrl = String(req.url || '/');
+    const requestPath = rawUrl.split('?')[0];
+
+    // Check Rank SEO global redirects (301/302/410) first
+    const matchedRedirect = await resolveSsrRedirect(requestPath);
+    if (matchedRedirect) {
+      if (matchedRedirect.status === 410) {
+        res.statusCode = 410;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('X-Robots-Tag', 'noindex');
+        res.end('<!doctype html><html><head><title>410 Content Removed</title><meta name="robots" content="noindex" /></head><body style="font-family:sans-serif;text-align:center;padding:60px;"><h1>410 - Content Permanently Removed</h1><p>This archived page is no longer available. <a href="/">Return to Alif News 24</a></p></body></html>');
+        return;
+      }
+      res.statusCode = matchedRedirect.status;
+      res.setHeader('Location', matchedRedirect.location || '/');
+      res.setHeader('Cache-Control', 'public, s-maxage=300');
+      res.end();
+      return;
+    }
+
     const rawType = String(req.query?.type || 'article').toLowerCase();
     const type: 'article' | 'page' | 'country' | 'home' =
       rawType === 'page'
@@ -25,6 +49,18 @@ export default async function handler(req: any, res: any) {
         : 'article';
     const slug = String(req.query?.slug || '').trim();
     const country = String(req.query?.country || '').trim().toLowerCase();
+
+    // Check per-article redirect if configured in editor
+    if ((type === 'article' || type === 'page') && slug) {
+      const entityRedirect = await getEntityRedirectIfAny(type, slug);
+      if (entityRedirect) {
+        res.statusCode = entityRedirect.status;
+        res.setHeader('Location', entityRedirect.location);
+        res.setHeader('Cache-Control', 'public, s-maxage=300');
+        res.end();
+        return;
+      }
+    }
 
     // Auto Geo-Redirect ONLY on root '/' for human visitors from Tier-1 editions (never redirect bots/crawlers!)
     if (type === 'home') {
@@ -70,11 +106,13 @@ export default async function handler(req: any, res: any) {
       templateHtml = await originRes.text();
     }
 
+    const isSearchQuery = Boolean(req.query?.search || req.query?.s);
     const rendered = await injectSeoIntoHtml(templateHtml, {
       type,
       slug,
       country,
       baseUrl,
+      isSearchQuery,
     });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

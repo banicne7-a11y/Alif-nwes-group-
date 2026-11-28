@@ -167,11 +167,15 @@ service cloud.firestore {
           'permalinkStructure', 'logoUrl', 'faviconUrl', 'primaryColor',
           'darkMode', 'googleAnalyticsId', 'searchConsoleCode', 'adsenseClientId',
           'autoAds', 'breakingNewsTickerActive', 'breakingNewsText',
+          'robotsTxt', 'rankSeo', 'seoRedirects',
           'aboutText', 'publisherText', 'copyrightText', 'columns'
         ])
         && isValidId(data.id)
         && (!('siteName' in data) || (data.siteName is string && data.siteName.size() <= 150))
         && (!('breakingNewsText' in data) || (data.breakingNewsText is string && data.breakingNewsText.size() <= 1000))
+        && (!('robotsTxt' in data) || (data.robotsTxt is string && data.robotsTxt.size() <= 5000))
+        && (!('rankSeo' in data) || data.rankSeo is map)
+        && (!('seoRedirects' in data) || (data.seoRedirects is list && data.seoRedirects.size() <= 100 && (data.seoRedirects.size() == 0 || data.seoRedirects[0] is map)))
         && (!('columns' in data) || (data.columns is list && data.columns.size() <= 10 && (data.columns.size() == 0 || data.columns[0] is map)));
     }
 

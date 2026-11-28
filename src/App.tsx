@@ -28,9 +28,16 @@ import { PublicWebsiteView } from './components/website/PublicWebsiteView';
 import { ToastContainer } from './components/common/ToastContainer';
 import { db } from './services/db';
 import { Post } from './types';
-import { parseCurrentRoute, navigateTo, RouteInfo } from './services/router';
+import { parseCurrentRoute, navigateTo, replaceRoute } from './services/router';
 import { getPostPublicPath, COUNTRY_EDITIONS } from './utils/countryEditions';
-import { updatePageSeo, applyGoogleVerificationTag, applyAdSenseVerificationTags } from './services/seo';
+import {
+  updatePageSeo,
+  applyPostSeoToHead,
+  applyHomeSeoToHead,
+  matchClientRedirectRule,
+  applyGoogleVerificationTag,
+  applyAdSenseVerificationTags,
+} from './services/seo';
 import { authService } from './services/auth';
 import { auth, onAuthStateChanged } from './services/firebase';
 import { isFirebaseAdminUser } from './services/firestoreSync';
@@ -91,31 +98,50 @@ export default function App() {
     applyAdSenseVerificationTags();
 
     const handleSync = () => {
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+      if (!currentPath.startsWith('/admin')) {
+        const matchedRule = matchClientRedirectRule(currentPath);
+        if (matchedRule && matchedRule.type !== '410' && matchedRule.targetUrl) {
+          if (matchedRule.targetUrl.startsWith('http')) {
+            window.location.replace(matchedRule.targetUrl);
+            return;
+          } else if (matchedRule.targetUrl !== currentPath) {
+            replaceRoute(matchedRule.targetUrl);
+            return;
+          }
+        }
+      }
+
       const route = parseCurrentRoute();
       if (route.type === 'admin') {
         if (!authService.isAuthenticated()) {
           setIsWebsiteMode(true);
           setIsLoginModalOpen(true);
-          updatePageSeo({ title: 'Editorial Desk | Alif News 24' });
+          updatePageSeo({ title: 'Editorial Desk', metaRobots: 'noindex, nofollow' });
         } else {
           setIsWebsiteMode(false);
           setCurrentView(route.view || 'dashboard');
           setPreviewArticle(null);
           setPreviewPage(null);
-          updatePageSeo({ title: `Editorial Workspace - ${route.view || 'Dashboard'}` });
+          updatePageSeo({ title: `Editorial Workspace - ${route.view || 'Dashboard'}`, metaRobots: 'noindex, nofollow' });
         }
       } else if (route.type === 'article') {
         const found = db.getPosts().find((p) => p.slug === route.slug || p.id === route.slug);
         if (found) {
+          if (found.seo?.redirectUrl?.trim()) {
+            const target = found.seo.redirectUrl.trim();
+            if (target.startsWith('http')) {
+              window.location.replace(target);
+              return;
+            } else if (target !== currentPath) {
+              replaceRoute(target);
+              return;
+            }
+          }
           setIsWebsiteMode(true);
           setPreviewArticle(found);
           setPreviewPage(null);
-          updatePageSeo({
-            title: found.title,
-            description: found.excerpt,
-            ogImage: found.featuredImage,
-            ogType: 'article',
-          });
+          applyPostSeoToHead(found);
         }
       } else if (route.type === 'page') {
         const found = db.getPages().find((p) => p.slug === route.slug || p.id === route.slug);
@@ -133,17 +159,23 @@ export default function App() {
         setPreviewArticle(null);
         setPreviewPage(null);
         const meta = COUNTRY_EDITIONS[route.country];
-        updatePageSeo({ title: meta.tagline });
+        applyHomeSeoToHead(meta.tagline);
       } else if (route.type === 'category') {
         setIsWebsiteMode(true);
         setPreviewArticle(null);
         setPreviewPage(null);
-        updatePageSeo({ title: `${route.slug.toUpperCase()} News` });
+        const catObj = db.getCategories().find(
+          (c) => c.slug.toLowerCase() === route.slug.toLowerCase() || c.name.toLowerCase() === route.slug.toLowerCase()
+        );
+        updatePageSeo({
+          title: catObj?.metaTitle || `${catObj?.name || route.slug.toUpperCase()} News`,
+          description: catObj?.metaDescription || `Latest verified ${route.slug} news, analysis, and coverage.`,
+        });
       } else {
         setIsWebsiteMode(true);
         setPreviewArticle(null);
         setPreviewPage(null);
-        updatePageSeo({ title: "America's 24/7 Live News Portal" });
+        applyHomeSeoToHead();
       }
     };
 
@@ -237,12 +269,7 @@ export default function App() {
     setPreviewPage(null);
     setIsWebsiteMode(true);
     navigateTo(getPostPublicPath(post));
-    updatePageSeo({
-      title: post.title,
-      description: post.excerpt,
-      ogImage: post.featuredImage,
-      ogType: 'article',
-    });
+    applyPostSeoToHead(post);
   };
 
   const handleLoginSuccess = () => {
@@ -259,7 +286,7 @@ export default function App() {
     setIsAdminAuthenticated(false);
     setIsWebsiteMode(true);
     navigateTo('/');
-    updatePageSeo({ title: "America's 24/7 Live News Portal" });
+    applyHomeSeoToHead();
     toast.success('Logged out successfully. Returned to public news portal.');
   };
 
@@ -318,7 +345,7 @@ export default function App() {
             setPreviewPage(null);
             setIsWebsiteMode(true);
             navigateTo('/');
-            updatePageSeo({ title: "America's 24/7 Live News Portal" });
+            applyHomeSeoToHead();
           }}
           onNavigate={handleNavigate}
           onLogout={handleLogoutAdmin}
@@ -416,7 +443,7 @@ export default function App() {
 
           {currentView === 'comments' && <CommentsView />}
 
-          {currentView === 'seo' && <SeoManagerView />}
+          {currentView === 'seo' && <SeoManagerView onEditPost={handleOpenEditor} />}
 
           {currentView === 'analytics' && <AnalyticsView />}
 

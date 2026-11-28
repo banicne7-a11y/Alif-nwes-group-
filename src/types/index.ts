@@ -66,6 +66,17 @@ export interface Post {
     schemaType?: string;
     ogTitle?: string;
     ogDescription?: string;
+    ogImage?: string;
+    twitterCardType?: 'summary_large_image' | 'summary';
+    twitterTitle?: string;
+    twitterDescription?: string;
+    featuredImageAlt?: string;
+    breadcrumbTitle?: string;
+    isPillarContent?: boolean;
+    faqItems?: Array<{ id: string; question: string; answer: string }>;
+    howToSteps?: Array<{ id: string; title: string; description: string }>;
+    redirectUrl?: string;
+    redirectType?: '301' | '302';
   };
   customFields?: Record<string, string>;
   readTime?: string;
@@ -191,6 +202,52 @@ export interface NewsletterCampaign {
   clickRate?: string;
 }
 
+export interface SeoRedirectRule {
+  id: string;
+  sourcePath: string;
+  targetUrl: string;
+  type: '301' | '302' | '410';
+  active: boolean;
+  hits?: number;
+  note?: string;
+  createdAt: string;
+}
+
+export interface RankSeoSettings {
+  titleSeparator: '|' | '-' | '•' | '—' | '»';
+  homeSeoTitle: string;
+  homeSeoDescription: string;
+  defaultOgTitle: string;
+  defaultOgDescription: string;
+  defaultOgImage: string;
+  twitterHandle: string;
+  bingVerificationCode: string;
+  yandexVerificationCode: string;
+  publisherName: string;
+  publisherLogo: string;
+  defaultArticleSchema: 'NewsArticle' | 'Article' | 'BlogPosting' | 'AnalysisNewsArticle' | 'Report';
+  defaultRobots: string;
+  enableBreadcrumbs: boolean;
+  enableOrganizationSchema: boolean;
+  enableImageSitemap: boolean;
+  enableFaqSchema: boolean;
+  noindexSearchResults: boolean;
+  noindexEmptyArchives: boolean;
+  autoInternalLinking: boolean;
+  indexNowKey: string;
+  modules: {
+    seoAnalysis: boolean;
+    schemaGenerator: boolean;
+    sitemaps: boolean;
+    redirections: boolean;
+    instantIndexing: boolean;
+    linkSuggestions: boolean;
+    imageSeo: boolean;
+    breadcrumbs: boolean;
+    robotsEditor: boolean;
+  };
+}
+
 export interface SystemSettings {
   siteName: string;
   tagline: string;
@@ -220,6 +277,8 @@ export interface SystemSettings {
   maxLoginAttempts: number;
   breakingNewsTickerActive: boolean;
   breakingNewsText: string;
+  rankSeo?: RankSeoSettings;
+  seoRedirects?: SeoRedirectRule[];
 }
 
 export interface ActivityLog {
